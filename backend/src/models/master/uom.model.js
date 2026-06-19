@@ -121,10 +121,24 @@ async function remove(id) {
   return result;
 }
 
+async function countUsedByItems(id) {
+  const [rows] = await db.query(
+    `
+      SELECT COUNT(*) AS total
+      FROM items
+      WHERE uom_id = ?
+    `,
+    [id]
+  );
+
+  return rows[0]?.total || 0;
+}
+
 module.exports = {
   findAll,
   findById,
   create,
   update,
   remove,
+  countUsedByItems,
 };

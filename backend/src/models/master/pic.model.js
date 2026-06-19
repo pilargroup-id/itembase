@@ -121,10 +121,24 @@ async function remove(id) {
   return result;
 }
 
+async function countUsedByCategories(id) {
+  const [rows] = await db.query(
+    `
+      SELECT COUNT(*) AS total
+      FROM master_categories
+      WHERE pic_id = ?
+    `,
+    [id]
+  );
+
+  return rows[0]?.total || 0;
+}
+
 module.exports = {
   findAll,
   findById,
   create,
   update,
   remove,
+  countUsedByCategories,
 };

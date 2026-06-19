@@ -9,30 +9,72 @@ function makeError(message, statusCode = 400, code = 'ERROR') {
 
 function normalizePayload(payload) {
   return {
-    detail_category: payload.detail_category,
-    sub_category: payload.sub_category,
-    main_category: payload.main_category,
-    brand_category: payload.brand_category,
+    detail_category: String(payload.detail_category).trim(),
+    sub_category: String(payload.sub_category).trim(),
+    main_category: String(payload.main_category).trim(),
+    brand_category: String(payload.brand_category).trim(),
     pic_id: payload.pic_id || null,
     is_active: payload.is_active ?? 1,
   };
 }
 
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function validateRequired(value) {
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function isValidBoolean(value) {
+  return [0, 1, '0', '1', true, false].includes(value);
+}
+
 function validatePayload(payload) {
-  if (!payload.detail_category || String(payload.detail_category).trim() === '') {
-    throw makeError('Detail category is required', 422, 'VALIDATION_ERROR');
+  const errors = {};
+
+  if (!validateRequired(payload.detail_category)) {
+    errors.detail_category = 'Detail category is required';
   }
 
-  if (!payload.sub_category || String(payload.sub_category).trim() === '') {
-    throw makeError('Sub category is required', 422, 'VALIDATION_ERROR');
+  if (!validateRequired(payload.sub_category)) {
+    errors.sub_category = 'Sub category is required';
   }
 
-  if (!payload.main_category || String(payload.main_category).trim() === '') {
-    throw makeError('Main category is required', 422, 'VALIDATION_ERROR');
+  if (!validateRequired(payload.main_category)) {
+    errors.main_category = 'Main category is required';
   }
 
-  if (!payload.brand_category || String(payload.brand_category).trim() === '') {
-    throw makeError('Brand category is required', 422, 'VALIDATION_ERROR');
+  if (!validateRequired(payload.brand_category)) {
+    errors.brand_category = 'Brand category is required';
+  }
+
+  if (hasValue(payload.detail_category) && String(payload.detail_category).length > 150) {
+    errors.detail_category = 'Detail category cannot be longer than 150 characters';
+  }
+
+  if (hasValue(payload.sub_category) && String(payload.sub_category).length > 100) {
+    errors.sub_category = 'Sub category cannot be longer than 100 characters';
+  }
+
+  if (hasValue(payload.main_category) && String(payload.main_category).length > 100) {
+    errors.main_category = 'Main category cannot be longer than 100 characters';
+  }
+
+  if (hasValue(payload.brand_category) && String(payload.brand_category).length > 100) {
+    errors.brand_category = 'Brand category cannot be longer than 100 characters';
+  }
+
+  if (hasValue(payload.pic_id) && String(payload.pic_id).length > 36) {
+    errors.pic_id = 'PIC is invalid';
+  }
+
+  if (hasValue(payload.is_active) && !isValidBoolean(payload.is_active)) {
+    errors.is_active = 'Is active must be 0 or 1';
+  }
+
+  if (Object.keys(errors).length) {
+    throw makeError('Validation failed', 422, 'VALIDATION_ERROR', errors);
   }
 }
 
@@ -104,6 +146,13 @@ async function update(id, payload) {
 
 async function destroy(id) {
   await show(id);
+
+  const usedCount = await CategoryModel.countUsedByItemParents(id);
+
+  if (usedCount > 0) {
+    throw makeError('Category is already used by item parents', 409, 'MASTER_DATA_IN_USE');
+  }
+
   await CategoryModel.remove(id);
 
   return {

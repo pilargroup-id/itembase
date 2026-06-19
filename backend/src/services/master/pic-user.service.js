@@ -7,6 +7,14 @@ function makeError(message, statusCode = 400, code = 'ERROR') {
   return error;
 }
 
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function isValidBoolean(value) {
+  return [0, 1, '0', '1', true, false].includes(value);
+}
+
 function normalizeBoolean(value, defaultValue = 0) {
   if (value === undefined || value === null || value === '') {
     return defaultValue;
@@ -19,7 +27,7 @@ function normalizeUsers(users) {
   const hasPrimary = users.some((user) => normalizeBoolean(user.is_primary, 0) === 1);
 
   return users.map((user, index) => ({
-    central_user_id: user.central_user_id,
+    central_user_id: String(user.central_user_id).trim(),
     is_primary: hasPrimary
       ? normalizeBoolean(user.is_primary, 0)
       : (index === 0 ? 1 : 0),
@@ -43,7 +51,19 @@ function validateUsers(users) {
       throw makeError(`Central user is required at index ${index}`, 422, 'VALIDATION_ERROR');
     }
 
-    centralUserIds.push(user.central_user_id);
+    if (String(user.central_user_id).length > 36) {
+      throw makeError(`Central user is invalid at index ${index}`, 422, 'VALIDATION_ERROR');
+    }
+
+    if (hasValue(user.is_primary) && !isValidBoolean(user.is_primary)) {
+      throw makeError(`Is primary must be 0 or 1 at index ${index}`, 422, 'VALIDATION_ERROR');
+    }
+
+    if (hasValue(user.is_active) && !isValidBoolean(user.is_active)) {
+      throw makeError(`Is active must be 0 or 1 at index ${index}`, 422, 'VALIDATION_ERROR');
+    }
+
+    centralUserIds.push(String(user.central_user_id).trim());
   });
 
   const uniqueCentralUserIds = new Set(centralUserIds);
@@ -64,6 +84,10 @@ function validateUsers(users) {
 function validatePicId(picId) {
   if (!picId || String(picId).trim() === '') {
     throw makeError('PIC is required', 422, 'VALIDATION_ERROR');
+  }
+
+  if (String(picId).length > 36) {
+    throw makeError('PIC is invalid', 422, 'VALIDATION_ERROR');
   }
 }
 
@@ -127,12 +151,13 @@ async function store(payload) {
   validatePicId(payload.pic_id);
   validateUsers(payload.users);
 
+  const normalizedPicId = String(payload.pic_id).trim();
   const normalizedUsers = normalizeUsers(payload.users);
 
-  await validatePicExists(payload.pic_id);
+  await validatePicExists(normalizedPicId);
   await validateCentralUsersExist(normalizedUsers);
 
-  const createdPicUsers = await PicUserModel.createMany(payload.pic_id, normalizedUsers);
+  const createdPicUsers = await PicUserModel.createMany(normalizedPicId, normalizedUsers);
 
   return {
     message: 'PIC users created successfully',
@@ -144,12 +169,13 @@ async function update(picId, payload) {
   validatePicId(picId);
   validateUsers(payload.users);
 
+  const normalizedPicId = String(picId).trim();
   const normalizedUsers = normalizeUsers(payload.users);
 
-  await validatePicExists(picId);
+  await validatePicExists(normalizedPicId);
   await validateCentralUsersExist(normalizedUsers);
 
-  const updatedPicUsers = await PicUserModel.syncByPicId(picId, normalizedUsers);
+  const updatedPicUsers = await PicUserModel.syncByPicId(normalizedPicId, normalizedUsers);
 
   return {
     message: 'PIC users updated successfully',

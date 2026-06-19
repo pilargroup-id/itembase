@@ -9,19 +9,57 @@ function makeError(message, statusCode = 400, code = 'ERROR') {
 
 function normalizePayload(payload) {
   return {
-    code: payload.code,
-    name: payload.name,
+    code: String(payload.code).trim(),
+    name: String(payload.name).trim(),
     is_active: payload.is_active ?? 1,
   };
 }
 
+function makeError(message, statusCode = 400, code = 'ERROR', errors = null) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  error.errors = errors;
+  return error;
+}
+
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function validateRequired(value) {
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function isValidBoolean(value) {
+  return [0, 1, '0', '1', true, false].includes(value);
+}
+
 function validatePayload(payload) {
-  if (!payload.code || String(payload.code).trim() === '') {
-    throw makeError('Code is required', 422, 'VALIDATION_ERROR');
+  const errors = {};
+
+  if (!validateRequired(payload.code)) {
+    errors.code = 'Code is required';
   }
 
-  if (!payload.name || String(payload.name).trim() === '') {
-    throw makeError('Name is required', 422, 'VALIDATION_ERROR');
+  if (!validateRequired(payload.name)) {
+    errors.name = 'Name is required';
+  }
+
+  if (hasValue(payload.code) && String(payload.code).length > 50) {
+    errors.code = 'Code cannot be longer than 50 characters';
+  }
+
+  if (hasValue(payload.name) && String(payload.name).length > 100) {
+    errors.name = 'Name cannot be longer than 100 characters';
+  }
+
+  if (hasValue(payload.is_active) && !isValidBoolean(payload.is_active)) {
+    errors.is_active = 'Is active must be 0 or 1';
+  }
+
+  if (Object.keys(errors).length) {
+    throw makeError('Validation failed', 422, 'VALIDATION_ERROR', errors);
   }
 }
 
@@ -73,6 +111,13 @@ async function update(id, payload) {
 
 async function destroy(id) {
   await show(id);
+
+  const usedCount = await SkuStatusModel.countUsedByItems(id);
+
+  if (usedCount > 0) {
+    throw makeError('SKU status is already used by items', 409, 'MASTER_DATA_IN_USE');
+  }
+
   await SkuStatusModel.remove(id);
 
   return {

@@ -204,6 +204,19 @@ async function remove(id) {
   return result;
 }
 
+async function countUsedByItemParents(id) {
+  const [rows] = await db.query(
+    `
+      SELECT COUNT(*) AS total
+      FROM item_parents
+      WHERE category_id = ?
+    `,
+    [id]
+  );
+
+  return rows[0]?.total || 0;
+}
+
 module.exports = {
   findAll,
   findById,
@@ -211,4 +224,5 @@ module.exports = {
   create,
   update,
   remove,
+  countUsedByItemParents,
 };
