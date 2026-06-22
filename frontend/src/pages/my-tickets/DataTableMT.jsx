@@ -21,7 +21,7 @@ import {
   getTicketPaginationSummary,
   getTicketTimelineItems,
   getTicketTableActions,
-} from '../../services/my-tickets/DataTableMT.js'
+} from '../../services/items/DataTableitems.js'
 
 const columns = [
   {

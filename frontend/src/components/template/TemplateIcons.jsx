@@ -68,6 +68,15 @@ export function Calendar01(props) {
   )
 }
 
+export function Tag01(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M20.59 13.41 12 22l-9-9V4h9l8.59 8.59a2 2 0 0 1 0 2.82Z" />
+      <circle cx="7.5" cy="8.5" r="1.5" />
+    </IconBase>
+  )
+}
+
 export function Edit03(props) {
   return (
     <IconBase {...props}>
@@ -85,6 +94,19 @@ export function FileText01(props) {
       <path d="M9 13h6" />
       <path d="M9 17h6" />
       <path d="M9 9h1" />
+    </IconBase>
+  )
+}
+
+export function Boxes01(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 2 5 6l7 4 7-4-7-4Z" />
+      <path d="M5 6v6l7 4 7-4V6" />
+      <path d="M12 10v6" />
+      <path d="m2 11 3 1.7" />
+      <path d="m22 11-3 1.7" />
+      <path d="m5 18 7 4 7-4" />
     </IconBase>
   )
 }
@@ -141,6 +163,16 @@ export function RefreshCw05(props) {
   )
 }
 
+export function LayersTwo(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3 3 8l9 5 9-5-9-5Z" />
+      <path d="m3 12 9 5 9-5" />
+      <path d="m3 16 9 5 9-5" />
+    </IconBase>
+  )
+}
+
 export function SearchMd(props) {
   return (
     <IconBase {...props}>
@@ -159,6 +191,16 @@ export function Settings01(props) {
   )
 }
 
+export function Shapes(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="7" cy="7" r="3" />
+      <path d="M14 5h6v6h-6z" />
+      <path d="m9 21 3-6 3 6Z" />
+    </IconBase>
+  )
+}
+
 export function Ticket01(props) {
   return (
     <IconBase {...props}>
@@ -166,6 +208,17 @@ export function Ticket01(props) {
       <path d="M13 5v2" />
       <path d="M13 17v2" />
       <path d="M13 11v2" />
+    </IconBase>
+  )
+}
+
+export function Anchor(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="5" r="2" />
+      <path d="M12 7v12" />
+      <path d="M8 11H5a7 7 0 0 0 14 0h-3" />
+      <path d="m9 16 3 3 3-3" />
     </IconBase>
   )
 }
@@ -193,6 +246,20 @@ export function Users01(props) {
   )
 }
 
+export function Ruler(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m3 21 18-18" />
+      <path d="M14 4 20 10" />
+      <path d="m5 13 2 2" />
+      <path d="m8 10 2 2" />
+      <path d="m11 7 2 2" />
+      <path d="m14 16 2 2" />
+      <path d="m17 13 2 2" />
+    </IconBase>
+  )
+}
+
 export function Table01(props) {
   return (
     <IconBase {...props}>
@@ -212,6 +279,15 @@ export function Chart01(props) {
       <rect x="7" y="12" width="3" height="6" rx="1" />
       <rect x="12" y="8" width="3" height="10" rx="1" />
       <rect x="17" y="5" width="3" height="13" rx="1" />
+    </IconBase>
+  )
+}
+
+export function Badge(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3 9.5 5.5 6 6l1 3.5L5 13l3.5 1L9.5 18 12 16l2.5 2 1-4 3.5-1-2-3.5L18 6l-3.5-.5L12 3Z" />
+      <path d="m10 20 2-2 2 2" />
     </IconBase>
   )
 }

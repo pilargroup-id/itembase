@@ -108,6 +108,10 @@ select {
   overflow: hidden;
 }
 
+.dashboard-main--parents {
+  overflow: hidden;
+}
+
 .sidebar {
   background: linear-gradient(180deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
   width: var(--sidebar-current-width);
@@ -1171,6 +1175,12 @@ select {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.dashboard-content--parents {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .dashboard-overview {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1624,6 +1634,24 @@ select {
   flex: 1;
   min-height: 0;
   flex-direction: column;
+}
+
+.parents-table-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.parents-table-card .users-table-card__header {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.parent-table-shell {
+  min-height: 0;
 }
 
 .mtickets-table {
@@ -2708,6 +2736,29 @@ select {
   border: 1px solid rgba(26, 42, 87, 0.08);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.92);
+}
+
+@media (min-width: 1025px) {
+  .parents-table-card {
+    min-height: calc(100dvh - 196px);
+    padding-bottom: 24px;
+  }
+
+  .parents-table-card .users-table-card__header {
+    min-height: 104px;
+  }
+
+  .parent-table-shell {
+    position: absolute;
+    top: 128px;
+    right: 24px;
+    bottom: 24px;
+    left: 24px;
+  }
+
+  .parent-table-shell .users-table-wrapper {
+    margin-top: 0;
+  }
 }
 
 .users-table {
@@ -4431,6 +4482,16 @@ select {
 
   .users-table-card {
     padding: 20px;
+  }
+
+  .parents-table-card {
+    min-height: auto;
+    padding-bottom: 20px;
+  }
+
+  .parent-table-shell {
+    position: relative;
+    inset: auto;
   }
 
   .users-table-card__header,

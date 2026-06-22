@@ -1,88 +1,109 @@
 import {
-  FileText01,
-  LayoutDashboard,
-  LogOutLeft01,
-  Ticket01,
-  Table01,
-  Chart01,
+  Anchor,
+  Badge,
+  Boxes01,
   Folder,
-  TrendingUp,
+  LayersTwo,
+  LogOutLeft01,
+  Ruler,
+  Shapes,
+  Table01,
+  Tag01,
+  Ticket01,
+  Users01,
 } from '../../components/template/TemplateIcons.jsx'
 
 export const defaultNavigationPath = '/dashboard'
 
 export const implementedNavigationPaths = [
-  '/MyTickets',
-  '/TicketsOverview',
-  '/ProjectsOverview',
-  '/Reports',
-  '/Reports/TeamPerformance',
-  '/Table',
+  '/dashboard',
+  '/parents',
+  '/variants',
+  '/pic-categories',
   '/TableActions',
-  '/users',
-  '/Chart',
+  '/item-types',
+  '/ports',
+  '/uoms',
+  '/brands',
+  '/pics',
 ]
 
 export const primaryNavigationItems = [
   {
     id: 'my-tickets',
-    label: 'My Tickets',
-    href: '/MyTickets',
+    label: 'Dashboard',
+    href: '/dashboard',
     icon: Ticket01,
   },
   {
-    id: 'tickes-overview',
-    label: 'Tickets Overview',
-    href: '/TicketsOverview',
-    icon: TrendingUp,
-  },
-  {
     id: 'projects-overview',
-    label: 'Projects Overview',
-    href: '/ProjectsOverview',
+    label: 'Item Management',
+    href: '/Bundling',
     icon: Folder,
-  },
-  {
-    id: 'reports',
-    label: 'Reports',
-    href: '/Reports',
-    icon: FileText01,
     children: [
       {
-        id: 'team-performance',
-        label: 'Team Performance',
-        href: '/Reports/TeamPerformance',
+        id: 'tickes-overview',
+        label: 'Parrent',
+        href: '/parents',
+        icon: Boxes01,
       },
       {
-        id : 'executive-insights',
-        label: 'Executive Insights',
-        href: '/Reports/ExecutiveInsights',
-      }
-    ]
-  },
-  {
-    id: 'table',
-    label: 'Table',
-    icon: Table01,
-    children: [
+        id: 'projects-overview',
+        label: 'Variants',
+        href: '/variants',
+        icon: LayersTwo,
+      },
       {
         id: 'table-data',
-        label: 'Data Table',
-        href: '/Table',
-      },
-      {
-        id: 'table-users',
-        label: 'Data Table Actions',
-        href: '/TableActions',
+        label: 'Bundles',
+        href: '/bundles',
+        icon: Tag01,
       },
     ],
   },
   {
-    id: 'chart',
-    label: 'Chart',
-    href: '/Chart',
-    icon: Chart01,
-  }
+    id: 'table',
+    label: 'Master',
+    icon: Table01,
+    children: [
+      {
+        id: 'table-data',
+        label: 'Pic Categories',
+        href: '/pic-categories',
+        icon: Tag01,
+      },
+      {
+        id: 'table-users',
+        label: 'Item Types',
+        href: '/item-types',
+        icon: Shapes,
+      },
+      {
+        id: 'table-users',
+        label: 'Ports',
+        href: '/ports',
+        icon: Anchor,
+      },
+      {
+        id: 'table-users',
+        label: 'Uoms',
+        href: '/uoms',
+        icon: Ruler,
+      },
+      {
+        id: 'table-users',
+        label: 'Brands',
+        href: '/brands',
+        icon: Badge,
+      },
+      {
+        id: 'table-users',
+        label: 'Pics',
+        href: '/pics',
+        icon: Users01,
+      },
+    ],
+  },
 ]
 
 export const secondaryNavigationItems = [
