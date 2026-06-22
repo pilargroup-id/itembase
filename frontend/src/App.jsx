@@ -3,8 +3,13 @@ import { useEffect, useState } from 'react'
 import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
 import Sidebar from './components/template/Sidebar.jsx'
+import { Boxes01 } from './components/template/TemplateIcons.jsx'
+import DialogCreateParent from './components/Dialog/dialog-parent/DialogCreateParent.jsx'
 import DataTableParents from './components/table/dekstop/items/dataTableParents.jsx'
 import MyTickets from './pages/my-tickets/MyTickets.jsx'
+import api from './services/api.js'
+
+const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
 
 function getCurrentPath() {
   if (typeof window === 'undefined') {
@@ -12,6 +17,69 @@ function getCurrentPath() {
   }
 
   return window.location.pathname === '/' ? '/dashboard' : window.location.pathname
+}
+
+function getStoredAuthUser() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const storedUser = window.localStorage.getItem(AUTH_USER_STORAGE_KEY)
+
+    return storedUser ? JSON.parse(storedUser) : null
+  } catch {
+    return null
+  }
+}
+
+function storeAuthUser(user) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    if (user) {
+      window.localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user))
+      return
+    }
+
+    window.localStorage.removeItem(AUTH_USER_STORAGE_KEY)
+  } catch {
+    // Ignore storage errors so auth state can still render from memory.
+  }
+}
+
+function getAuthUserName(user, isLoading) {
+  if (user?.name) {
+    return user.name
+  }
+
+  if (user?.username) {
+    return user.username
+  }
+
+  return isLoading ? 'Memuat user...' : 'User'
+}
+
+function getAuthUserRole(user, isLoading, error) {
+  if (user?.job_position) {
+    return user.job_position
+  }
+
+  if (user?.department) {
+    return user.department
+  }
+
+  if (user?.username) {
+    return `@${user.username}`
+  }
+
+  if (isLoading) {
+    return 'Mengambil auth...'
+  }
+
+  return error ? 'Auth belum terhubung' : 'Dev Auth'
 }
 
 const pageDetails = {
@@ -59,10 +127,15 @@ const pageDetails = {
 
 function App() {
   const [activePath, setActivePath] = useState(getCurrentPath)
+  const [authUser, setAuthUser] = useState(getStoredAuthUser)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
+  const [isCreateParentDialogOpen, setIsCreateParentDialogOpen] = useState(false)
+  const [parentRefreshKey, setParentRefreshKey] = useState(0)
 
   useEffect(() => {
     const handleRouteChange = () => {
@@ -76,9 +149,48 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    let isCurrent = true
+
+    const loadAuthUser = async () => {
+      setIsAuthLoading(true)
+      setAuthError(null)
+
+      try {
+        const response = await api.auth.me()
+        const nextUser = response?.data ?? null
+
+        if (!isCurrent) {
+          return
+        }
+
+        setAuthUser(nextUser)
+        storeAuthUser(nextUser)
+      } catch (error) {
+        if (!isCurrent) {
+          return
+        }
+
+        setAuthError(error)
+      } finally {
+        if (isCurrent) {
+          setIsAuthLoading(false)
+        }
+      }
+    }
+
+    loadAuthUser()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [])
+
   const activePage = pageDetails[activePath] ?? pageDetails['/dashboard']
   const isDashboardPage = activePath === '/dashboard'
   const isParentsPage = activePath === '/parents'
+  const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
+  const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
   const shellClassName = [
     'dashboard-shell',
@@ -95,8 +207,8 @@ function App() {
         collapsed={sidebarCollapsed}
         mobileOpen={mobileSidebarOpen}
         activePath={activePath}
-        userName="Al Fatih"
-        userRole="Frontend Developer"
+        userName={sidebarUserName}
+        userRole={sidebarUserRole}
         onToggleCollapse={() => setSidebarCollapsed((currentValue) => !currentValue)}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
@@ -150,11 +262,30 @@ function App() {
                     <p className="dashboard-panel__eyebrow">{activePage.eyebrow}</p>
                     <h1 className="dashboard-panel__title">{activePage.title}</h1>
                   </div>
+
+                  <div className="users-table-card__actions">
+                    <button
+                      type="button"
+                      className="users-table-card__action"
+                      onClick={() => setIsCreateParentDialogOpen(true)}
+                      aria-expanded={isCreateParentDialogOpen}
+                    >
+                      <Boxes01 size={18} aria-hidden="true" />
+                      <span>Create</span>
+                    </button>
+                  </div>
                 </div>
 
                 <DataTableParents
                   searchQuery={searchQuery}
                   tableLabel={`${activePage.title} table`}
+                  refreshKey={parentRefreshKey}
+                />
+
+                <DialogCreateParent
+                  isOpen={isCreateParentDialogOpen}
+                  onClose={() => setIsCreateParentDialogOpen(false)}
+                  onCreated={() => setParentRefreshKey((currentKey) => currentKey + 1)}
                 />
               </section>
             ) : (

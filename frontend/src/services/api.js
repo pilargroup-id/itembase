@@ -179,6 +179,9 @@ const api = {
   ports: createResource('/master/ports'),
   uoms: createResource('/master/uoms'),
   skuStatuses: createResource('/master/sku-statuses'),
+  auth: {
+    me: (options) => api.get('/auth/me', options),
+  },
   picUsers: {
     ...createResource('/master/pic-users'),
     options: (params, options) =>
