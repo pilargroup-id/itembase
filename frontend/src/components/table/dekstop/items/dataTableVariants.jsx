@@ -12,7 +12,7 @@ import {
     getFilteredTicketRows,
     getPaginationItems,
     getStatusVariant,
-} from "../../../services/items/DataTableitems.js"
+} from "../../../../services/items/DataTableitems.js"
 
 const columns = [
     {

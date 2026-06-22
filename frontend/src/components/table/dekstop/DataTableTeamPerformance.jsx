@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import CreateButton from '../../components/button/CreateButton.jsx'
-import DialogDelete from '../../components/dialog/DialogDelete.jsx'
-import DialogEdit from '../../components/dialog/DialogEdit.jsx'
-import DialogTimelineMT from '../../components/dialog/DialogTimelineMT.jsx'
+import CreateButton from '../../button/CreateButton.jsx'
+import DialogDelete from '../../dialog/DialogDelete.jsx'
+import DialogEdit from '../../dialog/DialogEdit.jsx'
+import DialogTimelineMT from '../../dialog/DialogTimelineMT.jsx'
 import DataTable, {
   DataTableIdentity,
   DataTableStatus,
@@ -21,7 +21,7 @@ import {
   getTicketPaginationSummary,
   getTicketTimelineItems,
   getTicketTableActions,
-} from '../../services/items/DataTableitems.js'
+} from '../../../services/items/DataTableitems.js'
 
 const columns = [
   {

@@ -7,7 +7,7 @@ import DialogTimelineMT from '../../components/dialog/DialogTimelineMT.jsx'
 import DataTable, {
   DataTableIdentity,
   DataTableStatus,
-} from '../../components/table/DataTable.jsx'
+} from '../../components/table/dekstop/DataTable.jsx'
 import {
   DEFAULT_PAGE_SIZE,
   EMPTY_DATE_RANGE,

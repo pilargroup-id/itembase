@@ -1,1 +1,1 @@
-import dataTableBundles from "../../../components/table/master/DataTableBundles.jsx";
+import dataTableBundles from "../../../components/table/dekstop/master/DataTableBundles.jsx";

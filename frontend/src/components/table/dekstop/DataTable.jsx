@@ -1,7 +1,7 @@
 import { Fragment, isValidElement, useState } from 'react'
 
-import CreateButton from '../button/CreateButton.jsx'
-import { ChevronDown } from '../template/TemplateIcons.jsx'
+import CreateButton from '../../button/CreateButton.jsx'
+import { ChevronDown } from '../../template/TemplateIcons.jsx'
 
 function getInitials(value = '') {
   return String(value)

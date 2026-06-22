@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
-import api from "../../../services/api.js"
+import api from "../../../../services/api.js"
 
-import DialogDelete from "../../Dialog/DialogDelete.jsx"
-import DialogEdit from "../../Dialog/DialogEdit.jsx"
+import DialogDelete from "../../../Dialog/DialogDelete.jsx"
+import DialogEdit from "../../../Dialog/DialogEdit.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -11,7 +11,7 @@ import {
 DEFAULT_PAGE_SIZE,
     PAGE_SIZE_OPTIONS,
     getPaginationItems,
-} from "../../../services/items/DataTableitems.js"
+} from "../../../../services/items/DataTableitems.js"
 
 function getParentStatusVariant(status) {
     const normalizedStatus = String(status ?? "").toLowerCase()

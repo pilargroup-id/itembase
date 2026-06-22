@@ -1,4 +1,4 @@
-import { DataTableStatus } from '../table/DataTable.jsx'
+import { DataTableStatus } from '../table/dekstop/DataTable.jsx'
 
 const TIMELINE_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
   weekday: 'long',

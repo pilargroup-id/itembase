@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
 import Sidebar from './components/template/Sidebar.jsx'
-import DataTableParents from './components/table/items/dataTableParents.jsx'
+import DataTableParents from './components/table/dekstop/items/dataTableParents.jsx'
 import MyTickets from './pages/my-tickets/MyTickets.jsx'
 
 function getCurrentPath() {

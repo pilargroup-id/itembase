@@ -1,4 +1,4 @@
-import CreateButton from '../button/CreateButton.jsx'
+import CreateButton from '../../button/CreateButton.jsx'
 import DataTable from './DataTable.jsx'
 
 export {
