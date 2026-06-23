@@ -13,6 +13,7 @@ const initialFormValues = {
   uom_id: '',
   sku_status_id: '',
   business_unit_id: '',
+  department_id: '',
   variant: '',
   qty_per_pack: '',
   is_active: '1',
@@ -58,6 +59,15 @@ const bundleFields = [
     emptyMessage: 'Business unit tidak ditemukan.',
   },
   {
+    name: 'department_id',
+    label: 'Channel',
+    placeholder: 'Pilih channel',
+    type: 'select',
+    optionsKey: 'departments',
+    searchPlaceholder: 'Cari channel...',
+    emptyMessage: 'Channel tidak ditemukan.',
+  },
+  {
     name: 'variant',
     label: 'Variant',
     placeholder: 'BUNDLE TEST',
@@ -80,6 +90,7 @@ const emptyMasterOptions = {
   uoms: [],
   skuStatuses: [],
   businessUnits: [],
+  departments: [],
   regularItems: [],
 }
 
@@ -240,6 +251,9 @@ function createChannelPayload(formValues, departmentOption) {
 }
 
 function buildPayload(formValues, masterOptions, components) {
+  const selectedDepartment = masterOptions.departments.find(
+    (option) => option.value === String(formValues.department_id),
+  )
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
@@ -251,10 +265,17 @@ function buildPayload(formValues, masterOptions, components) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
+      .filter(([key]) => key !== 'department_id')
       .filter(([, value]) => value !== ''),
   )
 
   payload.item_kind = 'bundle'
+
+  const channels = createChannelPayload(formValues, selectedDepartment)
+
+  if (channels.length > 0) {
+    payload.channels = channels
+  }
 
   const validComponents = components
     .filter((c) => c.component_item_id && String(c.qty).trim() !== '')
@@ -272,15 +293,41 @@ function buildPayload(formValues, masterOptions, components) {
 }
 
 function hasRequiredValues(payload, components) {
-  if (!payload.parent_id || !payload.business_unit_id) {
+  if (
+    !payload.item_kind ||
+    !payload.parent_id ||
+    !payload.uom_id ||
+    !payload.sku_status_id ||
+    !payload.business_unit_id ||
+    !payload.variant ||
+    !payload.qty_per_pack ||
+    !Array.isArray(payload.channels) ||
+    payload.channels.length === 0
+  ) {
     return false
   }
 
-  const validComponents = components.filter(
-    (c) => c.component_item_id && String(c.qty).trim() !== '',
-  )
+  const qtyPerPack = Number(payload.qty_per_pack)
 
-  return validComponents.length >= BUNDLE_MIN_COMPONENTS
+  if (!Number.isFinite(qtyPerPack) || qtyPerPack <= 0) {
+    return false
+  }
+
+  const validComponents = components.filter((component) => {
+    const qty = Number(component.qty)
+
+    return (
+      component.component_item_id &&
+      String(component.qty).trim() !== '' &&
+      Number.isFinite(qty) &&
+      qty > 0
+    )
+  })
+
+  return (
+    validComponents.length >= BUNDLE_MIN_COMPONENTS &&
+    validComponents.length <= BUNDLE_MAX_COMPONENTS
+  )
 }
 
 function DialogCreateBundle({
@@ -294,6 +341,7 @@ function DialogCreateBundle({
   const [components, setComponents] = useState([initialComponent(), initialComponent()])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
@@ -302,6 +350,10 @@ function DialogCreateBundle({
     setFormValues(initialFormValues)
     setComponents([initialComponent(), initialComponent()])
     setIsSubmitting(false)
+    setMasterOptions((currentOptions) => ({
+      ...currentOptions,
+      departments: [],
+    }))
     setErrorMessage('')
   }, [])
 
@@ -371,6 +423,7 @@ function DialogCreateBundle({
           uoms: normalizeMasterOptions(uoms),
           skuStatuses: normalizeMasterOptions(skuStatuses),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
+          departments: [],
           regularItems: normalizeRegularItemOptions(items),
         })
       } catch (error) {
@@ -395,10 +448,79 @@ function DialogCreateBundle({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen || !formValues.business_unit_id) {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        departments: [],
+      }))
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadDepartmentOptions = async () => {
+      setIsLoadingDepartments(true)
+      setErrorMessage('')
+
+      try {
+        let departments = []
+
+        try {
+          departments = await api.businessUnits.departments(
+            formValues.business_unit_id,
+            { active: 1 },
+            { signal: controller.signal },
+          )
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            throw error
+          }
+        }
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: normalizeDepartmentOptions(
+            departments,
+            itemOptionRows,
+            formValues.business_unit_id,
+          ),
+        }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat data channel.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingDepartments(false)
+        }
+      }
+    }
+
+    loadDepartmentOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [formValues.business_unit_id, isOpen, itemOptionRows])
+
   const handleFieldChange = (name, value) => {
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
+      ...(name === 'business_unit_id' ? { department_id: '' } : {}),
     }))
   }
 
@@ -433,7 +555,7 @@ function DialogCreateBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi parent, business unit, dan minimal ${BUNDLE_MIN_COMPONENTS} component item.`,
+        `Lengkapi parent, UOM, SKU status, business unit, channel, variant, qty/pack, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty valid.`,
       )
       return
     }
@@ -547,8 +669,17 @@ function DialogCreateBundle({
                           placeholder={field.placeholder}
                           searchPlaceholder={field.searchPlaceholder}
                           emptyMessage={field.emptyMessage}
-                          loading={isLoadingMasters}
-                          disabled={isSubmitting || isLoadingMasters}
+                          loading={
+                            field.name === 'department_id'
+                              ? isLoadingDepartments
+                              : isLoadingMasters
+                          }
+                          disabled={
+                            isSubmitting ||
+                            isLoadingMasters ||
+                            (field.name === 'department_id' &&
+                              (!formValues.business_unit_id || isLoadingDepartments))
+                          }
                           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
                         />
                       ) : (
