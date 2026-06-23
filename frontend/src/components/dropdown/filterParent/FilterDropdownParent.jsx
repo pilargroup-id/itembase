@@ -2,57 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import { ChevronDown } from "../../template/TemplateIcons.jsx"
 
-export const parentFilterConfig = [
-    {
-        key: "brand",
-        label: "Brand",
-        placeholder: "All Brand",
-        searchPlaceholder: "Search brand...",
-        emptyMessage: "Brand not found.",
-        getValue: (parent) => parent.brand?.name || parent.sub_brand,
-    },
-    {
-        key: "category",
-        label: "Category",
-        placeholder: "All Category",
-        searchPlaceholder: "Search category...",
-        emptyMessage: "Category not found.",
-        getValue: (parent) => parent.category?.detail_category,
-    },
-    {
-        key: "subCategory",
-        label: "Sub category",
-        placeholder: "All Sub category",
-        searchPlaceholder: "Search sub category...",
-        emptyMessage: "Sub category not found.",
-        getValue: (parent) => parent.category?.sub_category,
-    },
-    {
-        key: "status",
-        label: "Status",
-        placeholder: "All Status",
-        searchPlaceholder: "Search status...",
-        emptyMessage: "Status not found.",
-        getValue: (parent) => parent.status,
-    },
-    {
-        key: "itemType",
-        label: "Item Type",
-        placeholder: "All Item Type",
-        searchPlaceholder: "Search item type...",
-        emptyMessage: "Item type not found.",
-        getValue: (parent) => parent.item_type?.name,
-    },
-    {
-        key: "port",
-        label: "Port",
-        placeholder: "All Port",
-        searchPlaceholder: "Search port...",
-        emptyMessage: "Port not found.",
-        getValue: (parent) => parent.port?.name,
-    },
-]
-
 function normalizeOption(option) {
     if (typeof option === "object" && option !== null) {
         return {
@@ -75,6 +24,7 @@ function FilterDropdownParent({
     searchPlaceholder = "Cari brand...",
     emptyMessage = "Brand tidak ditemukan.",
     className = "",
+    searchable = true,
     onChange,
 }) {
     const [isOpen, setIsOpen] = useState(false)
@@ -201,17 +151,19 @@ function FilterDropdownParent({
 
             {isOpen ? (
                 <div className="year-dropdown-tp__menu" role="listbox" aria-label={label}>
-                    <div className="brand-filter-dropdown__search-shell">
-                        <input
-                            ref={searchInputRef}
-                            type="search"
-                            className="brand-filter-dropdown__search-input"
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder={searchPlaceholder}
-                            aria-label={`Cari ${label}`}
-                        />
-                    </div>
+                    {searchable ? (
+                        <div className="brand-filter-dropdown__search-shell">
+                            <input
+                                ref={searchInputRef}
+                                type="search"
+                                className="brand-filter-dropdown__search-input"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder={searchPlaceholder}
+                                aria-label={`Cari ${label}`}
+                            />
+                        </div>
+                    ) : null}
 
                     <div className="brand-filter-dropdown__options">
                         {filteredOptions.length > 0 ? (

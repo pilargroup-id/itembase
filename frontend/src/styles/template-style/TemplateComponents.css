@@ -1672,18 +1672,23 @@ select {
 }
 
 .parent-table-filter {
-  flex: 1 1 156px;
-  min-width: 148px;
+  flex: 1 1 132px;
+  min-width: 124px;
+}
+
+.parent-table-filter--sort {
+  flex-basis: 116px;
+  min-width: 112px;
 }
 
 .parent-table-filter .year-dropdown-tp__trigger {
-  min-height: 52px;
+  min-height: 48px;
   border: 1px solid rgba(120, 138, 168, 0.4);
   border-radius: 14px;
   background: #fcfdff;
   color: var(--primary-blue);
   box-shadow: 0 8px 20px rgba(26, 42, 87, 0.06);
-  padding: 0 0.72rem 0 0.82rem;
+  padding: 0 0.6rem 0 0.68rem;
   transform: none;
   transition:
     border-color 0.2s ease,
@@ -1710,7 +1715,7 @@ select {
 
 .parent-table-filter .year-dropdown-tp__label {
   color: rgba(81, 98, 127, 0.78);
-  font-size: 0.58rem;
+  font-size: 0.54rem;
 }
 
 .parent-table-filter .year-dropdown-tp__copy--floating {
@@ -1724,7 +1729,7 @@ select {
 
 .parent-table-filter .year-dropdown-tp__label--floating {
   top: -0.48rem;
-  left: 0.72rem;
+  left: 0.62rem;
   transform: translateY(0);
 }
 
@@ -1761,7 +1766,7 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--primary-blue);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.25;
 }
@@ -1773,7 +1778,7 @@ select {
 }
 
 .parent-table-filter .year-dropdown-tp__menu {
-  min-width: 180px;
+  min-width: 168px;
   padding: 0.45rem;
   border-radius: 16px;
 }
@@ -1867,43 +1872,75 @@ select {
   font-size: 0.8rem;
 }
 
-.parent-table-cell-details {
-  display: grid;
-  gap: 0.3rem;
-  min-width: 0;
-  margin: 0;
+.parent-table-shell .mtickets-table {
+  overflow-x: hidden;
 }
 
-.parent-table-cell-details__row {
-  display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
-  align-items: start;
-  gap: 0.5rem;
+.parent-table-shell .mtickets-table .users-table {
+  width: 100%;
   min-width: 0;
+  table-layout: fixed;
 }
 
-.parent-table-cell-details__label {
-  margin: 0;
-  color: rgba(81, 98, 127, 0.78);
-  font-size: 0.66rem;
-  font-weight: 800;
+.parent-table-shell .mtickets-table .users-table th,
+.parent-table-shell .mtickets-table .users-table td {
+  padding: 0.58rem 0.42rem;
+  font-size: 0.72rem;
   line-height: 1.35;
-  text-transform: uppercase;
+  white-space: normal;
+  word-break: break-word;
 }
 
-.parent-table-cell-details__value {
+.parent-table-shell .mtickets-table .users-table th {
+  font-size: 0.58rem;
+  line-height: 1.25;
+}
+
+.parent-table-shell .mtickets-table .users-table__identity {
+  gap: 0.45rem;
   min-width: 0;
-  margin: 0;
-  color: var(--primary-blue);
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.35;
+}
+
+.parent-table-shell .mtickets-table .users-table__avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.64rem;
+}
+
+.parent-table-shell .mtickets-table .users-table__identity-copy,
+.parent-table-shell .mtickets-table .users-table__name-row {
+  min-width: 0;
+}
+
+.parent-table-shell .mtickets-table .users-table__name {
+  font-size: 0.76rem;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.parent-table-cell-details__empty {
-  color: var(--neutral-gray);
+.parent-table-shell .mtickets-table .users-table__meta {
+  font-size: 0.58rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.parent-table-value {
+  display: block;
+  min-width: 0;
+  color: var(--primary-blue);
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.parent-table-shell .parent-action-buttons {
+  width: 100%;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.parent-table-shell .parent-action-button {
+  width: 24px;
+  height: 24px;
 }
 
 .mtickets-table-shell .users-table-pagination {
@@ -3162,6 +3199,11 @@ select {
   text-align: right;
 }
 
+.parent-table-shell .users-table__action-header,
+.parent-table-shell .users-table__action-cell {
+  text-align: center;
+}
+
 .users-table__action-group {
   display: inline-flex;
   align-items: center;
@@ -3170,52 +3212,47 @@ select {
 }
 
 .parent-action-buttons {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0.5rem;
 }
 
-.parent-action-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+.parent-action-button.users-table__icon-button {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.parent-action-button--edit {
-  border-color: #d9a820;
-  background: #f2c94c;
-  color: #3f3000;
+.parent-action-button.parent-action-button--edit {
+  color: #d9a820;
 }
 
-.parent-action-button--edit:hover {
-  border-color: #c49417;
-  background: #e8b923;
-  box-shadow: 0 10px 20px rgba(196, 148, 23, 0.2);
+.parent-action-button.parent-action-button--edit:hover {
+  background: transparent;
+  color: #c49417;
+  box-shadow: none;
 }
 
-.parent-action-button--edit:focus-visible {
-  box-shadow:
-    0 0 0 4px rgba(242, 201, 76, 0.28),
-    0 10px 20px rgba(196, 148, 23, 0.2);
+.parent-action-button.parent-action-button--edit:focus-visible {
+  box-shadow: 0 0 0 3px rgba(242, 201, 76, 0.28);
 }
 
-.parent-action-button--delete {
-  border-color: #dc2626;
-  background: #ef4444;
-  color: #fff;
+.parent-action-button.parent-action-button--delete {
+  color: #dc2626;
 }
 
-.parent-action-button--delete:hover {
-  border-color: #b91c1c;
-  background: #dc2626;
-  box-shadow: 0 10px 20px rgba(185, 28, 28, 0.22);
+.parent-action-button.parent-action-button--delete:hover {
+  background: transparent;
+  color: #b91c1c;
+  box-shadow: none;
 }
 
-.parent-action-button--delete:focus-visible {
-  box-shadow:
-    0 0 0 4px rgba(239, 68, 68, 0.24),
-    0 10px 20px rgba(185, 28, 28, 0.22);
+.parent-action-button.parent-action-button--delete:focus-visible {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.24);
 }
 
 .users-table__detail-button {
@@ -4338,10 +4375,7 @@ select {
 }
 
 .parent-master-select__menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
+  position: fixed;
   display: grid;
   gap: 0.45rem;
   padding: 0.55rem;
@@ -4349,7 +4383,7 @@ select {
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 22px 44px rgba(26, 42, 87, 0.18);
-  z-index: 20;
+  z-index: 1320;
 }
 
 .parent-master-select__search {
@@ -4393,7 +4427,7 @@ select {
 .parent-master-select__options {
   display: grid;
   gap: 0.35rem;
-  max-height: 220px;
+  max-height: var(--parent-master-select-options-max-height, 220px);
   overflow-y: auto;
   overscroll-behavior: contain;
 }

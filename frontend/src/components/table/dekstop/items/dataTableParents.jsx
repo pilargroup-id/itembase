@@ -5,9 +5,8 @@ import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
 import ButtonDeleteParent from "../../../button/parents-buttons/ButtonDeleteParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
-import FilterDropdownParent, {
-    parentFilterConfig,
-} from "../../../dropdown/filterParent/FilterDropdownParent.jsx"
+import FilterDropdownParent from "../../../dropdown/filterParent/FilterDropdownParent.jsx"
+import { parentFilterConfig } from "../../../dropdown/filterParent/FilterDropdownParent.config.js"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -19,6 +18,11 @@ import {
 } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
+const DEFAULT_PARENT_SORT = "date-desc"
+const parentSortOptions = [
+    { value: "date-desc", label: "Date Desc" },
+    { value: "date-asc", label: "Date Asc" },
+]
 
 const defaultParentFilters = parentFilterConfig.reduce(
     (filters, filterConfig) => ({
@@ -48,22 +52,13 @@ function formatDisplayValue(value) {
     return displayValue || "-"
 }
 
-function ParentCellDetails({ items = [] }) {
-    if (items.length === 0) {
-        return <span className="parent-table-cell-details__empty">-</span>
-    }
+function renderParentValue(value) {
+    const displayValue = formatDisplayValue(value)
 
     return (
-        <dl className="parent-table-cell-details">
-            {items.map((item) => (
-                <div className="parent-table-cell-details__row" key={item.label}>
-                    <dt className="parent-table-cell-details__label">{item.label}</dt>
-                    <dd className="parent-table-cell-details__value">
-                        {formatDisplayValue(item.value)}
-                    </dd>
-                </div>
-            ))}
-        </dl>
+        <span className="parent-table-value" title={displayValue}>
+            {displayValue}
+        </span>
     )
 }
 
@@ -115,6 +110,13 @@ function normalizeFilterValue(value) {
 }
 
 function createFilterOptions(rows, filterConfig) {
+    if (Array.isArray(filterConfig.options)) {
+        return [
+            { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
+            ...filterConfig.options,
+        ]
+    }
+
     const uniqueValues = Array.from(
         new Set(
             rows
@@ -127,6 +129,38 @@ function createFilterOptions(rows, filterConfig) {
         { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
         ...uniqueValues.map((value) => ({ value, label: value })),
     ]
+}
+
+function getParentDateValue(parent) {
+    const dateValue =
+        parent.created_at ??
+        parent.createdAt ??
+        parent.updated_at ??
+        parent.updatedAt ??
+        parent.date ??
+        parent.created_date
+    const parsedDate = new Date(dateValue).getTime()
+
+    return Number.isNaN(parsedDate) ? 0 : parsedDate
+}
+
+function sortParentRows(rows, sortValue) {
+    const sortDirection = sortValue === "date-asc" ? 1 : -1
+
+    return [...rows].sort((firstParent, secondParent) => {
+        const dateDifference =
+            (getParentDateValue(firstParent) - getParentDateValue(secondParent)) * sortDirection
+
+        if (dateDifference !== 0) {
+            return dateDifference
+        }
+
+        return (
+            String(firstParent.parent_code ?? "").localeCompare(
+                String(secondParent.parent_code ?? ""),
+            ) * sortDirection
+        )
+    })
 }
 
 function matchesParentFilters(parent, filters) {
@@ -173,7 +207,8 @@ const columns = [
     {
         key: "identity",
         header: "Parent Item",
-        cellStyle: { minWidth: "260px" },
+        headerStyle: { width: "12%" },
+        cellStyle: { width: "12%" },
         render: (parent) => (
             <DataTableIdentity
                 title={parent.parent_name || parent.item_name || "-"}
@@ -182,22 +217,10 @@ const columns = [
         ),
     },
     {
-        key: "brand",
-        header: "Brand",
-        cellStyle: { minWidth: "190px" },
-        render: (parent) => (
-            <ParentCellDetails
-                items={[
-                    { label: "Brand", value: parent.brand?.name },
-                    { label: "Sub Brand", value: parent.sub_brand },
-                ]}
-            />
-        ),
-    },
-    {
         key: "itemName",
         header: "Item Name",
-        cellStyle: { minWidth: "280px" },
+        headerStyle: { width: "13%" },
+        cellStyle: { width: "13%" },
         render: (parent) => (
             <DataTableIdentity
                 title={parent.item_name || "-"}
@@ -210,31 +233,60 @@ const columns = [
         ),
     },
     {
-        key: "category",
-        header: "Category",
-        cellStyle: { minWidth: "320px" },
-        render: (parent) => (
-            <ParentCellDetails
-                items={[
-                    { label: "Detail Category", value: parent.category?.detail_category },
-                    { label: "Sub Category", value: parent.category?.sub_category },
-                    { label: "Main Category", value: parent.category?.main_category },
-                    { label: "Brand Category", value: parent.category?.brand_category },
-                ]}
-            />
-        ),
+        key: "brand",
+        header: "Brand",
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
+        render: (parent) => renderParentValue(parent.brand?.name),
+    },
+    {
+        key: "subBrand",
+        header: "Sub Brand",
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
+        render: (parent) => renderParentValue(parent.sub_brand),
+    },
+    {
+        key: "mainCategory",
+        header: "Main Category",
+        headerStyle: { width: "10%" },
+        cellStyle: { width: "10%" },
+        render: (parent) => renderParentValue(parent.category?.main_category),
+    },
+    {
+        key: "subCategory",
+        header: "Sub Category",
+        headerStyle: { width: "10%" },
+        cellStyle: { width: "10%" },
+        render: (parent) => renderParentValue(parent.category?.sub_category),
+    },
+    {
+        key: "detailCategory",
+        header: "Detail Category",
+        headerStyle: { width: "10%" },
+        cellStyle: { width: "10%" },
+        render: (parent) => renderParentValue(parent.category?.detail_category),
+    },
+    {
+        key: "brandCategory",
+        header: "Brand Category",
+        headerStyle: { width: "9%" },
+        cellStyle: { width: "9%" },
+        render: (parent) => renderParentValue(parent.category?.brand_category),
     },
     {
         key: "itemType",
         header: "Item Type",
-        cellStyle: { whiteSpace: "nowrap", width: "12%" },
-        render: (parent) => parent.item_type?.name || "-",
+        headerStyle: { width: "7%" },
+        cellStyle: { width: "7%" },
+        render: (parent) => renderParentValue(parent.item_type?.name),
     },
     {
         key: "port",
         header: "Port",
-        cellStyle: { whiteSpace: "nowrap", width: "12%" },
-        render: (parent) => parent.port?.name || "-",
+        headerStyle: { width: "6%" },
+        cellStyle: { width: "6%" },
+        render: (parent) => renderParentValue(parent.port?.name),
     },
 ]
 
@@ -245,6 +297,7 @@ function DataTableParents({
 }) {
     const [parentRows, setParentRows] = useState([])
     const [filters, setFilters] = useState(defaultParentFilters)
+    const [sortValue, setSortValue] = useState(DEFAULT_PARENT_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
@@ -252,8 +305,8 @@ function DataTableParents({
     const [selectedParent, setSelectedParent] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
     const filterResetKey = useMemo(
-        () => JSON.stringify({ filters, pageSize, searchQuery }),
-        [filters, pageSize, searchQuery],
+        () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
+        [filters, pageSize, searchQuery, sortValue],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -281,9 +334,13 @@ function DataTableParents({
             ),
         [filters, parentRows, searchQuery],
     )
+    const sortedRows = useMemo(
+        () => sortParentRows(filteredRows, sortValue),
+        [filteredRows, sortValue],
+    )
     const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
-        () => getPageRows(filteredRows, currentPage, pageSize),
-        [currentPage, filteredRows, pageSize],
+        () => getPageRows(sortedRows, currentPage, pageSize),
+        [currentPage, pageSize, sortedRows],
     )
 
     const selectedParentName =
@@ -343,7 +400,8 @@ function DataTableParents({
             header: "Action",
             headerClassName: "users-table__action-header",
             cellClassName: "users-table__action-cell",
-            cellStyle: { width: "1%", minWidth: "104px", whiteSpace: "nowrap" },
+            headerStyle: { width: "7%" },
+            cellStyle: { width: "7%", whiteSpace: "nowrap" },
             render: (parent) => (
                 <div className="parent-action-buttons">
                     <ButtonEditParent
@@ -400,12 +458,12 @@ function DataTableParents({
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery }),
+            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery, sortValue }),
         })
     }
 
     const pagination = {
-        summary: getPaginationSummary(firstItem, lastItem, filteredRows.length),
+        summary: getPaginationSummary(firstItem, lastItem, sortedRows.length),
         currentPage: safeCurrentPage,
         totalPages,
         items: getPaginationItems(safeCurrentPage, totalPages),
@@ -431,6 +489,15 @@ function DataTableParents({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter item parent">
+                    <FilterDropdownParent
+                        className="parent-table-filter parent-table-filter--sort"
+                        options={parentSortOptions}
+                        value={sortValue}
+                        label="Sort By"
+                        placeholder="Date Desc"
+                        searchable={false}
+                        onChange={setSortValue}
+                    />
                     {parentFilterConfig.map((filterConfig) => (
                         <FilterDropdownParent
                             key={filterConfig.key}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
@@ -150,7 +150,10 @@ function SearchableMasterSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [menuStyle, setMenuStyle] = useState(null)
   const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
   const searchInputRef = useRef(null)
   const selectedValue = String(value ?? '')
   const selectedOption = options.find((option) => option.value === selectedValue)
@@ -166,6 +169,64 @@ function SearchableMasterSelect({
     )
   }, [options, searchQuery])
 
+  const updateMenuPosition = useCallback(() => {
+    const triggerElement = triggerRef.current
+
+    if (!triggerElement) {
+      return
+    }
+
+    const triggerBounds = triggerElement.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const viewportMargin = 12
+    const menuGap = 8
+    const menuChromeHeight = 72
+    const maxOptionsHeight = 220
+    const maxMenuWidth = Math.max(0, viewportWidth - viewportMargin * 2)
+    const menuWidth = Math.min(triggerBounds.width, maxMenuWidth)
+    const nextLeft = Math.min(
+      Math.max(triggerBounds.left, viewportMargin),
+      Math.max(viewportMargin, viewportWidth - menuWidth - viewportMargin),
+    )
+    const spaceBelow = viewportHeight - triggerBounds.bottom - viewportMargin - menuGap
+    const spaceAbove = triggerBounds.top - viewportMargin - menuGap
+    const shouldOpenUp = spaceBelow < 190 && spaceAbove > spaceBelow
+    const availableHeight = Math.max(132, shouldOpenUp ? spaceAbove : spaceBelow)
+    const nextOptionsHeight = Math.max(
+      96,
+      Math.min(maxOptionsHeight, availableHeight - menuChromeHeight),
+    )
+    const menuHeight = nextOptionsHeight + menuChromeHeight
+    const nextTop = shouldOpenUp
+      ? Math.max(viewportMargin, triggerBounds.top - menuGap - menuHeight)
+      : Math.min(triggerBounds.bottom + menuGap, viewportHeight - viewportMargin - menuHeight)
+
+    setMenuStyle({
+      top: nextTop,
+      left: nextLeft,
+      width: menuWidth,
+      '--parent-master-select-options-max-height': `${nextOptionsHeight}px`,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuStyle(null)
+      return undefined
+    }
+
+    updateMenuPosition()
+
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [isOpen, updateMenuPosition])
+
   useEffect(() => {
     if (!isOpen) {
       return undefined
@@ -177,7 +238,10 @@ function SearchableMasterSelect({
     }
 
     const handlePointerDown = (event) => {
-      if (!rootRef.current?.contains(event.target)) {
+      if (
+        !rootRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
         closeDropdown()
       }
     }
@@ -199,10 +263,10 @@ function SearchableMasterSelect({
   }, [isOpen])
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && menuStyle) {
       searchInputRef.current?.focus()
     }
-  }, [isOpen])
+  }, [isOpen, menuStyle])
 
   const handleToggle = () => {
     if (disabled) {
@@ -223,10 +287,67 @@ function SearchableMasterSelect({
   }
 
   const displayValue = loading ? 'Memuat data...' : selectedOption?.label || placeholder
+  const menuNode =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="parent-master-select__menu"
+            role="listbox"
+            aria-label={label}
+            style={menuStyle}
+          >
+            <div className="parent-master-select__search">
+              <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                className="parent-master-select__search-input"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label={`Cari ${label}`}
+              />
+            </div>
+
+            <div className="parent-master-select__options">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
+                  const isSelected = option.value === selectedValue
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={[
+                        'parent-master-select__option',
+                        isSelected ? 'parent-master-select__option--selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => handleSelect(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="parent-master-select__empty">
+                  {loading ? 'Memuat data...' : emptyMessage}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
 
   return (
     <div ref={rootRef} className="parent-master-select">
       <button
+        ref={triggerRef}
         id={id}
         type="button"
         className={`parent-master-select__trigger${isOpen ? ' parent-master-select__trigger--open' : ''}`}
@@ -245,52 +366,7 @@ function SearchableMasterSelect({
         />
       </button>
 
-      {isOpen ? (
-        <div className="parent-master-select__menu" role="listbox" aria-label={label}>
-          <div className="parent-master-select__search">
-            <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              className="parent-master-select__search-input"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label={`Cari ${label}`}
-            />
-          </div>
-
-          <div className="parent-master-select__options">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const isSelected = option.value === selectedValue
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={[
-                      'parent-master-select__option',
-                      isSelected ? 'parent-master-select__option--selected' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => handleSelect(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="parent-master-select__empty">
-                {loading ? 'Memuat data...' : emptyMessage}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+      {menuNode}
     </div>
   )
 }

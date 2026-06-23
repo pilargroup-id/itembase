@@ -18,7 +18,7 @@ export const defaultNavigationPath = '/dashboard'
 export const implementedNavigationPaths = [
   '/dashboard',
   '/parents',
-  '/variants',
+  '/items',
   '/pic-categories',
   '/TableActions',
   '/item-types',
@@ -49,8 +49,8 @@ export const primaryNavigationItems = [
       },
       {
         id: 'projects-overview',
-        label: 'Variants',
-        href: '/variants',
+        label: 'Items',
+        href: '/items',
         icon: LayersTwo,
       },
       {

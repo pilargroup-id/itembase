@@ -3,10 +3,8 @@ import { useEffect, useState } from 'react'
 import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
 import Sidebar from './components/template/Sidebar.jsx'
-import { Boxes01 } from './components/template/TemplateIcons.jsx'
-import DialogCreateParent from './components/Dialog/dialog-parent/DialogCreateParent.jsx'
-import DataTableParents from './components/table/dekstop/items/dataTableParents.jsx'
 import MyTickets from './pages/my-tickets/MyTickets.jsx'
+import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
@@ -91,8 +89,8 @@ const pageDetails = {
     title: 'Parent',
     eyebrow: 'Item Management',
   },
-  '/variants': {
-    title: 'Variants',
+  '/items': {
+    title: 'Items',
     eyebrow: 'Item Management',
   },
   '/bundles': {
@@ -134,8 +132,6 @@ function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
-  const [isCreateParentDialogOpen, setIsCreateParentDialogOpen] = useState(false)
-  const [parentRefreshKey, setParentRefreshKey] = useState(0)
 
   useEffect(() => {
     const handleRouteChange = () => {
@@ -253,41 +249,7 @@ function App() {
             {isDashboardPage ? (
               <MyTickets activePage={activePage} searchQuery={searchQuery} />
             ) : isParentsPage ? (
-              <section
-                className="dashboard-panel users-table-card parents-table-card"
-                aria-label={activePage.title}
-              >
-                <div className="users-table-card__header">
-                  <div>
-                    <p className="dashboard-panel__eyebrow">{activePage.eyebrow}</p>
-                    <h1 className="dashboard-panel__title">{activePage.title}</h1>
-                  </div>
-
-                  <div className="users-table-card__actions">
-                    <button
-                      type="button"
-                      className="users-table-card__action"
-                      onClick={() => setIsCreateParentDialogOpen(true)}
-                      aria-expanded={isCreateParentDialogOpen}
-                    >
-                      <Boxes01 size={18} aria-hidden="true" />
-                      <span>Create</span>
-                    </button>
-                  </div>
-                </div>
-
-                <DataTableParents
-                  searchQuery={searchQuery}
-                  tableLabel={`${activePage.title} table`}
-                  refreshKey={parentRefreshKey}
-                />
-
-                <DialogCreateParent
-                  isOpen={isCreateParentDialogOpen}
-                  onClose={() => setIsCreateParentDialogOpen(false)}
-                  onCreated={() => setParentRefreshKey((currentKey) => currentKey + 1)}
-                />
-              </section>
+              <ParentsPage activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">
