@@ -328,12 +328,7 @@ const columns = [
         header: "Kind",
         headerStyle: { width: "7%" },
         cellStyle: { width: "7%" },
-        render: (item) => (
-            <DataTableIdentity
-                title={item.item_kind || "-"}
-                subtitle={item.variant || "-"}
-            />
-        ),
+        render: (item) => renderItemValue(item.item_kind),
     },
     {
         key: "parent",
@@ -565,14 +560,6 @@ function DataTableItem({
                         onClick={(event) => {
                             event.stopPropagation()
                             openActionDialog("edit", item)
-                        }}
-                    />
-                    <ButtonDeleteItem
-                        title="Delete"
-                        aria-label={`Delete ${item.item_name || item.item_code || "item"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("delete", item)
                         }}
                     />
                 </div>

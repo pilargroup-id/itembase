@@ -412,14 +412,6 @@ function DataTableParents({
                             openActionDialog("edit", parent)
                         }}
                     />
-                    <ButtonDeleteParent
-                        title="Delete"
-                        aria-label={`Delete ${parent.parent_name || parent.item_name || "item parent"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("delete", parent)
-                        }}
-                    />
                 </div>
             ),
         },
