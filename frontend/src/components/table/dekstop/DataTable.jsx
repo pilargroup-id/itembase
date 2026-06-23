@@ -49,9 +49,9 @@ function normalizePageSizeOptions(options, pageSize) {
   return normalizedOptions
 }
 
-function getColumnValue(column, row, index) {
+function getColumnValue(column, row, index, context) {
   if (typeof column.render === 'function') {
-    return column.render(row, index)
+    return column.render(row, index, context)
   }
 
   if (typeof column.accessor === 'function') {
@@ -264,6 +264,12 @@ function DataTable({
         <table className="users-table" aria-label={tableLabel}>
           <thead>
             <tr>
+              {hasDetail && detail.position === 'left' ? (
+                <th scope="col" className="users-table__detail-header">
+                  {detail.columnLabel ?? ''}
+                </th>
+              ) : null}
+
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -275,7 +281,7 @@ function DataTable({
                 </th>
               ))}
 
-              {hasDetail ? (
+              {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
                 <th scope="col" className="users-table__detail-header">
                   {detail.columnLabel ?? 'Detail'}
                 </th>
@@ -317,17 +323,49 @@ function DataTable({
                       aria-expanded={hasDetail ? isExpanded : undefined}
                       aria-controls={hasDetail ? accordionId : undefined}
                     >
+                      {hasDetail && detail.position === 'left' ? (
+                        <td className="users-table__detail-cell" style={{ width: '1%' }}>
+                          <CreateButton
+                            variant="detail"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleToggleRow(rowKey)
+                            }}
+                            aria-expanded={isExpanded}
+                            aria-controls={accordionId}
+                            title={isExpanded ? 'Tutup detail' : 'Buka detail'}
+                            style={{ padding: '0.25rem' }}
+                          >
+                            {detail.buttonLabel !== '' && detail.buttonLabel !== null ? (
+                              <span>{detail.buttonLabel ?? 'Detail'}</span>
+                            ) : null}
+                            <ChevronDown
+                              size={16}
+                              aria-hidden="true"
+                              className={`users-table__detail-icon${
+                                isExpanded ? ' users-table__detail-icon--open' : ''
+                              }`}
+                            />
+                          </CreateButton>
+                        </td>
+                      ) : null}
+
                       {columns.map((column) => (
                         <td
                           key={column.key}
                           className={column.cellClassName}
                           style={column.cellStyle}
                         >
-                          {renderBasicValue(getColumnValue(column, row, index))}
+                          {renderBasicValue(getColumnValue(column, row, index, {
+                            isExpanded,
+                            toggleRow: () => handleToggleRow(rowKey),
+                            accordionId
+                          }))}
                         </td>
                       ))}
 
-                      {hasDetail ? (
+                      {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
                         <td className="users-table__detail-cell">
                           <CreateButton
                             variant="detail"
@@ -340,7 +378,9 @@ function DataTable({
                             aria-controls={accordionId}
                             title={isExpanded ? 'Tutup detail' : 'Buka detail'}
                           >
-                            <span>{detail.buttonLabel ?? 'Detail'}</span>
+                            {detail.buttonLabel !== '' && detail.buttonLabel !== null ? (
+                              <span>{detail.buttonLabel ?? 'Detail'}</span>
+                            ) : null}
                             <ChevronDown
                               size={16}
                               aria-hidden="true"

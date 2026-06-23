@@ -37,25 +37,25 @@ export const primaryNavigationItems = [
     icon: Ticket01,
   },
   {
-    id: 'projects-overview',
+    id: 'nav-item-management',
     label: 'Item Management',
     href: '/Bundling',
     icon: Folder,
     children: [
       {
-        id: 'tickes-overview',
+        id: 'nav-parents',
         label: 'Parrent',
         href: '/parents',
         icon: Boxes01,
       },
       {
-        id: 'projects-overview',
+        id: 'nav-items',
         label: 'Items',
         href: '/items',
         icon: LayersTwo,
       },
       {
-        id: 'table-data',
+        id: 'nav-bundles',
         label: 'Bundles',
         href: '/bundles',
         icon: Tag01,
@@ -68,37 +68,37 @@ export const primaryNavigationItems = [
     icon: Table01,
     children: [
       {
-        id: 'table-data',
+        id: 'nav-pic-categories',
         label: 'Pic Categories',
         href: '/pic-categories',
         icon: Tag01,
       },
       {
-        id: 'table-users',
+        id: 'nav-item-types',
         label: 'Item Types',
         href: '/item-types',
         icon: Shapes,
       },
       {
-        id: 'table-users',
+        id: 'nav-ports',
         label: 'Ports',
         href: '/ports',
         icon: Anchor,
       },
       {
-        id: 'table-users',
+        id: 'nav-uoms',
         label: 'Uoms',
         href: '/uoms',
         icon: Ruler,
       },
       {
-        id: 'table-users',
+        id: 'nav-brands',
         label: 'Brands',
         href: '/brands',
         icon: Badge,
       },
       {
-        id: 'table-users',
+        id: 'nav-pics',
         label: 'Pics',
         href: '/pics',
         icon: Users01,

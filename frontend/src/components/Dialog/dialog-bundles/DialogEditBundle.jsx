@@ -240,7 +240,7 @@ function normalizeComponentsFromItem(item) {
   const sorted = [...itemComponents].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
   return sorted.map((comp) => ({
-    component_item_id: String(comp.component_item_id ?? comp.item_id ?? ''),
+    component_item_id: String(comp.component_item_id ?? comp.item_id ?? comp.component_item?.id ?? comp.item?.id ?? ''),
     qty: String(comp.qty ?? ''),
   }))
 }

@@ -557,7 +557,7 @@ function DataTableBundles({
             headerStyle: { width: "5%" },
             cellStyle: { width: "5%", whiteSpace: "nowrap" },
             render: (item) => (
-                <div className="parent-action-buttons">
+                <div className="parent-action-buttons" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                     <ButtonEditBundle
                         title="Edit"
                         aria-label={`Edit ${item.item_name || item.item_code || "bundle"}`}

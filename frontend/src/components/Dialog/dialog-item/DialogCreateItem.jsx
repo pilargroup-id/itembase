@@ -70,12 +70,12 @@ const itemFields = [
   },
   {
     name: 'department_id',
-    label: 'Department',
-    placeholder: 'Pilih department',
+    label: 'Channel',
+    placeholder: 'Pilih channel',
     type: 'select',
     optionsKey: 'departments',
-    searchPlaceholder: 'Cari department...',
-    emptyMessage: 'Department tidak ditemukan.',
+    searchPlaceholder: 'Cari channel...',
+    emptyMessage: 'Channel tidak ditemukan.',
   },
   {
     name: 'variant',
@@ -327,7 +327,11 @@ function hasRequiredValues(payload) {
     return false
   }
 
-  return payload.item_kind !== 'regular' || Boolean(payload.item_name)
+  if (payload.item_kind === 'regular' && !payload.item_name) {
+    return false
+  }
+
+  return Array.isArray(payload.channels) && payload.channels.length > 0
 }
 
 function DialogCreateItem({
@@ -459,6 +463,7 @@ function DialogCreateItem({
 
     const loadDepartmentOptions = async () => {
       setIsLoadingDepartments(true)
+      setErrorMessage('')
 
       try {
         let departments = []
@@ -487,6 +492,16 @@ function DialogCreateItem({
             formValues.business_unit_id,
           ),
         }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat data channel.')
       } finally {
         if (isMounted) {
           setIsLoadingDepartments(false)
@@ -522,7 +537,9 @@ function DialogCreateItem({
     const payload = buildPayload(formValues, masterOptions)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage('Lengkapi item kind, parent, business unit, dan item name untuk regular item.')
+      setErrorMessage(
+        'Lengkapi item kind, parent, business unit, channel, dan item name untuk regular item.',
+      )
       return
     }
 
@@ -544,6 +561,53 @@ function DialogCreateItem({
   if (!isOpen || typeof document === 'undefined') {
     return null
   }
+
+  const renderField = (field) => (
+    <div
+      key={field.name}
+      className={`register-user-popup__field${
+        field.full ? ' register-user-popup__field--full' : ''
+      }`}
+    >
+      <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
+        {field.label}
+      </label>
+      {field.type === 'select' ? (
+        <SearchableItemSelect
+          id={`item-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          loading={
+            field.name === 'department_id'
+              ? isLoadingDepartments
+              : isLoadingMasters
+          }
+          disabled={
+            isSubmitting ||
+            isLoadingMasters ||
+            (field.name === 'department_id' && !formValues.business_unit_id)
+          }
+          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+        />
+      ) : (
+        <input
+          id={`item-${field.name}`}
+          name={field.name}
+          className="register-user-popup__input"
+          type={field.type === 'number' ? 'number' : 'text'}
+          step={field.type === 'number' ? 'any' : undefined}
+          value={formValues[field.name]}
+          placeholder={field.placeholder}
+          onChange={handleInputChange}
+          disabled={isSubmitting}
+        />
+      )}
+    </div>
+  )
 
   const dialogNode = (
     <div
@@ -582,86 +646,73 @@ function DialogCreateItem({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="register-user-popup__grid">
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="item-kind">
-                      Item Kind
-                    </label>
-                    <select
-                      id="item-kind"
-                      name="item_kind"
-                      className="register-user-popup__select"
-                      value={formValues.item_kind}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="regular">regular</option>
-                    </select>
-                  </div>
-
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="item-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="item-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
-                  </div>
-
-                  {itemFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className={`register-user-popup__field${
-                        field.full ? ' register-user-popup__field--full' : ''
-                      }`}
-                    >
-                      <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
-                        {field.label}
+                <div style={{ marginBottom: '8px' }}>
+                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                    <div className="register-user-popup__field">
+                      <label className="register-user-popup__label" htmlFor="item-kind">
+                        Item Kind
                       </label>
-                      {field.type === 'select' ? (
-                        <SearchableItemSelect
-                          id={`item-${field.name}`}
-                          label={field.label}
-                          value={formValues[field.name]}
-                          options={masterOptions[field.optionsKey]}
-                          placeholder={field.placeholder}
-                          searchPlaceholder={field.searchPlaceholder}
-                          emptyMessage={field.emptyMessage}
-                          loading={
-                            field.name === 'department_id'
-                              ? isLoadingDepartments
-                              : isLoadingMasters
-                          }
-                          disabled={
-                            isSubmitting ||
-                            isLoadingMasters ||
-                            (field.name === 'department_id' && !formValues.business_unit_id)
-                          }
-                          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-                        />
-                      ) : (
-                        <input
-                          id={`item-${field.name}`}
-                          name={field.name}
-                          className="register-user-popup__input"
-                          type={field.type === 'number' ? 'number' : 'text'}
-                          step={field.type === 'number' ? 'any' : undefined}
-                          value={formValues[field.name]}
-                          placeholder={field.placeholder}
-                          onChange={handleInputChange}
-                          disabled={isSubmitting}
-                        />
-                      )}
+                      <input
+                        id="item-kind"
+                        name="item_kind"
+                        className="register-user-popup__input"
+                        type="text"
+                        value={formValues.item_kind}
+                        readOnly
+                        disabled
+                      />
                     </div>
-                  ))}
+
+                    <div className="register-user-popup__field">
+                      <label className="register-user-popup__label" htmlFor="item-is-active">
+                        Status
+                      </label>
+                      <select
+                        id="item-is-active"
+                        name="is_active"
+                        className="register-user-popup__select"
+                        value={formValues.is_active}
+                        onChange={handleInputChange}
+                        disabled={isSubmitting}
+                      >
+                        <option value="1">active</option>
+                        <option value="0">inactive</option>
+                      </select>
+                    </div>
+
+                    {itemFields
+                      .filter((f) => ['item_name', 'parent_id', 'sku_status_id'].includes(f.name))
+                      .map(renderField)}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '8px' }}>
+                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                    {itemFields
+                      .filter((f) => ['business_unit_id', 'department_id'].includes(f.name))
+                      .map(renderField)}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '8px' }}>
+                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                    {itemFields
+                      .filter((f) =>
+                        [
+                          'uom_id',
+                          'variant',
+                          'qty_per_pack',
+                          'height',
+                          'width',
+                          'depth',
+                          'gross_weight_pack',
+                          'container_20ft_qty',
+                          'container_40hq_qty',
+                          'production_time_days',
+                        ].includes(f.name)
+                      )
+                      .map(renderField)}
+                  </div>
                 </div>
 
                 {errorMessage ? (
