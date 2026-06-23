@@ -20,7 +20,6 @@ export const implementedNavigationPaths = [
   '/parents',
   '/items',
   '/bundles',
-  '/pic-categories',
   '/TableActions',
   '/item-types',
   '/ports',
@@ -68,10 +67,10 @@ export const primaryNavigationItems = [
     icon: Table01,
     children: [
       {
-        id: 'nav-pic-categories',
-        label: 'Pic Categories',
-        href: '/pic-categories',
-        icon: Tag01,
+        id: 'nav-brands',
+        label: 'Brands',
+        href: '/brands',
+        icon: Badge,
       },
       {
         id: 'nav-item-types',
@@ -90,12 +89,6 @@ export const primaryNavigationItems = [
         label: 'Uoms',
         href: '/uoms',
         icon: Ruler,
-      },
-      {
-        id: 'nav-brands',
-        label: 'Brands',
-        href: '/brands',
-        icon: Badge,
       },
       {
         id: 'nav-pics',

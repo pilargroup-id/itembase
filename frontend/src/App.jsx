@@ -7,6 +7,7 @@ import MyTickets from './pages/my-tickets/MyTickets.jsx'
 import ItemPages from './pages/items/items/ItemPages.jsx'
 import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
+import BrandsPages from './pages/master/brands/BrandsPages.jsx'
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
@@ -99,10 +100,6 @@ const pageDetails = {
     title: 'Bundles',
     eyebrow: 'Item Management',
   },
-  '/pic-categories': {
-    title: 'Pic Categories',
-    eyebrow: 'Master',
-  },
   '/item-types': {
     title: 'Item Types',
     eyebrow: 'Master',
@@ -189,7 +186,9 @@ function App() {
   const isParentsPage = activePath === '/parents'
   const isItemsPage = activePath === '/items'
   const isBundlesPage = activePath === '/bundles'
-  const isItemManagementTablePage = isParentsPage || isItemsPage || isBundlesPage
+  const isBrandsPage = activePath === '/brands'
+  const isItemManagementTablePage =
+    isParentsPage || isItemsPage || isBundlesPage || isBrandsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
@@ -259,6 +258,8 @@ function App() {
               <ItemPages activePage={activePage} searchQuery={searchQuery} />
             ) : isBundlesPage ? (
               <BundlesPage activePage={activePage} searchQuery={searchQuery} />
+            ) : isBrandsPage ? (
+              <BrandsPages activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">

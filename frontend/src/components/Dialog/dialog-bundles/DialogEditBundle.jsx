@@ -13,10 +13,13 @@ const initialFormValues = {
   uom_id: '',
   sku_status_id: '',
   business_unit_id: '',
+  department_id: '',
   variant: '',
   qty_per_pack: '',
   is_active: '1',
 }
+
+const initialComponent = () => ({ component_item_id: '', qty: '' })
 
 const bundleFields = [
   {
@@ -56,6 +59,15 @@ const bundleFields = [
     emptyMessage: 'Business unit tidak ditemukan.',
   },
   {
+    name: 'department_id',
+    label: 'Channel',
+    placeholder: 'Pilih channel',
+    type: 'select',
+    optionsKey: 'departments',
+    searchPlaceholder: 'Cari channel...',
+    emptyMessage: 'Channel tidak ditemukan.',
+  },
+  {
     name: 'variant',
     label: 'Variant',
     placeholder: 'BUNDLE TEST',
@@ -78,6 +90,7 @@ const emptyMasterOptions = {
   uoms: [],
   skuStatuses: [],
   businessUnits: [],
+  departments: [],
   regularItems: [],
 }
 
@@ -141,16 +154,34 @@ function normalizeMasterOptions(responseData) {
 }
 
 function normalizeRegularItemOptions(responseData) {
+  return normalizeRegularItemRows(responseData)
+    .map(createRegularItemOption)
+    .filter((option) => option.value && option.label)
+}
+
+function normalizeRegularItemRows(responseData) {
   return normalizeListResponse(responseData)
     .filter((item) => item.item_kind === 'regular')
-    .map((item) =>
-      makeOption(item.id, [
-        item.item_name || item.item_code,
-        item.item_code,
-        item.barcode,
-      ]),
-    )
-    .filter((option) => option.value && option.label)
+}
+
+function createRegularItemOption(item) {
+  return makeOption(item?.id ?? item?.item_id ?? item?.value, [
+    item?.item_name || item?.item_code,
+    item?.item_code,
+    item?.barcode,
+  ])
+}
+
+function mergeOptions(...optionLists) {
+  const optionMap = new Map()
+
+  optionLists.flat().forEach((option) => {
+    if (option?.value && option?.label && !optionMap.has(option.value)) {
+      optionMap.set(option.value, option)
+    }
+  })
+
+  return Array.from(optionMap.values())
 }
 
 function normalizeBusinessUnitOptions(responseData, itemRows = []) {
@@ -227,22 +258,82 @@ function getSelectedDepartmentId(item) {
   return selectedChannel?.department_id ?? item?.department_id ?? ''
 }
 
+function normalizeItemDetailResponse(responseData) {
+  if (responseData?.data?.data && !Array.isArray(responseData.data.data)) {
+    return responseData.data.data
+  }
+
+  if (responseData?.data && !Array.isArray(responseData.data)) {
+    return responseData.data
+  }
+
+  return responseData
+}
+
+function getItemComponents(item) {
+  return (
+    item?.components ??
+    item?.bundle_components ??
+    item?.item_bundle_components ??
+    item?.itemBundleComponents ??
+    []
+  )
+}
+
+function getComponentItem(component) {
+  return (
+    component?.component_item ??
+    component?.componentItem ??
+    component?.regular_item ??
+    component?.regularItem ??
+    component?.item ??
+    null
+  )
+}
+
+function getComponentItemId(component) {
+  return (
+    component?.component_item_id ??
+    component?.componentItemId ??
+    component?.regular_item_id ??
+    component?.item_id ??
+    getComponentItem(component)?.id ??
+    ''
+  )
+}
+
 function normalizeComponentsFromItem(item) {
-  const itemComponents = item?.components
+  const itemComponents = getItemComponents(item)
 
   if (!Array.isArray(itemComponents) || itemComponents.length === 0) {
-    return [
-      { component_item_id: '', qty: '' },
-      { component_item_id: '', qty: '' },
-    ]
+    return [initialComponent(), initialComponent()]
   }
 
   const sorted = [...itemComponents].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
-  return sorted.map((comp) => ({
-    component_item_id: String(comp.component_item_id ?? comp.item_id ?? comp.component_item?.id ?? comp.item?.id ?? ''),
+  return sorted.slice(0, BUNDLE_MAX_COMPONENTS).map((comp) => ({
+    component_item_id: String(getComponentItemId(comp)),
     qty: String(comp.qty ?? ''),
   }))
+}
+
+function normalizeRegularItemOptionsFromComponents(item) {
+  const itemComponents = getItemComponents(item)
+
+  if (!Array.isArray(itemComponents)) {
+    return []
+  }
+
+  return itemComponents
+    .map((component) => {
+      const componentItem = getComponentItem(component)
+
+      return createRegularItemOption({
+        ...componentItem,
+        id: getComponentItemId(component),
+      })
+    })
+    .filter((option) => option.value && option.label)
 }
 
 function createFormValuesFromItem(item) {
@@ -255,6 +346,7 @@ function createFormValuesFromItem(item) {
     uom_id: String(getNestedId(item, 'uom')),
     sku_status_id: String(getNestedId(item, 'sku_status')),
     business_unit_id: String(getNestedId(item, 'business_unit')),
+    department_id: String(getSelectedDepartmentId(item)),
     variant: item.variant ?? '',
     qty_per_pack: item.qty_per_pack ?? '',
     is_active: String(item.is_active ?? 1),
@@ -283,6 +375,9 @@ function createChannelPayload(formValues, departmentOption) {
 }
 
 function buildPayload(formValues, masterOptions, components) {
+  const selectedDepartment = masterOptions.departments.find(
+    (option) => option.value === String(formValues.department_id),
+  )
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
@@ -294,16 +389,27 @@ function buildPayload(formValues, masterOptions, components) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
+      .filter(([key]) => key !== 'department_id')
       .filter(([, value]) => value !== ''),
   )
+  const channels = createChannelPayload(formValues, selectedDepartment)
+
+  if (channels.length > 0) {
+    payload.channels = channels
+  }
 
   const validComponents = components
-    .filter((c) => c.component_item_id && String(c.qty).trim() !== '')
-    .map((c, index) => ({
-      component_item_id: c.component_item_id,
-      qty: Number(c.qty),
+    .map((component, index) => ({
+      component_item_id: component.component_item_id,
+      qty: Number(component.qty),
       sort_order: index + 1,
     }))
+    .filter(
+      (component) =>
+        component.component_item_id &&
+        Number.isFinite(component.qty) &&
+        component.qty > 0,
+    )
 
   if (validComponents.length > 0) {
     payload.components = validComponents
@@ -313,15 +419,40 @@ function buildPayload(formValues, masterOptions, components) {
 }
 
 function hasRequiredValues(payload, components) {
-  if (!payload.parent_id || !payload.business_unit_id) {
+  if (
+    !payload.parent_id ||
+    !payload.uom_id ||
+    !payload.sku_status_id ||
+    !payload.business_unit_id ||
+    !payload.variant ||
+    !payload.qty_per_pack ||
+    !Array.isArray(payload.channels) ||
+    payload.channels.length === 0
+  ) {
     return false
   }
 
-  const validComponents = components.filter(
-    (c) => c.component_item_id && String(c.qty).trim() !== '',
-  )
+  const qtyPerPack = Number(payload.qty_per_pack)
 
-  return validComponents.length >= BUNDLE_MIN_COMPONENTS
+  if (!Number.isFinite(qtyPerPack) || qtyPerPack <= 0) {
+    return false
+  }
+
+  const validComponents = components.filter((component) => {
+    const qty = Number(component.qty)
+
+    return (
+      component.component_item_id &&
+      String(component.qty).trim() !== '' &&
+      Number.isFinite(qty) &&
+      qty > 0
+    )
+  })
+
+  return (
+    validComponents.length >= BUNDLE_MIN_COMPONENTS &&
+    validComponents.length <= BUNDLE_MAX_COMPONENTS
+  )
 }
 
 function DialogEditBundle({
@@ -332,20 +463,24 @@ function DialogEditBundle({
   onClose,
   onEdited,
 }) {
+  const [bundleItem, setBundleItem] = useState(item)
   const [formValues, setFormValues] = useState(() => createFormValuesFromItem(item))
   const [components, setComponents] = useState(() => normalizeComponentsFromItem(item))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
-    setFormValues(createFormValuesFromItem(item))
-    setComponents(normalizeComponentsFromItem(item))
+    const currentItem = bundleItem ?? item
+
+    setFormValues(createFormValuesFromItem(currentItem))
+    setComponents(normalizeComponentsFromItem(currentItem))
     setIsSubmitting(false)
     setErrorMessage('')
-  }, [item])
+  }, [bundleItem, item])
 
   const handleClose = useCallback(() => {
     resetDialogState()
@@ -353,11 +488,39 @@ function DialogEditBundle({
   }, [onClose, resetDialogState])
 
   useEffect(() => {
-    if (isOpen) {
-      setFormValues(createFormValuesFromItem(item))
-      setComponents(normalizeComponentsFromItem(item))
+    if (!isOpen || !item?.id) {
+      return undefined
     }
-  }, [isOpen, item])
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadBundleDetail = async () => {
+      try {
+        const response = await api.items.detail(item.id, undefined, { signal: controller.signal })
+        const detailItem = normalizeItemDetailResponse(response)
+
+        if (!isMounted || !detailItem) {
+          return
+        }
+
+        setBundleItem(detailItem)
+        setFormValues(createFormValuesFromItem(detailItem))
+        setComponents(normalizeComponentsFromItem(detailItem))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    loadBundleDetail()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [isOpen, item?.id])
 
   useEffect(() => {
     if (!isOpen) {
@@ -412,14 +575,16 @@ function DialogEditBundle({
           return
         }
 
-        const itemRows = normalizeListResponse(items)
+        const itemRows = normalizeRegularItemRows(items)
+        const optionSourceRows = [bundleItem, ...itemRows].filter(Boolean)
 
         setItemOptionRows(itemRows)
         setMasterOptions({
           parents: normalizeParentOptions(parents),
           uoms: normalizeMasterOptions(uoms),
           skuStatuses: normalizeMasterOptions(skuStatuses),
-          businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
+          businessUnits: normalizeBusinessUnitOptions(businessUnits, optionSourceRows),
+          departments: [],
           regularItems: normalizeRegularItemOptions(items),
         })
       } catch (error) {
@@ -442,13 +607,85 @@ function DialogEditBundle({
       isMounted = false
       controller.abort()
     }
-  }, [isOpen])
+  }, [bundleItem, isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !formValues.business_unit_id) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadDepartmentOptions = async () => {
+      setIsLoadingDepartments(true)
+      setErrorMessage('')
+
+      try {
+        let departments = []
+
+        try {
+          departments = await api.businessUnits.departments(
+            formValues.business_unit_id,
+            { active: 1 },
+            { signal: controller.signal },
+          )
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            throw error
+          }
+        }
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: normalizeDepartmentOptions(
+            departments,
+            [bundleItem, ...itemOptionRows].filter(Boolean),
+            formValues.business_unit_id,
+          ),
+        }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat data channel.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingDepartments(false)
+        }
+      }
+    }
+
+    loadDepartmentOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [bundleItem, formValues.business_unit_id, isOpen, itemOptionRows])
 
   const handleFieldChange = (name, value) => {
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
+      ...(name === 'business_unit_id' ? { department_id: '' } : {}),
     }))
+
+    if (name === 'business_unit_id') {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        departments: [],
+      }))
+    }
   }
 
   const handleInputChange = (event) => {
@@ -487,7 +724,7 @@ function DialogEditBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi parent, business unit, dan minimal ${BUNDLE_MIN_COMPONENTS} component item.`,
+        `Lengkapi parent, UOM, SKU status, business unit, channel, variant, qty/pack, dan ${BUNDLE_MIN_COMPONENTS}-${BUNDLE_MAX_COMPONENTS} component item dengan qty valid.`,
       )
       return
     }
@@ -510,6 +747,11 @@ function DialogEditBundle({
   if (!isOpen || typeof document === 'undefined') {
     return null
   }
+
+  const componentItemOptions = mergeOptions(
+    masterOptions.regularItems,
+    normalizeRegularItemOptionsFromComponents(bundleItem ?? item),
+  )
 
   const dialogNode = (
     <div
@@ -557,7 +799,7 @@ function DialogEditBundle({
                     <input
                       id="edit-bundle-item-kind"
                       className="register-user-popup__input"
-                      value={item?.item_kind ?? 'bundle'}
+                      value={bundleItem?.item_kind ?? item?.item_kind ?? 'bundle'}
                       readOnly
                       disabled
                     />
@@ -612,7 +854,8 @@ function DialogEditBundle({
                           disabled={
                             isSubmitting ||
                             isLoadingMasters ||
-                            (field.name === 'department_id' && !formValues.business_unit_id)
+                            (field.name === 'department_id' &&
+                              (!formValues.business_unit_id || isLoadingDepartments))
                           }
                           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
                         />
@@ -695,7 +938,7 @@ function DialogEditBundle({
                           id={`edit-bundle-component-item-${index}`}
                           label={`Component item ${index + 1}`}
                           value={comp.component_item_id}
-                          options={masterOptions.regularItems}
+                          options={componentItemOptions}
                           placeholder="Pilih regular item..."
                           searchPlaceholder="Cari item..."
                           emptyMessage="Item tidak ditemukan."
