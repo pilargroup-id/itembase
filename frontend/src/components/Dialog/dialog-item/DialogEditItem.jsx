@@ -11,7 +11,6 @@ const initialFormValues = {
   uom_id: '',
   sku_status_id: '',
   business_unit_id: '',
-  department_id: '',
   variant: '',
   qty_per_pack: '',
   height: '',
@@ -66,15 +65,6 @@ const itemFields = [
     optionsKey: 'businessUnits',
     searchPlaceholder: 'Cari business unit...',
     emptyMessage: 'Business unit tidak ditemukan.',
-  },
-  {
-    name: 'department_id',
-    label: 'Department',
-    placeholder: 'Pilih department',
-    type: 'select',
-    optionsKey: 'departments',
-    searchPlaceholder: 'Cari department...',
-    emptyMessage: 'Department tidak ditemukan.',
   },
   {
     name: 'variant',
@@ -148,7 +138,6 @@ const emptyMasterOptions = {
   uoms: [],
   skuStatuses: [],
   businessUnits: [],
-  departments: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -295,7 +284,6 @@ function createFormValuesFromItem(item) {
     uom_id: String(getNestedId(item, 'uom')),
     sku_status_id: String(getNestedId(item, 'sku_status')),
     business_unit_id: String(getNestedId(item, 'business_unit')),
-    department_id: String(getSelectedDepartmentId(item)),
     variant: item.variant ?? '',
     qty_per_pack: item.qty_per_pack ?? '',
     height: item.height ?? '',
@@ -309,32 +297,8 @@ function createFormValuesFromItem(item) {
   }
 }
 
-function createChannelPayload(formValues, departmentOption) {
-  if (!formValues.business_unit_id || !formValues.department_id || !departmentOption) {
-    return []
-  }
-
-  const numericDepartmentId = Number(formValues.department_id)
-
-  return [
-    {
-      business_unit_id: formValues.business_unit_id,
-      department_id: Number.isNaN(numericDepartmentId)
-        ? formValues.department_id
-        : numericDepartmentId,
-      channel_code: departmentOption.code || departmentOption.value,
-      channel_name: departmentOption.label,
-      is_primary: 1,
-      is_active: 1,
-    },
-  ]
-}
-
-function buildPayload(formValues, masterOptions) {
-  const selectedDepartment = masterOptions.departments.find(
-    (option) => option.value === String(formValues.department_id),
-  )
-  const payload = Object.fromEntries(
+function buildPayload(formValues) {
+  return Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
         const trimmedValue = String(value ?? '').trim()
@@ -345,16 +309,8 @@ function buildPayload(formValues, masterOptions) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
-      .filter(([key]) => key !== 'department_id')
       .filter(([, value]) => value !== ''),
   )
-  const channels = createChannelPayload(formValues, selectedDepartment)
-
-  if (channels.length > 0) {
-    payload.channels = channels
-  }
-
-  return payload
 }
 
 function hasRequiredValues(payload, item) {
@@ -378,18 +334,12 @@ function DialogEditItem({
   const [formValues, setFormValues] = useState(() => createFormValuesFromItem(selectedItem))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
-  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
-  const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromItem(selectedItem))
     setIsSubmitting(false)
-    setMasterOptions((currentOptions) => ({
-      ...currentOptions,
-      departments: [],
-    }))
     setErrorMessage('')
   }, [selectedItem])
 
@@ -434,11 +384,10 @@ function DialogEditItem({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items] = await Promise.all([
+        const [parents, uoms, skuStatuses] = await Promise.all([
           api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
           api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
-          api.items.list({}, { signal: controller.signal }),
         ])
         let businessUnits = []
 
@@ -457,15 +406,11 @@ function DialogEditItem({
           return
         }
 
-        const itemRows = normalizeListResponse(items)
-
-        setItemOptionRows(itemRows)
         setMasterOptions({
           parents: normalizeParentOptions(parents),
           uoms: normalizeMasterOptions(uoms),
           skuStatuses: normalizeMasterOptions(skuStatuses),
-          businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
-          departments: [],
+          businessUnits: normalizeBusinessUnitOptions(businessUnits),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -489,68 +434,10 @@ function DialogEditItem({
     }
   }, [isOpen])
 
-  useEffect(() => {
-    if (!isOpen || !formValues.business_unit_id) {
-      setMasterOptions((currentOptions) => ({
-        ...currentOptions,
-        departments: [],
-      }))
-      return undefined
-    }
-
-    let isMounted = true
-    const controller = new AbortController()
-
-    const loadDepartmentOptions = async () => {
-      setIsLoadingDepartments(true)
-
-      try {
-        let departments = []
-
-        try {
-          departments = await api.businessUnits.departments(
-            formValues.business_unit_id,
-            { active: 1 },
-            { signal: controller.signal },
-          )
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            throw error
-          }
-        }
-
-        if (!isMounted) {
-          return
-        }
-
-        setMasterOptions((currentOptions) => ({
-          ...currentOptions,
-          departments: normalizeDepartmentOptions(
-            departments,
-            itemOptionRows,
-            formValues.business_unit_id,
-          ),
-        }))
-      } finally {
-        if (isMounted) {
-          setIsLoadingDepartments(false)
-        }
-      }
-    }
-
-    loadDepartmentOptions()
-
-    return () => {
-      isMounted = false
-      controller.abort()
-    }
-  }, [formValues.business_unit_id, isOpen, itemOptionRows])
-
   const handleFieldChange = (name, value) => {
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
-      ...(name === 'business_unit_id' ? { department_id: '' } : {}),
     }))
   }
 
@@ -568,7 +455,7 @@ function DialogEditItem({
       return
     }
 
-    const payload = buildPayload(formValues, masterOptions)
+    const payload = buildPayload(formValues)
 
     if (!hasRequiredValues(payload, selectedItem)) {
       setErrorMessage('Lengkapi parent, business unit, dan item name untuk regular item.')
@@ -681,16 +568,8 @@ function DialogEditItem({
                           placeholder={field.placeholder}
                           searchPlaceholder={field.searchPlaceholder}
                           emptyMessage={field.emptyMessage}
-                          loading={
-                            field.name === 'department_id'
-                              ? isLoadingDepartments
-                              : isLoadingMasters
-                          }
-                          disabled={
-                            isSubmitting ||
-                            isLoadingMasters ||
-                            (field.name === 'department_id' && !formValues.business_unit_id)
-                          }
+                          loading={isLoadingMasters}
+                          disabled={isSubmitting || isLoadingMasters}
                           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
                         />
                       ) : (

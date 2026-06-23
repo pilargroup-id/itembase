@@ -19,6 +19,7 @@ export const implementedNavigationPaths = [
   '/dashboard',
   '/parents',
   '/items',
+  '/bundles',
   '/pic-categories',
   '/TableActions',
   '/item-types',

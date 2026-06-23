@@ -1,11 +1,11 @@
 import { useState } from 'react'
 
-import DialogCreateItem from '../../Dialog/dialog-item/DialogCreateItem.jsx'
+import DialogCreateBundle from '../../Dialog/dialog-bundles/DialogCreateBundle.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
-function ButtonCreateItem({
+function ButtonCreateBundle({
   className = '',
-  children = 'Create Item',
+  children = 'Create Bundle',
   dialogProps = {},
   iconSize = 18,
   onClick,
@@ -48,7 +48,7 @@ function ButtonCreateItem({
         <span>{children}</span>
       </button>
 
-      <DialogCreateItem
+      <DialogCreateBundle
         {...dialogProps}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
@@ -58,4 +58,4 @@ function ButtonCreateItem({
   )
 }
 
-export default ButtonCreateItem
+export default ButtonCreateBundle

@@ -1,11 +1,10 @@
-import dataTableBundles from "../../../components/table/dekstop/master/DataTableBundles.jsx";
 import { useState } from 'react'
 
-import ButtonCreateItem from '../../../components/button/item-buttons/ButtonCreateItem.jsx'
-import DataTableItem from '../../../components/table/dekstop/items/DataTableItem.jsx'
+import ButtonCreateBundle from '../../../components/button/bundles-buttons/ButtonCreateBundle.jsx'
+import DataTableBundles from '../../../components/table/dekstop/items/DataTableBundles.jsx'
 
-function ItemPages({ activePage, searchQuery }) {
-  const [itemRefreshKey, setItemRefreshKey] = useState(0)
+function BundlesPage({ activePage, searchQuery }) {
+  const [bundleRefreshKey, setBundleRefreshKey] = useState(0)
 
   return (
     <section
@@ -19,19 +18,19 @@ function ItemPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
-          <ButtonCreateItem
-            onCreated={() => setItemRefreshKey((currentKey) => currentKey + 1)}
+          <ButtonCreateBundle
+            onCreated={() => setBundleRefreshKey((currentKey) => currentKey + 1)}
           />
         </div>
       </div>
 
-      <DataTableItem
+      <DataTableBundles
         searchQuery={searchQuery}
         tableLabel={`${activePage.title} table`}
-        refreshKey={itemRefreshKey}
+        refreshKey={bundleRefreshKey}
       />
     </section>
   )
 }
 
-export default ItemPages
+export default BundlesPage

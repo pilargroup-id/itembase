@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogEditBundle from "../../../Dialog/dialog-bundles/DialogEditBundle.jsx"
-import ButtonEditItem from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
+import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
 import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdownBundles.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
@@ -194,9 +194,16 @@ function createFilterOptions(rows, filterConfig) {
 }
 
 function createItemApiParams(filters, searchQuery) {
-    const params = {}
+    const params = {
+        item_kind: "bundle",
+    }
 
     itemFilterConfig.forEach((filterConfig) => {
+        // skip item_kind filter since we always force bundle
+        if (filterConfig.apiParam === "item_kind") {
+            return
+        }
+
         const selectedValue = normalizeFilterValue(filters[filterConfig.key])
 
         if (!filterConfig.apiParam || !selectedValue || selectedValue === ALL_FILTER_VALUE) {
@@ -322,22 +329,17 @@ const columns = [
         render: (item) => renderItemValue(item.barcode),
     },
     {
-        key: "kind",
-        header: "Kind",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
-        render: (item) => (
-            <DataTableIdentity
-                title={item.item_kind || "-"}
-                subtitle={item.variant || "-"}
-            />
-        ),
+        key: "variant",
+        header: "Variant",
+        headerStyle: { width: "9%" },
+        cellStyle: { width: "9%" },
+        render: (item) => renderItemValue(item.variant),
     },
     {
         key: "parent",
         header: "Parent",
-        headerStyle: { width: "13%" },
-        cellStyle: { width: "13%" },
+        headerStyle: { width: "15%" },
+        cellStyle: { width: "15%" },
         render: (item) => (
             <DataTableIdentity
                 title={item.parent?.parent_name || "-"}
@@ -383,25 +385,24 @@ const columns = [
     {
         key: "pack",
         header: "Pack",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
+        headerStyle: { width: "6%" },
+        cellStyle: { width: "6%" },
         render: (item) => renderItemValue(formatNumberValue(item.qty_per_pack)),
     },
     {
-        key: "dimension",
-        header: "Dimension",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
-        render: (item) =>
-            renderItemValue(
-                `${formatNumberValue(item.height)} x ${formatNumberValue(item.width)} x ${formatNumberValue(item.depth)}`,
-            ),
+        key: "components",
+        header: "Components",
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
+        render: (item) => renderItemValue(
+            Array.isArray(item.components) ? item.components.length : "-"
+        ),
     },
 ]
 
-function DataTableItem({
+function DataTableBundles({
     searchQuery = "",
-    tableLabel = "Items table",
+    tableLabel = "Bundles table",
     refreshKey = 0,
 }) {
     const [itemRows, setItemRows] = useState([])
@@ -459,7 +460,7 @@ function DataTableItem({
     )
 
     const selectedItemName =
-        selectedItem?.item_name || selectedItem?.item_code || selectedItem?.barcode || "item ini"
+        selectedItem?.item_name || selectedItem?.item_code || selectedItem?.barcode || "bundle ini"
     const dialogItem = selectedItem ? { name: selectedItemName } : null
 
     useEffect(() => {
@@ -470,7 +471,7 @@ function DataTableItem({
             setIsLoadingFilterOptions(true)
 
             try {
-                const response = await api.items.list({}, { signal: controller.signal })
+                const response = await api.items.list({ item_kind: "bundle" }, { signal: controller.signal })
 
                 if (!isMounted) {
                     return
@@ -520,7 +521,7 @@ function DataTableItem({
                 }
 
                 setItemRows([])
-                setErrorMessage(error?.message || "Gagal memuat data item.")
+                setErrorMessage(error?.message || "Gagal memuat data bundle.")
             } finally {
                 if (isMounted) {
                     setIsLoading(false)
@@ -553,24 +554,16 @@ function DataTableItem({
             header: "Action",
             headerClassName: "users-table__action-header",
             cellClassName: "users-table__action-cell",
-            headerStyle: { width: "7%" },
-            cellStyle: { width: "7%", whiteSpace: "nowrap" },
+            headerStyle: { width: "5%" },
+            cellStyle: { width: "5%", whiteSpace: "nowrap" },
             render: (item) => (
                 <div className="parent-action-buttons">
-                    <ButtonEditItem
+                    <ButtonEditBundle
                         title="Edit"
-                        aria-label={`Edit ${item.item_name || item.item_code || "item"}`}
+                        aria-label={`Edit ${item.item_name || item.item_code || "bundle"}`}
                         onClick={(event) => {
                             event.stopPropagation()
                             openActionDialog("edit", item)
-                        }}
-                    />
-                    <ButtonDeleteItem
-                        title="Delete"
-                        aria-label={`Delete ${item.item_name || item.item_code || "item"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("delete", item)
                         }}
                     />
                 </div>
@@ -580,18 +573,6 @@ function DataTableItem({
 
     const handleEditConfirm = () => {
         setReloadKey((currentKey) => currentKey + 1)
-        closeActionDialog()
-    }
-
-    const handleDeleteConfirm = (deletedItem = selectedItem) => {
-        if (deletedItem?.id) {
-            setItemRows((currentRows) =>
-                currentRows.map((item) =>
-                    item.id === deletedItem.id ? { ...item, is_active: 0 } : item,
-                ),
-            )
-        }
-
         closeActionDialog()
     }
 
@@ -628,8 +609,8 @@ function DataTableItem({
         pageSizeSuffix: "baris",
         previousLabel: "Sebelumnya",
         nextLabel: "Berikutnya",
-        ariaLabel: "Items pagination",
-        pageSizeAriaLabel: "Jumlah data item per halaman",
+        ariaLabel: "Bundles pagination",
+        pageSizeAriaLabel: "Jumlah data bundle per halaman",
         onPrevious: () => setPaginationPage(Math.max(1, safeCurrentPage - 1)),
         onNext: () => setPaginationPage(Math.min(totalPages, safeCurrentPage + 1)),
         onSelect: setPaginationPage,
@@ -637,14 +618,14 @@ function DataTableItem({
     }
 
     const emptyMessage = isLoading
-        ? "Memuat data item..."
-        : errorMessage || "Belum ada data item untuk ditampilkan."
+        ? "Memuat data bundle..."
+        : errorMessage || "Belum ada data bundle untuk ditampilkan."
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter item">
-                    <FilterDropdownItem
+                <div className="parent-table-filters" aria-label="Filter bundle">
+                    <FilterDropdownBundle
                         className="parent-table-filter parent-table-filter--sort"
                         options={itemSortOptions}
                         value={sortValue}
@@ -653,21 +634,23 @@ function DataTableItem({
                         searchable={false}
                         onChange={setSortValue}
                     />
-                    {itemFilterConfig.map((filterConfig) => (
-                        <FilterDropdownItem
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key]}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={
-                                isLoadingFilterOptions ? "Memuat opsi..." : filterConfig.emptyMessage
-                            }
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))}
+                    {itemFilterConfig
+                        .filter((filterConfig) => filterConfig.apiParam !== "item_kind")
+                        .map((filterConfig) => (
+                            <FilterDropdownBundle
+                                key={filterConfig.key}
+                                className="parent-table-filter"
+                                options={filterOptions[filterConfig.key]}
+                                value={filters[filterConfig.key]}
+                                label={filterConfig.label}
+                                placeholder={filterConfig.placeholder}
+                                searchPlaceholder={filterConfig.searchPlaceholder}
+                                emptyMessage={
+                                    isLoadingFilterOptions ? "Memuat opsi..." : filterConfig.emptyMessage
+                                }
+                                onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
+                            />
+                        ))}
                 </div>
             </div>
 
@@ -681,18 +664,17 @@ function DataTableItem({
                 pagination={pagination}
             />
 
-            <DialogEditItem
-                key={`edit-item-${selectedItem?.id ?? selectedItem?.item_code ?? "empty"}`}
+            <DialogEditBundle
+                key={`edit-bundle-${selectedItem?.id ?? selectedItem?.item_code ?? "empty"}`}
                 isOpen={activeActionDialog === "edit"}
-                eyebrow="Edit Item"
+                eyebrow="Edit Bundle"
                 title={`Edit ${selectedItemName}`}
                 item={selectedItem}
                 onClose={closeActionDialog}
                 onEdited={handleEditConfirm}
             />
-
         </div>
     )
 }
 
-export default DataTableItem
+export default DataTableBundles
