@@ -4,6 +4,7 @@ import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
 import Sidebar from './components/template/Sidebar.jsx'
 import MyTickets from './pages/my-tickets/MyTickets.jsx'
+import ItemPages from './pages/items/items/ItemPages.jsx'
 import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import api from './services/api.js'
 
@@ -185,6 +186,8 @@ function App() {
   const activePage = pageDetails[activePath] ?? pageDetails['/dashboard']
   const isDashboardPage = activePath === '/dashboard'
   const isParentsPage = activePath === '/parents'
+  const isItemsPage = activePath === '/items'
+  const isItemManagementTablePage = isParentsPage || isItemsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
@@ -241,15 +244,17 @@ function App() {
         />
 
         <main
-          className={`dashboard-main${isDashboardPage ? ' dashboard-main--mytickets' : ''}${isParentsPage ? ' dashboard-main--parents' : ''}`}
+          className={`dashboard-main${isDashboardPage ? ' dashboard-main--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
         >
           <div
-            className={`dashboard-content${isDashboardPage ? ' dashboard-content--mytickets' : ''}${isParentsPage ? ' dashboard-content--parents' : ''}`}
+            className={`dashboard-content${isDashboardPage ? ' dashboard-content--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
           >
             {isDashboardPage ? (
               <MyTickets activePage={activePage} searchQuery={searchQuery} />
             ) : isParentsPage ? (
               <ParentsPage activePage={activePage} searchQuery={searchQuery} />
+            ) : isItemsPage ? (
+              <ItemPages activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">

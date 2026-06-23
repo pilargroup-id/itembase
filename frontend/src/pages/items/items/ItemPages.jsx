@@ -1,10 +1,10 @@
 import { useState } from 'react'
 
-import ButtonCreateParent from '../../../components/button/parents-buttons/ButtonCreateParent.jsx'
-import DataTableParents from '../../../components/table/dekstop/items/DataTableParents.jsx'
+import ButtonCreateItem from '../../../components/button/item-buttons/ButtonCreateItem.jsx'
+import DataTableItem from '../../../components/table/dekstop/items/DataTableItem.jsx'
 
-function ParentsPage({ activePage, searchQuery }) {
-  const [parentRefreshKey, setParentRefreshKey] = useState(0)
+function ItemPages({ activePage, searchQuery }) {
+  const [itemRefreshKey, setItemRefreshKey] = useState(0)
 
   return (
     <section
@@ -18,19 +18,19 @@ function ParentsPage({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
-          <ButtonCreateParent
-            onCreated={() => setParentRefreshKey((currentKey) => currentKey + 1)}
+          <ButtonCreateItem
+            onCreated={() => setItemRefreshKey((currentKey) => currentKey + 1)}
           />
         </div>
       </div>
 
-      <DataTableParents
+      <DataTableItem
         searchQuery={searchQuery}
         tableLabel={`${activePage.title} table`}
-        refreshKey={parentRefreshKey}
+        refreshKey={itemRefreshKey}
       />
     </section>
   )
 }
 
-export default ParentsPage
+export default ItemPages

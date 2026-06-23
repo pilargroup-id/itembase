@@ -179,6 +179,15 @@ const api = {
   ports: createResource('/master/ports'),
   uoms: createResource('/master/uoms'),
   skuStatuses: createResource('/master/sku-statuses'),
+  businessUnits: {
+    list: (params, options) =>
+      api.get('/directory/business-units', { ...options, params }),
+    departments: (businessUnitId, params, options) =>
+      api.get(`/directory/business-units/${businessUnitId}/departments`, {
+        ...options,
+        params,
+      }),
+  },
   auth: {
     me: (options) => api.get('/auth/me', options),
   },

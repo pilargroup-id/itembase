@@ -5,8 +5,8 @@ import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
 import ButtonDeleteParent from "../../../button/parents-buttons/ButtonDeleteParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
-import FilterDropdownParent from "../../../dropdown/filterParent/FilterDropdownParent.jsx"
-import { parentFilterConfig } from "../../../dropdown/filterParent/FilterDropdownParent.config.js"
+import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdownParent.jsx"
+import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
