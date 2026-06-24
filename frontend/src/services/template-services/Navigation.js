@@ -21,7 +21,7 @@ export const implementedNavigationPaths = [
   '/items',
   '/bundles',
   '/TableActions',
-  '/item-types',
+  '/types',
   '/ports',
   '/uoms',
   '/brands',
@@ -73,9 +73,9 @@ export const primaryNavigationItems = [
         icon: Badge,
       },
       {
-        id: 'nav-item-types',
-        label: 'Item Types',
-        href: '/item-types',
+        id: 'nav-types',
+        label: 'Types',
+        href: '/types',
         icon: Shapes,
       },
       {
