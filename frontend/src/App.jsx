@@ -9,6 +9,7 @@ import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
 import BrandsPages from './pages/master/brands/BrandsPages.jsx'
 import TypePages from './pages/master/type/TypePages.jsx'
+import PortsPage from './pages/master/port/PortPages.jsx'
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
@@ -189,8 +190,9 @@ function App() {
   const isBundlesPage = activePath === '/bundles'
   const isBrandsPage = activePath === '/brands'
   const isTypePage = activePath === '/types'
+  const isPortsPage = activePath === '/ports'
   const isItemManagementTablePage =
-    isParentsPage || isItemsPage || isBundlesPage || isBrandsPage || isTypePage
+    isParentsPage || isItemsPage || isBundlesPage || isBrandsPage || isTypePage || isPortsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
@@ -264,6 +266,8 @@ function App() {
               <BrandsPages activePage={activePage} searchQuery={searchQuery} />
             ) : isTypePage ? (
               <TypePages activePage={activePage} searchQuery={searchQuery} />
+            ) : isPortsPage ? (
+              <PortsPage activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">
