@@ -7,10 +7,12 @@ import MyTickets from './pages/my-tickets/MyTickets.jsx'
 import ItemPages from './pages/items/items/ItemPages.jsx'
 import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
+import CategoriesPages from './pages/master/categories/CategoriesPages.jsx'
 import BrandsPages from './pages/master/brands/BrandsPages.jsx'
 import TypePages from './pages/master/type/TypePages.jsx'
 import PortsPage from './pages/master/port/PortPages.jsx'
 import UomsPages from './pages/master/uoms/UomsPages.jsx'
+import PicsPages from './pages/master/pics/PicsPages.jsx'
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
@@ -189,12 +191,14 @@ function App() {
   const isParentsPage = activePath === '/parents'
   const isItemsPage = activePath === '/items'
   const isBundlesPage = activePath === '/bundles'
+  const isCategoriesPage = activePath === '/categories'
   const isBrandsPage = activePath === '/brands'
   const isTypePage = activePath === '/types'
   const isPortsPage = activePath === '/ports'
   const isUomsPage = activePath === '/uoms'
+  const isPicsPage = activePath === '/pics'
   const isItemManagementTablePage =
-    isParentsPage || isItemsPage || isBundlesPage || isBrandsPage || isTypePage || isPortsPage || isUomsPage
+    isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isTypePage || isPortsPage || isUomsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
@@ -264,6 +268,8 @@ function App() {
               <ItemPages activePage={activePage} searchQuery={searchQuery} />
             ) : isBundlesPage ? (
               <BundlesPage activePage={activePage} searchQuery={searchQuery} />
+            ) : isCategoriesPage ? (
+              <CategoriesPages activePage={activePage} searchQuery={searchQuery} />
             ) : isBrandsPage ? (
               <BrandsPages activePage={activePage} searchQuery={searchQuery} />
             ) : isTypePage ? (
@@ -272,6 +278,8 @@ function App() {
               <PortsPage activePage={activePage} searchQuery={searchQuery} />
             ) : isUomsPage ? (
               <UomsPages activePage={activePage} searchQuery={searchQuery} />
+            ) : isPicsPage ? (
+              <PicsPages activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">

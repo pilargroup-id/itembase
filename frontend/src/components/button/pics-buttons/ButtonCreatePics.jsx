@@ -1,11 +1,11 @@
 import { useState } from 'react'
 
-import DialogCreateCategories from '../../Dialog/dialog-categories/DialogCreateCategories.jsx'
+import DialogCreatePics from '../../Dialog/dialog-pics/DialogCreatePics.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
-function ButtonCreateCategories({
+function ButtonCreatePics({
   className = '',
-  children = 'Create Category',
+  children = 'Create Pics',
   dialogProps = {},
   iconSize = 18,
   onClick,
@@ -30,9 +30,9 @@ function ButtonCreateCategories({
     setIsDialogOpen(false)
   }
 
-  const handleCreated = (createdBrand) => {
-    dialogProps.onCreated?.(createdBrand)
-    onCreated?.(createdBrand)
+  const handleCreated = (createdPics) => {
+    dialogProps.onCreated?.(createdPics)
+    onCreated?.(createdPics)
   }
 
   return (
@@ -48,7 +48,7 @@ function ButtonCreateCategories({
         <span>{children}</span>
       </button>
 
-      <DialogCreateCategories
+      <DialogCreatePics
         {...dialogProps}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
@@ -58,4 +58,4 @@ function ButtonCreateCategories({
   )
 }
 
-export default ButtonCreateCategories
+export default ButtonCreatePics

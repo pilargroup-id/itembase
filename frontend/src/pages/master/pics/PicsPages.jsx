@@ -1,10 +1,10 @@
 import { useState } from 'react'
 
-import ButtonCreateCategories from '../../../components/button/categories-buttons/ButtonCreateCategories.jsx'
-import DataTableCategories from '../../../components/table/dekstop/master/DataTableCategories.jsx'
+import ButtonCreatePics from '../../../components/button/pics-buttons/ButtonCreatePics.jsx'
+import DataTablePics from '../../../components/table/dekstop/master/DataTablePics.jsx'
 
-function CategoriesPages({ activePage, searchQuery }) {
-  const [categoriesRefreshKey, setCategoriesRefreshKey] = useState(0)
+function PicsPages({ activePage, searchQuery }) {
+  const [picsRefreshKey, setPicsRefreshKey] = useState(0)
 
   return (
     <section
@@ -18,19 +18,19 @@ function CategoriesPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
-          <ButtonCreateCategories
-            onCreated={() => setCategoriesRefreshKey((currentKey) => currentKey + 1)}
+          <ButtonCreatePics
+            onCreated={() => setPicsRefreshKey((currentKey) => currentKey + 1)}
           />
         </div>
       </div>
 
-      <DataTableCategories
+      <DataTablePics
         searchQuery={searchQuery}
         tableLabel={`${activePage.title} table`}
-        refreshKey={categoriesRefreshKey}
+        refreshKey={picsRefreshKey}
       />
     </section>
   )
 }
 
-export default CategoriesPages
+export default PicsPages

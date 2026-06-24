@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeletePics from "../../../Dialog/dialog-pics/DialogDeletePics.jsx"
-import DialogEditPics from "../../../Dialog/dialog-pics/DialogEditPics.jsx"
-import ButtonDeletePics from "../../../button/pics-buttons/ButtonDeletePics.jsx"
-import ButtonEditPics from "../../../button/pics-buttons/ButtonEditPics.jsx"
-import FilterDropdownPics from "../../../dropdown/filter-pics/FilterDropdownPics.jsx"
-import { picsFilterConfig } from "../../../dropdown/filter-pics/FilterDropdownPics.config.js"
+import DialogDeleteCategories from "../../../Dialog/dialog-categories/DialogDeleteCategories.jsx"
+import DialogEditCategories from "../../../Dialog/dialog-categories/DialogEditCategories.jsx"
+import ButtonDeleteCategories from "../../../button/categories-buttons/ButtonDeleteCategories.jsx"
+import ButtonEditCategories from "../../../button/categories-buttons/ButtonEditCategories.jsx"
+import FilterDropdownCategories from "../../../dropdown/filter-categories/FilterDropdownCategories.jsx"
+import { categoriesFilterConfig } from "../../../dropdown/filter-categories/FilterDropdownCategories.config.js"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -14,17 +14,17 @@ import DataTable, {
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-const DEFAULT_PICS_PAGE_SIZE = 25
-const PICS_PAGE_SIZE_OPTIONS = [25, 50, 100]
-const DEFAULT_PICS_SORT = "date-desc"
-const picsSortOptions = [
+const DEFAULT_CATEGORIES_PAGE_SIZE = 25
+const CATEGORIES_PAGE_SIZE_OPTIONS = [25, 50, 100]
+const DEFAULT_CATEGORIES_SORT = "date-desc"
+const categoriesSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
     { value: "name-asc", label: "Name Asc" },
     { value: "name-desc", label: "Name Desc" },
 ]
 
-const defaultPicsFilters = picsFilterConfig.reduce(
+const defaultCategoriesFilters = categoriesFilterConfig.reduce(
     (filters, filterConfig) => ({
         ...filters,
         [filterConfig.key]: ALL_FILTER_VALUE,
@@ -32,7 +32,7 @@ const defaultPicsFilters = picsFilterConfig.reduce(
     {},
 )
 
-function normalizePicsRows(responseData) {
+function normalizeCategoriesRows(responseData) {
     if (Array.isArray(responseData)) {
         return responseData
     }
@@ -52,16 +52,16 @@ function normalizePicsRows(responseData) {
     return []
 }
 
-function getPicsId(pics) {
-    return pics?.id ?? pics?.pics_id ?? null
+function getCategoriesId(categories) {
+    return categories?.id ?? null
 }
 
-function getPicsStatusValue(pics) {
-    if (pics?.is_active !== undefined && pics?.is_active !== null) {
-        return Number(pics.is_active) === 1 ? "1" : "0"
+function getCategoriesStatusValue(categories) {
+    if (categories?.is_active !== undefined && categories?.is_active !== null) {
+        return Number(categories.is_active) === 1 ? "1" : "0"
     }
 
-    const normalizedStatus = String(pics?.status ?? "").toLowerCase()
+    const normalizedStatus = String(categories?.status ?? "").toLowerCase()
 
     if (normalizedStatus === "active") {
         return "1"
@@ -74,8 +74,8 @@ function getPicsStatusValue(pics) {
     return ""
 }
 
-function getPicsStatusLabel(pics) {
-    const statusValue = getPicsStatusValue(pics)
+function getCategoriesStatusLabel(categories) {
+    const statusValue = getCategoriesStatusValue(categories)
 
     if (statusValue === "1") {
         return "active"
@@ -88,8 +88,8 @@ function getPicsStatusLabel(pics) {
     return "-"
 }
 
-function getPicsStatusVariant(pics) {
-    const statusValue = getPicsStatusValue(pics)
+function getCategoriesStatusVariant(categories) {
+    const statusValue = getCategoriesStatusValue(categories)
 
     if (statusValue === "1") {
         return "active"
@@ -108,7 +108,7 @@ function formatDisplayValue(value) {
     return displayValue || "-"
 }
 
-function renderPicsValue(value) {
+function renderCategoriesValue(value) {
     const displayValue = formatDisplayValue(value)
 
     return (
@@ -118,7 +118,7 @@ function renderPicsValue(value) {
     )
 }
 
-function matchesSearch(pics, searchQuery) {
+function matchesSearch(categories, searchQuery) {
     const normalizedQuery = String(searchQuery ?? "").trim().toLowerCase()
 
     if (!normalizedQuery) {
@@ -126,11 +126,13 @@ function matchesSearch(pics, searchQuery) {
     }
 
     return [
-        pics.code,
-        pics.pics_code,
-        pics.name,
-        pics.pics_name,
-        getPicsStatusLabel(pics),
+        categories.detail_category,
+        categories.sub_category,
+        categories.main_category,
+        categories.brand_category,
+        categories.pic_name,
+        categories.pic_code,
+        getCategoriesStatusLabel(categories),
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
@@ -148,8 +150,8 @@ function createFilterOptions(rows, filterConfig) {
 
     const uniqueOptions = new Map()
 
-    rows.forEach((pics) => {
-        const customOption = filterConfig.getOption?.(pics)
+    rows.forEach((categories) => {
+        const customOption = filterConfig.getOption?.(categories)
 
         if (customOption?.value) {
             uniqueOptions.set(String(customOption.value), {
@@ -159,7 +161,7 @@ function createFilterOptions(rows, filterConfig) {
             return
         }
 
-        const value = normalizeFilterValue(filterConfig.getValue(pics))
+        const value = normalizeFilterValue(filterConfig.getValue(categories))
 
         if (value) {
             uniqueOptions.set(value, { value, label: value })
@@ -173,58 +175,58 @@ function createFilterOptions(rows, filterConfig) {
     return [{ value: ALL_FILTER_VALUE, label: filterConfig.placeholder }, ...options]
 }
 
-function getPicsDateValue(pics) {
+function getCategoriesDateValue(categories) {
     const dateValue =
-        pics.created_at ??
-        pics.createdAt ??
-        pics.updated_at ??
-        pics.updatedAt ??
-        pics.date ??
-        pics.created_date
+        categories.created_at ??
+        categories.createdAt ??
+        categories.updated_at ??
+        categories.updatedAt ??
+        categories.date ??
+        categories.created_date
     const parsedDate = new Date(dateValue).getTime()
 
     return Number.isNaN(parsedDate) ? 0 : parsedDate
 }
 
-function sortPicsRows(rows, sortValue) {
+function sortCategoriesRows(rows, sortValue) {
     if (sortValue === "name-asc" || sortValue === "name-desc") {
         const sortDirection = sortValue === "name-asc" ? 1 : -1
 
         return [...rows].sort(
-            (firstPics, secondPics) =>
-                String(firstPics.name ?? firstPics.pics_name ?? "").localeCompare(
-                    String(secondPics.name ?? secondPics.pics_name ?? ""),
+            (firstCategories, secondCategories) =>
+                String(firstCategories.detail_category ?? "").localeCompare(
+                    String(secondCategories.detail_category ?? ""),
                 ) * sortDirection,
         )
     }
 
     const sortDirection = sortValue === "date-asc" ? 1 : -1
 
-    return [...rows].sort((firstPics, secondPics) => {
+    return [...rows].sort((firstCategories, secondCategories) => {
         const dateDifference =
-            (getPicsDateValue(firstPics) - getPicsDateValue(secondPics)) * sortDirection
+            (getCategoriesDateValue(firstCategories) - getCategoriesDateValue(secondCategories)) * sortDirection
 
         if (dateDifference !== 0) {
             return dateDifference
         }
 
         return (
-            String(firstPics.code ?? firstPics.pics_code ?? "").localeCompare(
-                String(secondPics.code ?? secondPics.pics_code ?? ""),
+            String(firstCategories.detail_category ?? "").localeCompare(
+                String(secondCategories.detail_category ?? ""),
             ) * sortDirection
         )
     })
 }
 
-function matchesPicsFilters(pics, filters) {
-    return picsFilterConfig.every((filterConfig) => {
+function matchesCategoriesFilters(categories, filters) {
+    return categoriesFilterConfig.every((filterConfig) => {
         const selectedValue = filters[filterConfig.key]
 
         if (!selectedValue || selectedValue === ALL_FILTER_VALUE) {
             return true
         }
 
-        return normalizeFilterValue(filterConfig.getValue(pics)) === selectedValue
+        return normalizeFilterValue(filterConfig.getValue(categories)) === selectedValue
     })
 }
 
@@ -259,49 +261,49 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
 const columns = [
     {
         key: "identity",
-        header: "Pics",
+        header: "Detail Category",
         headerStyle: { width: "36%" },
         cellStyle: { width: "36%" },
-        render: (pics) => (
+        render: (categories) => (
             <DataTableIdentity
-                title={pics.name || pics.pics_name || "-"}
-                subtitle={pics.code || pics.pics_code || "-"}
+                title={categories.detail_category || "-"}
+                subtitle={categories.main_category || "-"}
             />
         ),
     },
     {
-        key: "code",
-        header: "Code",
+        key: "sub_category",
+        header: "Sub Category",
         headerStyle: { width: "22%" },
         cellStyle: { width: "22%" },
-        render: (pics) => renderPicsValue(pics.code || pics.pics_code),
+        render: (categories) => renderCategoriesValue(categories.sub_category),
     },
     {
         key: "status",
         header: "Status",
         headerStyle: { width: "18%" },
         cellStyle: { width: "18%" },
-        render: (pics) => (
-            <DataTableStatus inline variant={getPicsStatusVariant(pics)}>
-                {getPicsStatusLabel(pics)}
+        render: (categories) => (
+            <DataTableStatus inline variant={getCategoriesStatusVariant(categories)}>
+                {getCategoriesStatusLabel(categories)}
             </DataTableStatus>
         ),
     },
 ]
 
-function DataTablePics({
+function DataTableCategories({
     searchQuery = "",
-    tableLabel = "Pics table",
+    tableLabel = "Categories table",
     refreshKey = 0,
 }) {
-    const [picsRows, setPicsRows] = useState([])
-    const [filters, setFilters] = useState(defaultPicsFilters)
-    const [sortValue, setSortValue] = useState(DEFAULT_PICS_SORT)
-    const [pageSize, setPageSize] = useState(DEFAULT_PICS_PAGE_SIZE)
+    const [categoriesRows, setCategoriesRows] = useState([])
+    const [filters, setFilters] = useState(defaultCategoriesFilters)
+    const [sortValue, setSortValue] = useState(DEFAULT_CATEGORIES_SORT)
+    const [pageSize, setPageSize] = useState(DEFAULT_CATEGORIES_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
     const [activeActionDialog, setActiveActionDialog] = useState(null)
-    const [selectedPics, setSelectedPics] = useState(null)
+    const [selectedCategories, setSelectedCategories] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
     const filterResetKey = useMemo(
         () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
@@ -316,24 +318,24 @@ function DataTablePics({
 
     const filterOptions = useMemo(
         () =>
-            picsFilterConfig.reduce(
+            categoriesFilterConfig.reduce(
                 (options, filterConfig) => ({
                     ...options,
-                    [filterConfig.key]: createFilterOptions(picsRows, filterConfig),
+                    [filterConfig.key]: createFilterOptions(categoriesRows, filterConfig),
                 }),
                 {},
             ),
-        [picsRows],
+        [categoriesRows],
     )
     const filteredRows = useMemo(
         () =>
-            picsRows.filter(
-                (pics) => matchesSearch(pics, searchQuery) && matchesPicsFilters(pics, filters),
+            categoriesRows.filter(
+                (categories) => matchesSearch(categories, searchQuery) && matchesCategoriesFilters(categories, filters),
             ),
-        [picsRows, filters, searchQuery],
+        [categoriesRows, filters, searchQuery],
     )
     const sortedRows = useMemo(
-        () => sortPicsRows(filteredRows, sortValue),
+        () => sortCategoriesRows(filteredRows, sortValue),
         [filteredRows, sortValue],
     )
     const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
@@ -341,31 +343,31 @@ function DataTablePics({
         [currentPage, pageSize, sortedRows],
     )
 
-    const selectedPicsName =
-        selectedPics?.name || selectedPics?.pics_name || selectedPics?.code || "pics ini"
+    const selectedCategoriesName =
+        selectedCategories?.detail_category || selectedCategories?.sub_category || "categories ini"
 
     useEffect(() => {
         let isMounted = true
 
-        const loadPics = async () => {
+        const loadCategories = async () => {
             setIsLoading(true)
             setErrorMessage("")
 
             try {
-                const response = await api.pics.list()
+                const response = await api.categories.list()
 
                 if (!isMounted) {
                     return
                 }
 
-                setPicsRows(normalizePicsRows(response))
+                setCategoriesRows(normalizeCategoriesRows(response))
             } catch (error) {
                 if (!isMounted) {
                     return
                 }
 
-                setPicsRows([])
-                setErrorMessage(error?.message || "Gagal memuat data pics.")
+                setCategoriesRows([])
+                setErrorMessage(error?.message || "Gagal memuat data categories.")
             } finally {
                 if (isMounted) {
                     setIsLoading(false)
@@ -373,7 +375,7 @@ function DataTablePics({
             }
         }
 
-        loadPics()
+        loadCategories()
 
         return () => {
             isMounted = false
@@ -382,11 +384,11 @@ function DataTablePics({
 
     const closeActionDialog = () => {
         setActiveActionDialog(null)
-        setSelectedPics(null)
+        setSelectedCategories(null)
     }
 
-    const openActionDialog = (dialogType, pics) => {
-        setSelectedPics(pics)
+    const openActionDialog = (dialogType, categories) => {
+        setSelectedCategories(categories)
         setActiveActionDialog(dialogType)
     }
 
@@ -399,22 +401,22 @@ function DataTablePics({
             cellClassName: "users-table__action-cell",
             headerStyle: { width: "24%" },
             cellStyle: { width: "24%", whiteSpace: "nowrap" },
-            render: (pics) => (
+            render: (categories) => (
                 <div className="parent-action-buttons">
-                    <ButtonEditPics
+                    <ButtonEditCategories
                         title="Edit"
-                        aria-label={`Edit ${pics.name || pics.pics_name || "pics"}`}
+                        aria-label={`Edit ${categories.name || categories.category_name || "categories"}`}
                         onClick={(event) => {
                             event.stopPropagation()
-                            openActionDialog("edit", pics)
+                            openActionDialog("edit", categories)
                         }}
                     />
-                    <ButtonDeletePics
+                    <ButtonDeleteCategories
                         title="Delete"
-                        aria-label={`Delete ${pics.name || pics.pics_name || "pics"}`}
+                        aria-label={`Delete ${categories.name || categories.category_name || "categories"}`}
                         onClick={(event) => {
                             event.stopPropagation()
-                            openActionDialog("delete", pics)
+                            openActionDialog("delete", categories)
                         }}
                     />
                 </div>
@@ -427,12 +429,12 @@ function DataTablePics({
         closeActionDialog()
     }
 
-    const handleDeleteConfirm = (deletedPics = selectedPics) => {
-        const deletedPicsId = getPicsId(deletedPics)
+    const handleDeleteConfirm = (deletedCategories = selectedCategories) => {
+        const deletedCategoriesId = getCategoriesId(deletedCategories)
 
-        if (deletedPicsId) {
-            setPicsRows((currentRows) =>
-                currentRows.filter((pics) => getPicsId(pics) !== deletedPicsId),
+        if (deletedCategoriesId) {
+            setCategoriesRows((currentRows) =>
+                currentRows.filter((categories) => getCategoriesId(categories) !== deletedCategoriesId),
             )
         }
 
@@ -467,13 +469,13 @@ function DataTablePics({
         totalPages,
         items: getPaginationItems(safeCurrentPage, totalPages),
         pageSize,
-        pageSizeOptions: PICS_PAGE_SIZE_OPTIONS,
+        pageSizeOptions: CATEGORIES_PAGE_SIZE_OPTIONS,
         pageSizeLabel: "Tampilkan",
         pageSizeSuffix: "baris",
         previousLabel: "Sebelumnya",
         nextLabel: "Berikutnya",
-        ariaLabel: "Pics pagination",
-        pageSizeAriaLabel: "Jumlah data pics per halaman",
+        ariaLabel: "Categories pagination",
+        pageSizeAriaLabel: "Jumlah data categories per halaman",
         onPrevious: () => setPaginationPage(Math.max(1, safeCurrentPage - 1)),
         onNext: () => setPaginationPage(Math.min(totalPages, safeCurrentPage + 1)),
         onSelect: setPaginationPage,
@@ -481,24 +483,24 @@ function DataTablePics({
     }
 
     const emptyMessage = isLoading
-        ? "Memuat data pics..."
-        : errorMessage || "Belum ada data pics untuk ditampilkan."
+        ? "Memuat data categories..."
+        : errorMessage || "Belum ada data categories untuk ditampilkan."
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter pics">
-                    <FilterDropdownPics
+                <div className="parent-table-filters" aria-label="Filter categories">
+                    <FilterDropdownCategories
                         className="parent-table-filter parent-table-filter--sort"
-                        options={picsSortOptions}
+                        options={categoriesSortOptions}
                         value={sortValue}
                         label="Sort By"
                         placeholder="Date Desc"
                         searchable={false}
                         onChange={setSortValue}
                     />
-                    {picsFilterConfig.map((filterConfig) => (
-                        <FilterDropdownPics
+                    {categoriesFilterConfig.map((filterConfig) => (
+                        <FilterDropdownCategories
                             key={filterConfig.key}
                             className="parent-table-filter"
                             options={filterOptions[filterConfig.key]}
@@ -517,28 +519,28 @@ function DataTablePics({
                 className="mtickets-table"
                 rows={rows}
                 columns={tableColumns}
-                getRowId={(pics) => getPicsId(pics) ?? pics.code ?? pics.pics_code}
+                getRowId={(categories) => getCategoriesId(categories) ?? categories.detail_category}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
             />
 
-            <DialogEditPics
-                key={`edit-pics-${getPicsId(selectedPics) ?? "empty"}`}
+            <DialogEditCategories
+                key={`edit-categories-${getCategoriesId(selectedCategories) ?? "empty"}`}
                 isOpen={activeActionDialog === "edit"}
-                eyebrow="Edit Pics"
-                title={`Edit ${selectedPicsName}`}
-                pics={selectedPics}
+                eyebrow="Edit Categories"
+                title={`Edit ${selectedCategoriesName}`}
+                categories={selectedCategories}
                 onClose={closeActionDialog}
                 onEdited={handleEditConfirm}
             />
 
-            <DialogDeletePics
-                key={`delete-pics-${getPicsId(selectedPics) ?? "empty"}`}
+            <DialogDeleteCategories
+                key={`delete-categories-${getCategoriesId(selectedCategories) ?? "empty"}`}
                 isOpen={activeActionDialog === "delete"}
-                eyebrow="Delete Pics"
-                title={`Delete ${selectedPicsName}`}
-                pics={selectedPics}
+                eyebrow="Delete Categories"
+                title={`Delete ${selectedCategoriesName}`}
+                categories={selectedCategories}
                 onClose={closeActionDialog}
                 onDeleted={handleDeleteConfirm}
             />
@@ -546,4 +548,4 @@ function DataTablePics({
     )
 }
 
-export default DataTablePics
+export default DataTableCategories
