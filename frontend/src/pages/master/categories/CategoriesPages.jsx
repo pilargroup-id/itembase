@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import ButtonCreateUom from '../../../components/button/uoms-buttons/ButtonCreateUom.jsx'
-import DataTableUom from '../../../components/table/dekstop/master/DataTableUom.jsx'
 
-function UomsPages({ activePage, searchQuery }) {
-  const [uomRefreshKey, setUomRefreshKey] = useState(0)
+import ButtonCreateBrand from '../../../components/button/brands-buttons/ButtonCreateBrand.jsx'
+import DataTableBrands from '../../../components/table/dekstop/master/DataTableBrands.jsx'
+
+function BrandsPages({ activePage, searchQuery }) {
+  const [brandRefreshKey, setBrandRefreshKey] = useState(0)
 
   return (
     <section
@@ -17,19 +18,19 @@ function UomsPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
-          <ButtonCreateUom
-            onCreated={() => setUomRefreshKey((currentKey) => currentKey + 1)}
+          <ButtonCreateBrand
+            onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
           />
         </div>
       </div>
 
-      <DataTableUom
+      <DataTableBrands
         searchQuery={searchQuery}
         tableLabel={`${activePage.title} table`}
-        refreshKey={uomRefreshKey}
+        refreshKey={brandRefreshKey}
       />
     </section>
   )
 }
 
-export default UomsPages
+export default BrandsPages

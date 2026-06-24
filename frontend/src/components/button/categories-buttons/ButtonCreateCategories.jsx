@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import DialogCreateUom from '../../Dialog/dialog-uoms/DialogCreateUom.jsx'
+
+import DialogCreateBrand from '../../Dialog/dialog-brands/DialogCreateBrand.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
-function ButtonCreateUom({
+function ButtonCreateCategories({
   className = '',
-  children = 'Create Uom',
+  children = 'Create Category',
   dialogProps = {},
   iconSize = 18,
   onClick,
@@ -29,9 +30,9 @@ function ButtonCreateUom({
     setIsDialogOpen(false)
   }
 
-  const handleCreated = (createdUom) => {
-    dialogProps.onCreated?.(createdUom)
-    onCreated?.(createdUom)
+  const handleCreated = (createdBrand) => {
+    dialogProps.onCreated?.(createdBrand)
+    onCreated?.(createdBrand)
   }
 
   return (
@@ -47,7 +48,7 @@ function ButtonCreateUom({
         <span>{children}</span>
       </button>
 
-      <DialogCreateUom
+      <DialogCreateCategories
         {...dialogProps}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
@@ -57,4 +58,4 @@ function ButtonCreateUom({
   )
 }
 
-export default ButtonCreateUom
+export default ButtonCreateCategories

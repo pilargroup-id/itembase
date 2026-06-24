@@ -20,12 +20,13 @@ export const implementedNavigationPaths = [
   '/parents',
   '/items',
   '/bundles',
-  '/TableActions',
+  '/categories',
   '/types',
   '/ports',
   '/uoms',
   '/brands',
   '/pics',
+  '/TableActions',
 ]
 
 export const primaryNavigationItems = [
@@ -66,6 +67,12 @@ export const primaryNavigationItems = [
     label: 'Master',
     icon: Table01,
     children: [
+      {
+        id: 'nav-categories',
+        label: 'Categories',
+        href: '/categories',
+        icon: LayersTwo,
+      },
       {
         id: 'nav-brands',
         label: 'Brands',
