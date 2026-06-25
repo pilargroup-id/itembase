@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getCategoriesDisplayName(categories) {
-  return categories?.name || categories?.category_name || categories?.code || categories?.category_code || 'categories ini'
+  return categories?.detail_category || categories?.sub_category || categories?.name || categories?.category_name || categories?.code || categories?.category_code || 'categories ini'
 }
 
 function getDeleteId(categories) {

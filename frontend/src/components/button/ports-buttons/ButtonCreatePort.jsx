@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateType from '../../Dialog/dialog-types/DialogCreateType.jsx'
+import DialogCreatePort from '../../Dialog/dialog-ports/DialogCreatePort.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreatePort({
@@ -30,9 +30,9 @@ function ButtonCreatePort({
     setIsDialogOpen(false)
   }
 
-  const handleCreated = (createdType) => {
-    dialogProps.onCreated?.(createdType)
-    onCreated?.(createdType)
+  const handleCreated = (createdPort) => {
+    dialogProps.onCreated?.(createdPort)
+    onCreated?.(createdPort)
   }
 
   return (
@@ -48,7 +48,7 @@ function ButtonCreatePort({
         <span>{children}</span>
       </button>
 
-      <DialogCreateType
+      <DialogCreatePort
         {...dialogProps}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}

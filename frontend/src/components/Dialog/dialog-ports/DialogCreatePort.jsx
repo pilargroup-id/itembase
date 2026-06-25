@@ -14,12 +14,12 @@ const PortFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'JKT',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'Jakarta',
   },
 ]
 
@@ -92,7 +92,7 @@ function DialogCreatePort({
     setErrorMessage('')
 
     try {
-      const createdPort = await api.Port.create(payload)
+      const createdPort = await api.ports.create(payload)
 
       onCreated?.(createdPort)
       handleClose()

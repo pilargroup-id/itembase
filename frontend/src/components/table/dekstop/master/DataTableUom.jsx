@@ -549,7 +549,7 @@ function DataTableUom({
 
             <DataTable
                 className="mtickets-table"
-                rows={uomRows}
+                rows={rows}
                 columns={tableColumns}
                 getRowId={(uom) => getUomId(uom) ?? uom.code ?? uom.uom_code}
                 tableLabel={tableLabel}

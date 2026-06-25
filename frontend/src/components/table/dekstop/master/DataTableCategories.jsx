@@ -261,9 +261,9 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
 const columns = [
     {
         key: "identity",
-        header: "Detail Category",
-        headerStyle: { width: "36%" },
-        cellStyle: { width: "36%" },
+        header: "Detail & Main Category",
+        headerStyle: { width: "30%" },
+        cellStyle: { width: "30%" },
         render: (categories) => (
             <DataTableIdentity
                 title={categories.detail_category || "-"}
@@ -274,9 +274,23 @@ const columns = [
     {
         key: "sub_category",
         header: "Sub Category",
-        headerStyle: { width: "22%" },
-        cellStyle: { width: "22%" },
+        headerStyle: { width: "15%" },
+        cellStyle: { width: "15%" },
         render: (categories) => renderCategoriesValue(categories.sub_category),
+    },
+    {
+        key: "brand_category",
+        header: "Brand Category",
+        headerStyle: { width: "15%" },
+        cellStyle: { width: "15%" },
+        render: (categories) => renderCategoriesValue(categories.brand_category),
+    },
+    {
+        key: "pic",
+        header: "PIC",
+        headerStyle: { width: "10%" },
+        cellStyle: { width: "10%" },
+        render: (categories) => renderCategoriesValue(categories.pic_name || categories.pic_code),
     },
 ]
 
@@ -408,8 +422,8 @@ function DataTableCategories({
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "18%" },
-            cellStyle: { width: "18%" },
+            headerStyle: { width: "15%" },
+            cellStyle: { width: "15%" },
             render: (categories) => (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <input
@@ -433,8 +447,8 @@ function DataTableCategories({
             header: "Action",
             headerClassName: "users-table__action-header",
             cellClassName: "users-table__action-cell",
-            headerStyle: { width: "24%" },
-            cellStyle: { width: "24%", whiteSpace: "nowrap" },
+            headerStyle: { width: "15%" },
+            cellStyle: { width: "15%", whiteSpace: "nowrap" },
             render: (categories) => (
                 <div className="parent-action-buttons">
                     <ButtonEditCategories

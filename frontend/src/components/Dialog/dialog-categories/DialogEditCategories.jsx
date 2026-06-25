@@ -5,21 +5,34 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
-  code: '',
-  name: '',
+  detail_category: '',
+  sub_category: '',
+  main_category: '',
+  brand_category: '',
+  pic_id: '',
   is_active: '1',
 }
 
 const categoriesFields = [
   {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'GOTO',
+    name: 'detail_category',
+    label: 'Detail Category',
+    placeholder: 'e.g., Apple iPhone 14 Pro Max',
   },
   {
-    name: 'name',
-    label: 'Name',
-    placeholder: 'GOTO',
+    name: 'sub_category',
+    label: 'Sub Category',
+    placeholder: 'e.g., Handphone',
+  },
+  {
+    name: 'main_category',
+    label: 'Main Category',
+    placeholder: 'e.g., Electronics',
+  },
+  {
+    name: 'brand_category',
+    label: 'Brand Category',
+    placeholder: 'e.g., Apple',
   },
 ]
 
@@ -51,8 +64,11 @@ function createFormValuesFromCategories(categories) {
   }
 
   return {
-    code: categories.code ?? categories.category_code ?? '',
-    name: categories.name ?? categories.category_name ?? '',
+    detail_category: categories.detail_category ?? '',
+    sub_category: categories.sub_category ?? '',
+    main_category: categories.main_category ?? '',
+    brand_category: categories.brand_category ?? '',
+    pic_id: categories.pic_id ?? '',
     is_active: getCategoriesStatusValue(categories),
   }
 }
@@ -68,6 +84,7 @@ function DialogEditCategories({
   const [formValues, setFormValues] = useState(() => createFormValuesFromCategories(categories))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [picOptions, setPicOptions] = useState([])
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromCategories(categories))
@@ -83,6 +100,27 @@ function DialogEditCategories({
   useEffect(() => {
     setFormValues(createFormValuesFromCategories(categories))
   }, [categories])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    let isMounted = true
+    const fetchPics = async () => {
+      try {
+        const response = await api.pics.list()
+        if (isMounted) {
+          const data = Array.isArray(response) ? response : (response?.data || response?.rows || response?.results || [])
+          setPicOptions(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch PICs', error)
+      }
+    }
+    
+    fetchPics()
+
+    return () => { isMounted = false }
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) {
@@ -112,8 +150,11 @@ function DialogEditCategories({
   }
 
   const buildPayload = () => ({
-    code: formValues.code.trim(),
-    name: formValues.name.trim(),
+    detail_category: formValues.detail_category.trim(),
+    sub_category: formValues.sub_category.trim(),
+    main_category: formValues.main_category.trim(),
+    brand_category: formValues.brand_category.trim(),
+    pic_id: formValues.pic_id,
     is_active: Number(formValues.is_active),
   })
 
@@ -122,8 +163,8 @@ function DialogEditCategories({
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name categories terlebih dahulu.')
+    if (!payload.detail_category) {
+      setErrorMessage('Lengkapi detail category terlebih dahulu.')
       return
     }
 
@@ -214,6 +255,27 @@ function DialogEditCategories({
                       />
                     </div>
                   ))}
+                  
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="categories-pic-id">
+                      PIC
+                    </label>
+                    <select
+                      id="categories-pic-id"
+                      name="pic_id"
+                      className="register-user-popup__select"
+                      value={formValues.pic_id}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Pilih PIC</option>
+                      {picOptions.map((pic) => (
+                        <option key={pic.id} value={pic.id}>
+                          {pic.name || pic.code || pic.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div className="register-user-popup__field">
                     <label className="register-user-popup__label" htmlFor="categories-is-active">

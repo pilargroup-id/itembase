@@ -14,12 +14,12 @@ const TypeFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'FG',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'Finished Goods',
   },
 ]
 
@@ -92,7 +92,7 @@ function DialogCreateType({
     setErrorMessage('')
 
     try {
-      const createdType = await api.Types.create(payload)
+      const createdType = await api.itemTypes.create(payload)
 
       onCreated?.(createdType)
       handleClose()

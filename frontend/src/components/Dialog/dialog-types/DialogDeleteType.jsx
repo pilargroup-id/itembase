@@ -65,7 +65,7 @@ function DialogDeleteType({
     setErrorMessage('')
 
     try {
-      await api.Types.remove(deleteId)
+      await api.itemTypes.remove(deleteId)
       onDeleted?.(Type)
       onConfirm?.(Type)
     } catch (error) {

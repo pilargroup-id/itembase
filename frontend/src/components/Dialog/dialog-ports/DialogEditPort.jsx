@@ -14,25 +14,25 @@ const PortFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'JKT',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'Jakarta',
   },
 ]
 
 function getPortId(Port) {
-  return Port?.id ?? Port?.Port_id ?? null
+  return Port?.id ?? Port?.port_id ?? null
 }
 
-function getTypeStatusValue(Port) {
+function getPortStatusValue(Port) {
   if (Port?.is_active !== undefined && Port?.is_active !== null) {
     return Number(Port.is_active) === 1 ? '1' : '0'
   }
 
-  const normalizedStatus = String(Type?.status ?? '').toLowerCase()
+  const normalizedStatus = String(Port?.status ?? '').toLowerCase()
 
   if (normalizedStatus === 'active') {
     return '1'
@@ -45,15 +45,15 @@ function getTypeStatusValue(Port) {
   return '1'
 }
 
-function createFormValuesFromType(Type) {
-  if (!Type) {
+function createFormValuesFromPort(Port) {
+  if (!Port) {
     return initialFormValues
   }
 
   return {
-    code: Port.code ?? Port.Port_code ?? '',
-    name: Port.name ?? Port.Port_name ?? '',
-    is_active: getTypeStatusValue(Port),
+    code: Port.code ?? Port.port_code ?? '',
+    name: Port.name ?? Port.port_name ?? '',
+    is_active: getPortStatusValue(Port),
   }
 }
 
@@ -65,12 +65,12 @@ function DialogEditPort({
   onClose,
   onEdited,
 }) {
-  const [formValues, setFormValues] = useState(() => createFormValuesFromType(Port))
+  const [formValues, setFormValues] = useState(() => createFormValuesFromPort(Port))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
-    setFormValues(createFormValuesFromType(Port))
+    setFormValues(createFormValuesFromPort(Port))
     setIsSubmitting(false)
     setErrorMessage('')
   }, [Port])
@@ -81,7 +81,7 @@ function DialogEditPort({
   }, [onClose, resetDialogState])
 
   useEffect(() => {
-    setFormValues(createFormValuesFromType(Port))
+    setFormValues(createFormValuesFromPort(Port))
   }, [Port])
 
   useEffect(() => {
@@ -123,7 +123,7 @@ function DialogEditPort({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name Type terlebih dahulu.')
+      setErrorMessage('Lengkapi code dan name Port terlebih dahulu.')
       return
     }
 
@@ -138,7 +138,7 @@ function DialogEditPort({
     setErrorMessage('')
 
     try {
-      const editedPort = await api.Ports.update(PortId, payload)
+      const editedPort = await api.ports.update(PortId, payload)
 
       onEdited?.(editedPort, payload)
       handleClose()
@@ -195,16 +195,16 @@ function DialogEditPort({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
-                  {TypeFields.map((field) => (
+                  {PortFields.map((field) => (
                     <div key={field.name} className="register-user-popup__field">
                       <label
                         className="register-user-popup__label"
-                        htmlFor={`Type-${field.name}`}
+                        htmlFor={`Port-${field.name}`}
                       >
                         {field.label}
                       </label>
                       <input
-                        id={`Type-${field.name}`}
+                        id={`Port-${field.name}`}
                         name={field.name}
                         className="register-user-popup__input"
                         value={formValues[field.name]}
@@ -216,11 +216,11 @@ function DialogEditPort({
                   ))}
 
                   <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="Type-is-active">
+                    <label className="register-user-popup__label" htmlFor="Port-is-active">
                       Status
                     </label>
                     <select
-                      id="Type-is-active"
+                      id="Port-is-active"
                       name="is_active"
                       className="register-user-popup__select"
                       value={formValues.is_active}

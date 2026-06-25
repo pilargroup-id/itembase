@@ -5,11 +5,11 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getPortDisplayName(Port) {
-  return Port?.name || Port?.Port_name || Port?.code || Port?.Port_code || 'Port ini'
+  return Port?.name || Port?.port_name || Port?.code || Port?.port_code || 'Port ini'
 }
 
 function getDeleteId(Port) {
-  return Port?.id ?? Port?.Port_id ?? null
+  return Port?.id ?? Port?.port_id ?? null
 }
 
 function DialogDeletePort({
@@ -65,7 +65,7 @@ function DialogDeletePort({
     setErrorMessage('')
 
     try {
-      await api.Ports.remove(deleteId)
+      await api.ports.remove(deleteId)
       onDeleted?.(Port)
       onConfirm?.(Port)
     } catch (error) {

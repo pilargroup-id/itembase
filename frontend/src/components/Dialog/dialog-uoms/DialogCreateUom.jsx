@@ -10,16 +10,16 @@ const initialFormValues = {
   is_active: '1',
 }
 
-const brandFields = [
+const uomFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'PCS',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'Pieces',
   },
 ]
 
@@ -84,7 +84,7 @@ function DialogCreateUom({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name brand terlebih dahulu.')
+      setErrorMessage('Lengkapi code dan name UOM terlebih dahulu.')
       return
     }
 
@@ -92,12 +92,12 @@ function DialogCreateUom({
     setErrorMessage('')
 
     try {
-      const createdBrand = await api.brands.create(payload)
+      const createdUom = await api.uoms.create(payload)
 
-      onCreated?.(createdBrand)
+      onCreated?.(createdUom)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat brand.')
+      setErrorMessage(error?.message || 'Gagal membuat UOM.')
     } finally {
       setIsSubmitting(false)
     }
@@ -121,14 +121,14 @@ function DialogCreateUom({
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-create-brand-title"
+        aria-labelledby="dialog-create-uom-title"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
         <div className="dashboard-popup__header">
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
-            <h2 className="dashboard-popup__title" id="dialog-create-brand-title">
+            <h2 className="dashboard-popup__title" id="dialog-create-uom-title">
               {title}
             </h2>
           </div>
@@ -149,16 +149,16 @@ function DialogCreateUom({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
-                  {brandFields.map((field) => (
+                  {uomFields.map((field) => (
                     <div key={field.name} className="register-user-popup__field">
                       <label
                         className="register-user-popup__label"
-                        htmlFor={`brand-${field.name}`}
+                        htmlFor={`uom-${field.name}`}
                       >
                         {field.label}
                       </label>
                       <input
-                        id={`brand-${field.name}`}
+                        id={`uom-${field.name}`}
                         name={field.name}
                         className="register-user-popup__input"
                         value={formValues[field.name]}
@@ -170,11 +170,11 @@ function DialogCreateUom({
                   ))}
 
                   <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="brand-is-active">
+                    <label className="register-user-popup__label" htmlFor="uom-is-active">
                       Status
                     </label>
                     <select
-                      id="brand-is-active"
+                      id="uom-is-active"
                       name="is_active"
                       className="register-user-popup__select"
                       value={formValues.is_active}

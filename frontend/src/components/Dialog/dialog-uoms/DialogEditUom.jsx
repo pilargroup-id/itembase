@@ -14,12 +14,12 @@ const uomFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'PCS',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'Pieces',
   },
 ]
 

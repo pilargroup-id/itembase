@@ -14,12 +14,12 @@ const brandFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'e.g., GOTO',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'e.g., GOTO',
   },
 ]
 

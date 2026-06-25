@@ -14,12 +14,12 @@ const TypeFields = [
   {
     name: 'code',
     label: 'Code',
-    placeholder: 'GOTO',
+    placeholder: 'FG',
   },
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'GOTO',
+    placeholder: 'Finished Goods',
   },
 ]
 
@@ -138,7 +138,7 @@ function DialogEditType({
     setErrorMessage('')
 
     try {
-      const editedType = await api.Types.update(TypeId, payload)
+      const editedType = await api.itemTypes.update(TypeId, payload)
 
       onEdited?.(editedType, payload)
       handleClose()

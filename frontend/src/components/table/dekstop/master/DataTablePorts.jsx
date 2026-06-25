@@ -127,9 +127,9 @@ function matchesSearch(Port, searchQuery) {
 
     return [
         Port.code,
-        Port.Port_code,
+        Port.port_code,
         Port.name,
-        Port.Port_name,
+        Port.port_name,
         getPortStatusLabel(Port),
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
@@ -192,8 +192,8 @@ function sortPortRows(rows, sortValue) {
 
         return [...rows].sort(
             (firstPort, secondPort) =>
-                String(firstPort.name ?? firstPort.Port_name ?? "").localeCompare(
-                    String(secondPort.name ?? secondPort.Port_name ?? ""),
+                String(firstPort.name ?? firstPort.port_name ?? "").localeCompare(
+                    String(secondPort.name ?? secondPort.port_name ?? ""),
                 ) * sortDirection,
         )
     }
@@ -209,8 +209,8 @@ function sortPortRows(rows, sortValue) {
         }
 
         return (
-            String(firstPort.code ?? firstPort.Port_code ?? "").localeCompare(
-                String(secondPort.code ?? secondPort.Port_code ?? ""),
+            String(firstPort.code ?? firstPort.port_code ?? "").localeCompare(
+                String(secondPort.code ?? secondPort.port_code ?? ""),
             ) * sortDirection
         )
     })
@@ -264,8 +264,8 @@ const columns = [
         cellStyle: { width: "36%" },
         render: (Port) => (
             <DataTableIdentity
-                title={Port.name || Port.Port_name || "-"}
-                subtitle={Port.code || Port.Port_code || "-"}
+                title={Port.name || Port.port_name || "-"}
+                subtitle={Port.code || Port.port_code || "-"}
             />
         ),
     },
@@ -274,7 +274,7 @@ const columns = [
         header: "Code",
         headerStyle: { width: "22%" },
         cellStyle: { width: "22%" },
-        render: (Port) => renderPortValue(Port.code || Port.Port_code),
+        render: (Port) => renderPortValue(Port.code || Port.port_code),
     },
 ]
 
@@ -331,7 +331,7 @@ function DataTablePorts({
     )
 
     const selectedPortName =
-        selectedPort?.name || selectedPort?.Port_name || selectedPort?.code || "Port ini"
+        selectedPort?.name || selectedPort?.port_name || selectedPort?.code || "Port ini"
 
     useEffect(() => {
         let isMounted = true
@@ -418,7 +418,7 @@ function DataTablePorts({
                             togglePortStatus(Port)
                         }}
                         style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                        title={`Tandai ${Port.name || Port.Port_name || "Port"} sebagai ${getPortStatusValue(Port) === "1" ? "non-aktif" : "aktif"}`}
+                        title={`Tandai ${Port.name || Port.port_name || "Port"} sebagai ${getPortStatusValue(Port) === "1" ? "non-aktif" : "aktif"}`}
                     />
                     <DataTableStatus inline variant={getPortStatusVariant(Port)}>
                         {getPortStatusLabel(Port)}
@@ -437,7 +437,7 @@ function DataTablePorts({
                 <div className="parent-action-buttons">
                     <ButtonEditPort
                         title="Edit"
-                        aria-label={`Edit ${Port.name || Port.Port_name || "Port"}`}
+                        aria-label={`Edit ${Port.name || Port.port_name || "Port"}`}
                         onClick={(event) => {
                             event.stopPropagation()
                             openActionDialog("edit", Port)
@@ -445,7 +445,7 @@ function DataTablePorts({
                     />
                     <ButtonDeletePort
                         title="Delete"
-                        aria-label={`Delete ${Port.name || Port.Port_name || "Port"}`}
+                        aria-label={`Delete ${Port.name || Port.port_name || "Port"}`}
                         onClick={(event) => {
                             event.stopPropagation()
                             openActionDialog("delete", Port)
@@ -551,7 +551,7 @@ function DataTablePorts({
                 className="mtickets-table"
                 rows={rows}
                 columns={tableColumns}
-                getRowId={(Port) => getPortId(Port) ?? Port.code ?? Port.Port_code}
+                getRowId={(Port) => getPortId(Port) ?? Port.code ?? Port.port_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}

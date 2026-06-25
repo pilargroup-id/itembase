@@ -16,7 +16,6 @@ function DialogDeleteUom({
   isOpen = false,
   eyebrow = 'Delete Uom',
   title = 'Delete Uom',
-  brand = null,
   uom = null,
   onClose,
   onDeleted,
