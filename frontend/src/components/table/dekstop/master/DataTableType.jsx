@@ -224,7 +224,7 @@ function matchesTypeFilters(type, filters) {
             return true
         }
 
-        return normalizeFilterValue(filterConfig.getValue(Type)) === selectedValue
+        return normalizeFilterValue(filterConfig.getValue(type)) === selectedValue
     })
 }
 
@@ -352,7 +352,7 @@ function DataTableType({
             setErrorMessage("")
 
             try {
-                const response = await api.Types.list()
+                const response = await api.itemTypes.list()
 
                 if (!isMounted) {
                     return

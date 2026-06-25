@@ -6,57 +6,14 @@ export const TypeFilterConfig = [
         searchPlaceholder: "Search status...",
         emptyMessage: "Status not found.",
         options: [
-            { value: "active", label: "Active" },
-            { value: "inactive", label: "Inactive" },
+            { value: "1", label: "Active" },
+            { value: "0", label: "Inactive" },
         ],
-        getValue: (Type) => String(Type.status ?? "").toLowerCase(),
-    },
-    {
-        key: "mainCategory",
-        label: "Main Category",
-        placeholder: "All Main Category",
-        searchPlaceholder: "Search main category...",
-        emptyMessage: "Main category not found.",
-        getValue: (Type) => Type.category?.main_category,
-    },
-    {
-        key: "subCategory",
-        label: "Sub Category",
-        placeholder: "All Sub Category",
-        searchPlaceholder: "Search sub category...",
-        emptyMessage: "Sub category not found.",
-        getValue: (Type) => Type.category?.sub_category,
-    },
-    {
-        key: "detailCategory",
-        label: "Detail Category",
-        placeholder: "All Detail Category",
-        searchPlaceholder: "Search detail category...",
-        emptyMessage: "Detail category not found.",
-        getValue: (Type) => Type.category?.detail_category,
-    },
-    {
-        key: "brandCategory",
-        label: "Brand Category",
-        placeholder: "All Brand Category",
-        searchPlaceholder: "Search brand category...",
-        emptyMessage: "Brand category not found.",
-        getValue: (Type) => Type.category?.brand_category,
-    },
-    {
-        key: "brand",
-        label: "Brand",
-        placeholder: "All Brand",
-        searchPlaceholder: "Search brand...",
-        emptyMessage: "Brand not found.",
-        getValue: (Type) => Type.brand?.name,
-    },
-    {
-        key: "subBrand",
-        label: "Sub Brand",
-        placeholder: "All Sub Brand",
-        searchPlaceholder: "Search sub brand...",
-        emptyMessage: "Sub brand not found.",
-        getValue: (Type) => Type.sub_brand,
+        getValue: (Type) => {
+            if (Type?.is_active !== undefined && Type?.is_active !== null) {
+                return Number(Type.is_active) === 1 ? "1" : "0"
+            }
+            return ""
+        },
     },
 ]
