@@ -451,7 +451,7 @@ select {
 }
 
 .nav-submenu.expanded {
-  max-height: 200px;
+  max-height: 500px;
   padding-bottom: 4px;
 }
 

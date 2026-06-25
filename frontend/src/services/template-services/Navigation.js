@@ -1,16 +1,19 @@
 import {
-  Anchor,
   Badge,
+  Barcode,
   Boxes01,
   Folder,
+  Globe,
   LayersTwo,
+  List,
   LogOutLeft01,
   Ruler,
   Shapes,
   Table01,
   Tag01,
   Ticket01,
-  Users01,
+  UserCheck,
+  UserCog,
 } from '../../components/template/TemplateIcons.jsx'
 
 export const defaultNavigationPath = '/dashboard'
@@ -72,7 +75,7 @@ export const primaryNavigationItems = [
         id: 'nav-categories',
         label: 'Categories',
         href: '/categories',
-        icon: LayersTwo,
+        icon: List,
       },
       {
         id: 'nav-brands',
@@ -90,7 +93,7 @@ export const primaryNavigationItems = [
         id: 'nav-ports',
         label: 'Ports',
         href: '/ports',
-        icon: Anchor,
+        icon: Globe,
       },
       {
         id: 'nav-uoms',
@@ -102,19 +105,19 @@ export const primaryNavigationItems = [
         id: 'nav-pics',
         label: 'Pics',
         href: '/pics',
-        icon: Users01,
+        icon: UserCheck,
       },
       {
         id: 'nav-pic-users',
         label: 'Pic Users',
         href: '/pic-users',
-        icon: Users01,
+        icon: UserCog,
       },
       {
         id: 'nav-sku-statuses',
         label: 'SKU Status',
         href: '/sku-statuses',
-        icon: Boxes01,
+        icon: Barcode,
       }
     ],
   },
