@@ -278,17 +278,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (categories) => renderCategoriesValue(categories.sub_category),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (categories) => (
-            <DataTableStatus inline variant={getCategoriesStatusVariant(categories)}>
-                {getCategoriesStatusLabel(categories)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTableCategories({
@@ -392,8 +381,53 @@ function DataTableCategories({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleCategoriesStatus = async (categories) => {
+        const categoriesId = getCategoriesId(categories)
+        const currentStatus = getCategoriesStatusValue(categories) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousCategoriesRows = [...categoriesRows]
+
+        setCategoriesRows((currentRows) =>
+            currentRows.map((row) =>
+                getCategoriesId(row) === categoriesId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.categories.updateStatus(categoriesId, newStatus)
+        } catch (error) {
+            setCategoriesRows(previousCategoriesRows)
+            setErrorMessage(error?.message || "Gagal mengubah status categories.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (categories) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getCategoriesStatusValue(categories) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            toggleCategoriesStatus(categories)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${categories.name || categories.category_name || "categories"} sebagai ${getCategoriesStatusValue(categories) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getCategoriesStatusVariant(categories)}>
+                        {getCategoriesStatusLabel(categories)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

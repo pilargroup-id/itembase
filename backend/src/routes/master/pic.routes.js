@@ -39,4 +39,11 @@ router.delete(
   PicController.destroy
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  PicController.toggleStatus
+);
+
 module.exports = router;

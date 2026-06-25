@@ -125,10 +125,28 @@ async function destroy(id) {
   };
 }
 
+async function updateStatus(id, is_active) {
+  await show(id);
+
+  if (!isValidBoolean(is_active)) {
+    throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
+  }
+
+  await PortModel.updateStatus(id, Number(is_active));
+
+  const updatedPort = await PortModel.findById(id);
+
+  return {
+    message: 'Port status updated successfully',
+    data: updatedPort,
+  };
+}
+
 module.exports = {
   index,
   show,
   store,
   update,
+  updateStatus,
   destroy,
 };

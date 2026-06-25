@@ -39,4 +39,11 @@ router.delete(
   SkuStatusController.destroy
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  SkuStatusController.toggleStatus
+);
+
 module.exports = router;

@@ -125,10 +125,28 @@ async function destroy(id) {
   };
 }
 
+async function updateStatus(id, is_active) {
+  await show(id);
+
+  if (!isValidBoolean(is_active)) {
+    throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
+  }
+
+  await SkuStatusModel.updateStatus(id, Number(is_active));
+
+  const updatedSkuStatus = await SkuStatusModel.findById(id);
+
+  return {
+    message: 'SKU status updated successfully',
+    data: updatedSkuStatus,
+  };
+}
+
 module.exports = {
   index,
   show,
   store,
   update,
+  updateStatus,
   destroy,
 };

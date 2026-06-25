@@ -276,17 +276,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (brand) => renderBrandValue(brand.code || brand.brand_code),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (brand) => (
-            <DataTableStatus inline variant={getBrandStatusVariant(brand)}>
-                {getBrandStatusLabel(brand)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTableBrands({
@@ -390,8 +379,53 @@ function DataTableBrands({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleBrandStatus = async (brand) => {
+        const brandId = getBrandId(brand)
+        const currentStatus = getBrandStatusValue(brand) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousBrandRows = [...brandRows]
+
+        setBrandRows((currentRows) =>
+            currentRows.map((row) =>
+                getBrandId(row) === brandId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.brands.updateStatus(brandId, newStatus)
+        } catch (error) {
+            setBrandRows(previousBrandRows)
+            setErrorMessage(error?.message || "Gagal mengubah status brand.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (brand) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getBrandStatusValue(brand) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            toggleBrandStatus(brand)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${brand.name || brand.brand_name || "brand"} sebagai ${getBrandStatusValue(brand) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getBrandStatusVariant(brand)}>
+                        {getBrandStatusLabel(brand)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

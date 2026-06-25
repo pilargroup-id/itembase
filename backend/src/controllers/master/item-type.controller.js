@@ -51,10 +51,21 @@ async function destroy(req, res, next) {
   }
 }
 
+async function toggleStatus(req, res, next) {
+  try {
+    const result = await ItemTypeService.updateStatus(req.params.id, req.body.is_active);
+
+    return response.ok(res, result.data, result.message);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   index,
   show,
   store,
   update,
+  toggleStatus,
   destroy,
 };

@@ -276,17 +276,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (Type) => renderTypeValue(Type.code || Type.Type_code),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (Type) => (
-            <DataTableStatus inline variant={getTypeStatusVariant(Type)}>
-                {getTypeStatusLabel(Type)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTableType({
@@ -390,8 +379,53 @@ function DataTableType({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleTypeStatus = async (Type) => {
+        const TypeId = getTypeId(Type)
+        const currentStatus = getTypeStatusValue(Type) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousTypeRows = [...TypeRows]
+
+        setTypeRows((currentRows) =>
+            currentRows.map((row) =>
+                getTypeId(row) === TypeId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.itemTypes.updateStatus(TypeId, newStatus)
+        } catch (error) {
+            setTypeRows(previousTypeRows)
+            setErrorMessage(error?.message || "Gagal mengubah status Type.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (Type) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getTypeStatusValue(Type) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            toggleTypeStatus(Type)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${Type.name || Type.Type_name || "Type"} sebagai ${getTypeStatusValue(Type) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getTypeStatusVariant(Type)}>
+                        {getTypeStatusLabel(Type)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

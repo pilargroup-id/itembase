@@ -509,6 +509,21 @@ async function remove(id) {
   }
 }
 
+async function updateStatus(id, is_active) {
+  const [result] = await db.query(
+    `
+      UPDATE ${table}
+      SET
+        is_active = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `,
+    [is_active, id]
+  );
+
+  return result;
+}
+
 module.exports = {
   findAll,
   findById,
@@ -521,6 +536,7 @@ module.exports = {
   create,
   createMany,
   update,
+  updateStatus,
   syncByPicId,
   remove,
 };

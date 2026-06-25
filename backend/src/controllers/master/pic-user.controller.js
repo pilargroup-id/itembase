@@ -61,11 +61,22 @@ async function destroy(req, res, next) {
   }
 }
 
+async function toggleStatus(req, res, next) {
+  try {
+    const result = await PicUserService.updateStatus(req.params.id, req.body.is_active);
+
+    return response.ok(res, result.data, result.message);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   index,
   options,
   show,
   store,
   update,
+  toggleStatus,
   destroy,
 };

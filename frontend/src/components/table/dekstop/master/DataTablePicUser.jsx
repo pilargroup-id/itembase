@@ -275,17 +275,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (picUser) => renderPicUserValue(picUser.central_user_id),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (picUser) => (
-            <DataTableStatus inline variant={getPicUserStatusVariant(picUser)}>
-                {getPicUserStatusLabel(picUser)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTablePicUser({
@@ -389,8 +378,53 @@ function DataTablePicUser({
         setActiveActionDialog(dialogType)
     }
 
+    const togglePicUserStatus = async (picUser) => {
+        const picUserId = getPicUserId(picUser)
+        const currentStatus = getPicUserStatusValue(picUser) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousPicUserRows = [...picUserRows]
+
+        setPicUserRows((currentRows) =>
+            currentRows.map((row) =>
+                getPicUserId(row) === picUserId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.picUsers.updateStatus(picUserId, newStatus)
+        } catch (error) {
+            setPicUserRows(previousPicUserRows)
+            setErrorMessage(error?.message || "Gagal mengubah status pic user.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (picUser) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getPicUserStatusValue(picUser) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            togglePicUserStatus(picUser)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${picUser.pic_name || picUser.pic_code || "pic user"} sebagai ${getPicUserStatusValue(picUser) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getPicUserStatusVariant(picUser)}>
+                        {getPicUserStatusLabel(picUser)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

@@ -160,10 +160,28 @@ async function destroy(id) {
   };
 }
 
+async function updateStatus(id, is_active) {
+  await show(id);
+
+  if (!isValidBoolean(is_active)) {
+    throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
+  }
+
+  await CategoryModel.updateStatus(id, Number(is_active));
+
+  const updatedCategory = await CategoryModel.findById(id);
+
+  return {
+    message: 'Category status updated successfully',
+    data: updatedCategory,
+  };
+}
+
 module.exports = {
   index,
   show,
   store,
   update,
+  updateStatus,
   destroy,
 };

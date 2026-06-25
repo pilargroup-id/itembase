@@ -217,12 +217,28 @@ async function countUsedByItemParents(id) {
   return rows[0]?.total || 0;
 }
 
+async function updateStatus(id, is_active) {
+  const [result] = await db.query(
+    `
+      UPDATE ${table}
+      SET
+        is_active = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `,
+    [is_active, id]
+  );
+
+  return result;
+}
+
 module.exports = {
   findAll,
   findById,
   findPicById,
   create,
   update,
+  updateStatus,
   remove,
   countUsedByItemParents,
 };

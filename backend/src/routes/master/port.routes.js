@@ -39,4 +39,11 @@ router.delete(
   PortController.destroy
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  PortController.toggleStatus
+);
+
 module.exports = router;

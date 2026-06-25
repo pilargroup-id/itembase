@@ -276,17 +276,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (Port) => renderPortValue(Port.code || Port.Port_code),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (Port) => (
-            <DataTableStatus inline variant={getPortStatusVariant(Port)}>
-                {getPortStatusLabel(Port)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTablePorts({
@@ -390,8 +379,53 @@ function DataTablePorts({
         setActiveActionDialog(dialogPort)
     }
 
+    const togglePortStatus = async (Port) => {
+        const PortId = getPortId(Port)
+        const currentStatus = getPortStatusValue(Port) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousPortRows = [...PortRows]
+
+        setPortRows((currentRows) =>
+            currentRows.map((row) =>
+                getPortId(row) === PortId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.ports.updateStatus(PortId, newStatus)
+        } catch (error) {
+            setPortRows(previousPortRows)
+            setErrorMessage(error?.message || "Gagal mengubah status Port.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (Port) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getPortStatusValue(Port) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            togglePortStatus(Port)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${Port.name || Port.Port_name || "Port"} sebagai ${getPortStatusValue(Port) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getPortStatusVariant(Port)}>
+                        {getPortStatusLabel(Port)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

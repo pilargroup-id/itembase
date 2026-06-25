@@ -276,17 +276,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (uom) => renderUomValue(uom.code || uom.uom_code),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (uom) => (
-            <DataTableStatus inline variant={getUomStatusVariant(uom)}>
-                {getUomStatusLabel(uom)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTableUom({
@@ -390,8 +379,53 @@ function DataTableUom({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleUomStatus = async (uom) => {
+        const uomId = getUomId(uom)
+        const currentStatus = getUomStatusValue(uom) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousUomRows = [...uomRows]
+
+        setUomRows((currentRows) =>
+            currentRows.map((row) =>
+                getUomId(row) === uomId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.uoms.updateStatus(uomId, newStatus)
+        } catch (error) {
+            setUomRows(previousUomRows)
+            setErrorMessage(error?.message || "Gagal mengubah status uom.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (uom) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getUomStatusValue(uom) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            toggleUomStatus(uom)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${uom.name || uom.uom_name || "uom"} sebagai ${getUomStatusValue(uom) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getUomStatusVariant(uom)}>
+                        {getUomStatusLabel(uom)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

@@ -39,4 +39,11 @@ router.delete(
   CategoryController.destroy
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  CategoryController.toggleStatus
+);
+
 module.exports = router;

@@ -39,4 +39,11 @@ router.delete(
   UomController.destroy
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  UomController.toggleStatus
+);
+
 module.exports = router;

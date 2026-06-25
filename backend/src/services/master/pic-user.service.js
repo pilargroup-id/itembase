@@ -192,11 +192,29 @@ async function destroy(id) {
   };
 }
 
+async function updateStatus(id, is_active) {
+  await show(id);
+
+  if (!isValidBoolean(is_active)) {
+    throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
+  }
+
+  await PicUserModel.updateStatus(id, Number(is_active));
+
+  const updatedPicUser = await PicUserModel.findById(id);
+
+  return {
+    message: 'PIC user status updated successfully',
+    data: updatedPicUser,
+  };
+}
+
 module.exports = {
   index,
   show,
   options,
   store,
   update,
+  updateStatus,
   destroy,
 };

@@ -276,17 +276,6 @@ const columns = [
         cellStyle: { width: "22%" },
         render: (skuStatus) => renderSkuStatusValue(skuStatus.code || skuStatus.sku_status_code),
     },
-    {
-        key: "status",
-        header: "Status",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
-        render: (skuStatus) => (
-            <DataTableStatus inline variant={getSkuStatusVariant(skuStatus)}>
-                {getSkuStatusLabel(skuStatus)}
-            </DataTableStatus>
-        ),
-    },
 ]
 
 function DataTableSkuStatuses({
@@ -390,8 +379,53 @@ function DataTableSkuStatuses({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleSkuStatus = async (skuStatus) => {
+        const skuStatusId = getSkuStatusId(skuStatus)
+        const currentStatus = getSkuStatusValue(skuStatus) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousSkuStatusRows = [...skuStatusRows]
+
+        setSkuStatusRows((currentRows) =>
+            currentRows.map((row) =>
+                getSkuStatusId(row) === skuStatusId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.skuStatuses.updateStatus(skuStatusId, newStatus)
+        } catch (error) {
+            setSkuStatusRows(previousSkuStatusRows)
+            setErrorMessage(error?.message || "Gagal mengubah status SKU.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "18%" },
+            cellStyle: { width: "18%" },
+            render: (skuStatus) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getSkuStatusValue(skuStatus) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            toggleSkuStatus(skuStatus)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${skuStatus.name || skuStatus.sku_status_name || "status ini"} sebagai ${getSkuStatusValue(skuStatus) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getSkuStatusVariant(skuStatus)}>
+                        {getSkuStatusLabel(skuStatus)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",

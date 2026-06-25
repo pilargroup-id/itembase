@@ -58,6 +58,7 @@ const createResource = (path) => ({
     api.get(`${path}/${id}`, { ...options, params }),
   create: (data, options) => api.post(path, data, options),
   update: (id, data, options) => api.put(`${path}/${id}`, data, options),
+  updateStatus: (id, is_active, options) => api.patch(`${path}/${id}/status`, { is_active }, options),
   remove: (id, options) => api.delete(`${path}/${id}`, options),
 });
 
@@ -205,3 +206,4 @@ const api = {
 };
 
 export default api;
+
