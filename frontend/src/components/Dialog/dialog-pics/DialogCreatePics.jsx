@@ -5,23 +5,10 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
-  code: '',
-  name: '',
+  pic1: '',
+  pic2: '',
   is_active: '1',
 }
-
-const picsFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'GOTO',
-  },
-  {
-    name: 'name',
-    label: 'Name',
-    placeholder: 'GOTO',
-  },
-]
 
 function DialogCreatePics({
   isOpen = false,
@@ -33,6 +20,8 @@ function DialogCreatePics({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [picUserOptions, setPicUserOptions] = useState([])
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -44,6 +33,42 @@ function DialogCreatePics({
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
+
+  // Fetch pic-user options when dialog opens
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    let cancelled = false
+
+    const fetchOptions = async () => {
+      setIsLoadingOptions(true)
+      try {
+        // Backend response: { success, message, data: { pics: [...], users: [...] } }
+        const result = await api.picUsers.options()
+        if (!cancelled) {
+          const users = result?.data?.users ?? result?.users ?? []
+          setPicUserOptions(Array.isArray(users) ? users : [])
+        }
+      } catch (err) {
+        console.error('[DialogCreatePics] Failed to fetch pic-user options:', err)
+        if (!cancelled) {
+          setPicUserOptions([])
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingOptions(false)
+        }
+      }
+    }
+
+    fetchOptions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) {
@@ -63,37 +88,36 @@ function DialogCreatePics({
     }
   }, [handleClose, isOpen, isSubmitting])
 
-  const handleInputChange = (event) => {
+  const handleSelectChange = (event) => {
     const { name, value } = event.target
-
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+    setFormValues((cur) => ({ ...cur, [name]: value }))
   }
 
-  const buildPayload = () => ({
-    code: formValues.code.trim(),
-    name: formValues.name.trim(),
-    is_active: Number(formValues.is_active),
-  })
+  const buildPayload = () => {
+    const picParts = [formValues.pic1, formValues.pic2].filter(Boolean)
+    const pics = picParts.join('-')
+    return {
+      code: pics,
+      name: pics,
+      is_active: Number(formValues.is_active),
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const payload = buildPayload()
-
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name Pics terlebih dahulu.')
+    if (!formValues.pic1 || !formValues.pic2) {
+      setErrorMessage('Pilih 2 PIC User terlebih dahulu.')
       return
     }
+
+    const payload = buildPayload()
 
     setIsSubmitting(true)
     setErrorMessage('')
 
     try {
       const createdPics = await api.pics.create(payload)
-
       onCreated?.(createdPics)
       handleClose()
     } catch (error) {
@@ -102,6 +126,9 @@ function DialogCreatePics({
       setIsSubmitting(false)
     }
   }
+
+  // Preview of combined pics value
+  const picsPreview = [formValues.pic1, formValues.pic2].filter(Boolean).join('-')
 
   if (!isOpen) {
     return null
@@ -149,26 +176,68 @@ function DialogCreatePics({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
-                  {picsFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
-                      <label
-                        className="register-user-popup__label"
-                        htmlFor={`pics-${field.name}`}
-                      >
-                        {field.label}
-                      </label>
-                      <input
-                        id={`pics-${field.name}`}
-                        name={field.name}
-                        className="register-user-popup__input"
-                        value={formValues[field.name]}
-                        placeholder={field.placeholder}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  ))}
+                  {/* PIC 1 */}
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="pics-pic1">
+                      PIC 1
+                    </label>
+                    <select
+                      id="pics-pic1"
+                      name="pic1"
+                      className="register-user-popup__select"
+                      value={formValues.pic1}
+                      onChange={handleSelectChange}
+                      disabled={isSubmitting || isLoadingOptions}
+                    >
+                      <option value="">
+                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 1 --'}
+                      </option>
+                      {picUserOptions.map((opt) => (
+                        <option key={opt.id} value={opt.username ?? opt.name}>
+                          {opt.name}{opt.username ? ` (${opt.username})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
+                  {/* PIC 2 */}
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="pics-pic2">
+                      PIC 2
+                    </label>
+                    <select
+                      id="pics-pic2"
+                      name="pic2"
+                      className="register-user-popup__select"
+                      value={formValues.pic2}
+                      onChange={handleSelectChange}
+                      disabled={isSubmitting || isLoadingOptions}
+                    >
+                      <option value="">
+                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 2 --'}
+                      </option>
+                      {picUserOptions.map((opt) => (
+                        <option key={opt.id} value={opt.username ?? opt.name}>
+                          {opt.name}{opt.username ? ` (${opt.username})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Preview */}
+                  {picsPreview ? (
+                    <div className="register-user-popup__field" style={{ gridColumn: '1 / -1' }}>
+                      <label className="register-user-popup__label">Preview Pics</label>
+                      <div
+                        className="register-user-popup__input"
+                        style={{ background: 'var(--color-surface-2, #f5f5f5)', cursor: 'default', fontWeight: 600 }}
+                      >
+                        {picsPreview}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Status */}
                   <div className="register-user-popup__field">
                     <label className="register-user-popup__label" htmlFor="pics-is-active">
                       Status
@@ -178,7 +247,7 @@ function DialogCreatePics({
                       name="is_active"
                       className="register-user-popup__select"
                       value={formValues.is_active}
-                      onChange={handleInputChange}
+                      onChange={handleSelectChange}
                       disabled={isSubmitting}
                     >
                       <option value="1">active</option>
@@ -186,6 +255,7 @@ function DialogCreatePics({
                     </select>
                   </div>
                 </div>
+
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">
                     {errorMessage}

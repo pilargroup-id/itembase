@@ -5,23 +5,10 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
-  code: '',
-  name: '',
+  pic1: '',
+  pic2: '',
   is_active: '1',
 }
-
-const picsFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'GOTO',
-  },
-  {
-    name: 'name',
-    label: 'Name',
-    placeholder: 'GOTO',
-  },
-]
 
 function getPicsId(pics) {
   return pics?.id ?? pics?.pics_id ?? null
@@ -45,14 +32,31 @@ function getPicsStatusValue(pics) {
   return '1'
 }
 
+/**
+ * Split the existing "pics" string (e.g. "UMMA-JEAN") into two parts.
+ * Falls back to empty strings if the value is missing.
+ */
+function splitPics(picsValue) {
+  if (!picsValue) return { pic1: '', pic2: '' }
+  const dashIdx = picsValue.indexOf('-')
+  if (dashIdx === -1) return { pic1: picsValue, pic2: '' }
+  return {
+    pic1: picsValue.slice(0, dashIdx),
+    pic2: picsValue.slice(dashIdx + 1),
+  }
+}
+
 function createFormValuesFromPics(pics) {
   if (!pics) {
     return initialFormValues
   }
 
+  const picsValue = pics.pics ?? pics.name ?? pics.pics_name ?? ''
+  const { pic1, pic2 } = splitPics(picsValue)
+
   return {
-    code: pics.code ?? pics.pics_code ?? '',
-    name: pics.name ?? pics.pics_name ?? '',
+    pic1,
+    pic2,
     is_active: getPicsStatusValue(pics),
   }
 }
@@ -68,6 +72,8 @@ function DialogEditPics({
   const [formValues, setFormValues] = useState(() => createFormValuesFromPics(pics))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [picUserOptions, setPicUserOptions] = useState([])
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromPics(pics))
@@ -83,6 +89,42 @@ function DialogEditPics({
   useEffect(() => {
     setFormValues(createFormValuesFromPics(pics))
   }, [pics])
+
+  // Fetch pic-user options when dialog opens
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    let cancelled = false
+
+    const fetchOptions = async () => {
+      setIsLoadingOptions(true)
+      try {
+        // Backend response: { success, message, data: { pics: [...], users: [...] } }
+        const result = await api.picUsers.options()
+        if (!cancelled) {
+          const users = result?.data?.users ?? result?.users ?? []
+          setPicUserOptions(Array.isArray(users) ? users : [])
+        }
+      } catch (err) {
+        console.error('[DialogEditPics] Failed to fetch pic-user options:', err)
+        if (!cancelled) {
+          setPicUserOptions([])
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingOptions(false)
+        }
+      }
+    }
+
+    fetchOptions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) {
@@ -102,28 +144,26 @@ function DialogEditPics({
     }
   }, [handleClose, isOpen, isSubmitting])
 
-  const handleInputChange = (event) => {
+  const handleSelectChange = (event) => {
     const { name, value } = event.target
-
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+    setFormValues((cur) => ({ ...cur, [name]: value }))
   }
 
-  const buildPayload = () => ({
-    code: formValues.code.trim(),
-    name: formValues.name.trim(),
-    is_active: Number(formValues.is_active),
-  })
+  const buildPayload = () => {
+    const picParts = [formValues.pic1, formValues.pic2].filter(Boolean)
+    const picsValue = picParts.join('-')
+    return {
+      code: picsValue,
+      name: picsValue,
+      is_active: Number(formValues.is_active),
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const payload = buildPayload()
-
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name pics terlebih dahulu.')
+    if (!formValues.pic1 || !formValues.pic2) {
+      setErrorMessage('Pilih 2 PIC User terlebih dahulu.')
       return
     }
 
@@ -134,12 +174,13 @@ function DialogEditPics({
       return
     }
 
+    const payload = buildPayload()
+
     setIsSubmitting(true)
     setErrorMessage('')
 
     try {
       const editedPics = await api.pics.update(picsId, payload)
-
       onEdited?.(editedPics, payload)
       handleClose()
     } catch (error) {
@@ -148,6 +189,9 @@ function DialogEditPics({
       setIsSubmitting(false)
     }
   }
+
+  // Preview of combined pics value
+  const picsPreview = [formValues.pic1, formValues.pic2].filter(Boolean).join('-')
 
   if (!isOpen) {
     return null
@@ -195,36 +239,78 @@ function DialogEditPics({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
-                  {picsFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
-                      <label
-                        className="register-user-popup__label"
-                        htmlFor={`pics-${field.name}`}
-                      >
-                        {field.label}
-                      </label>
-                      <input
-                        id={`pics-${field.name}`}
-                        name={field.name}
-                        className="register-user-popup__input"
-                        value={formValues[field.name]}
-                        placeholder={field.placeholder}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  ))}
-
+                  {/* PIC 1 */}
                   <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="pics-is-active">
+                    <label className="register-user-popup__label" htmlFor="edit-pics-pic1">
+                      PIC 1
+                    </label>
+                    <select
+                      id="edit-pics-pic1"
+                      name="pic1"
+                      className="register-user-popup__select"
+                      value={formValues.pic1}
+                      onChange={handleSelectChange}
+                      disabled={isSubmitting || isLoadingOptions}
+                    >
+                      <option value="">
+                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 1 --'}
+                      </option>
+                      {picUserOptions.map((opt) => (
+                        <option key={opt.id} value={opt.username ?? opt.name}>
+                          {opt.name}{opt.username ? ` (${opt.username})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* PIC 2 */}
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="edit-pics-pic2">
+                      PIC 2
+                    </label>
+                    <select
+                      id="edit-pics-pic2"
+                      name="pic2"
+                      className="register-user-popup__select"
+                      value={formValues.pic2}
+                      onChange={handleSelectChange}
+                      disabled={isSubmitting || isLoadingOptions}
+                    >
+                      <option value="">
+                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 2 --'}
+                      </option>
+                      {picUserOptions.map((opt) => (
+                        <option key={opt.value ?? opt.id ?? opt.code} value={opt.value ?? opt.code ?? opt.name}>
+                          {opt.label ?? opt.name ?? opt.username}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Preview */}
+                  {picsPreview ? (
+                    <div className="register-user-popup__field" style={{ gridColumn: '1 / -1' }}>
+                      <label className="register-user-popup__label">Preview Pics</label>
+                      <div
+                        className="register-user-popup__input"
+                        style={{ background: 'var(--color-surface-2, #f5f5f5)', cursor: 'default', fontWeight: 600 }}
+                      >
+                        {picsPreview}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Status */}
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="edit-pics-is-active">
                       Status
                     </label>
                     <select
-                      id="pics-is-active"
+                      id="edit-pics-is-active"
                       name="is_active"
                       className="register-user-popup__select"
                       value={formValues.is_active}
-                      onChange={handleInputChange}
+                      onChange={handleSelectChange}
                       disabled={isSubmitting}
                     >
                       <option value="1">active</option>
@@ -232,6 +318,7 @@ function DialogEditPics({
                     </select>
                   </div>
                 </div>
+
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">
                     {errorMessage}

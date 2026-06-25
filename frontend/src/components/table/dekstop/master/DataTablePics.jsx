@@ -8,7 +8,6 @@ import ButtonEditPics from "../../../button/pics-buttons/ButtonEditPics.jsx"
 import FilterDropdownPics from "../../../dropdown/filter-pics/FilterDropdownPics.jsx"
 import { picsFilterConfig } from "../../../dropdown/filter-pics/FilterDropdownPics.config.js"
 import DataTable, {
-    DataTableIdentity,
     DataTableStatus,
 } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
@@ -258,22 +257,17 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
 
 const columns = [
     {
-        key: "identity",
-        header: "Pics",
-        headerStyle: { width: "36%" },
-        cellStyle: { width: "36%" },
-        render: (pics) => (
-            <DataTableIdentity
-                title={pics.name || pics.pics_name || "-"}
-                subtitle={pics.code || pics.pics_code || "-"}
-            />
-        ),
+        key: "name",
+        header: "Name",
+        headerStyle: { width: "34%" },
+        cellStyle: { width: "34%" },
+        render: (pics) => renderPicsValue(pics.name || pics.pics_name),
     },
     {
         key: "code",
         header: "Code",
-        headerStyle: { width: "22%" },
-        cellStyle: { width: "22%" },
+        headerStyle: { width: "24%" },
+        cellStyle: { width: "24%" },
         render: (pics) => renderPicsValue(pics.code || pics.pics_code),
     },
 ]
