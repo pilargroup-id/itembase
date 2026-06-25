@@ -13,6 +13,7 @@ import TypePages from './pages/master/type/TypePages.jsx'
 import PortsPage from './pages/master/port/PortPages.jsx'
 import UomsPages from './pages/master/uoms/UomsPages.jsx'
 import PicsPages from './pages/master/pics/PicsPages.jsx'
+import PicUsersPage from './pages/master/pic-users/PicUserPages.jsx'
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
@@ -125,6 +126,10 @@ const pageDetails = {
     title: 'Pics',
     eyebrow: 'Master',
   },
+  '/pic-users': {
+    title: 'Pic Users',
+    eyebrow: 'Master',
+  },
 }
 
 function App() {
@@ -197,6 +202,7 @@ function App() {
   const isPortsPage = activePath === '/ports'
   const isUomsPage = activePath === '/uoms'
   const isPicsPage = activePath === '/pics'
+  const isPicUsersPage = activePath === '/pic-users'
   const isItemManagementTablePage =
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isTypePage || isPortsPage || isUomsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
@@ -280,6 +286,8 @@ function App() {
               <UomsPages activePage={activePage} searchQuery={searchQuery} />
             ) : isPicsPage ? (
               <PicsPages activePage={activePage} searchQuery={searchQuery} />
+            ) : isPicUsersPage ? (
+              <PicUsersPage activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">

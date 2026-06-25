@@ -26,7 +26,8 @@ export const implementedNavigationPaths = [
   '/uoms',
   '/brands',
   '/pics',
-  '/TableActions',
+  '/pic-users',
+  '/sku-statuses'
 ]
 
 export const primaryNavigationItems = [
@@ -103,6 +104,18 @@ export const primaryNavigationItems = [
         href: '/pics',
         icon: Users01,
       },
+      {
+        id: 'nav-pic-users',
+        label: 'Pic Users',
+        href: '/pic-users',
+        icon: Users01,
+      },
+      {
+        id: 'nav-sku-statuses',
+        label: 'SKU Status',
+        href: '/sku-statuses',
+        icon: Boxes01,
+      }
     ],
   },
 ]
