@@ -103,7 +103,7 @@ export const primaryNavigationItems = [
       },
       {
         id: 'nav-pics',
-        label: 'Pics',
+        label: 'Pic Group',
         href: '/pics',
         icon: UserCheck,
       },

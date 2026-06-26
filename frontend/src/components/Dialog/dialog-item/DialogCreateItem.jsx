@@ -8,6 +8,7 @@ import SearchableItemSelect from './SearchableItemSelect.jsx'
 const initialFormValues = {
   item_kind: 'regular',
   item_name: '',
+  category_id: '',
   parent_id: '',
   uom_id: '',
   sku_status_id: '',
@@ -23,6 +24,7 @@ const initialFormValues = {
   container_40hq_qty: '',
   production_time_days: '',
   is_active: '1',
+  pic_name: '',
 }
 
 const itemFields = [
@@ -31,6 +33,18 @@ const itemFields = [
     label: 'Item Name',
     placeholder: 'TEST GOTO BOTTLE BLUE',
     full: true,
+    required: true,
+  },
+  {
+    name: 'category_id',
+    label: 'Category',
+    placeholder: 'Pilih category',
+    type: 'select',
+    optionsKey: 'categories',
+    searchPlaceholder: 'Cari category...',
+    emptyMessage: 'Category tidak ditemukan.',
+    full: true,
+    required: true,
   },
   {
     name: 'parent_id',
@@ -40,6 +54,8 @@ const itemFields = [
     optionsKey: 'parents',
     searchPlaceholder: 'Cari parent...',
     emptyMessage: 'Parent tidak ditemukan.',
+    full: true,
+    required: true,
   },
   {
     name: 'uom_id',
@@ -67,6 +83,7 @@ const itemFields = [
     optionsKey: 'businessUnits',
     searchPlaceholder: 'Cari business unit...',
     emptyMessage: 'Business unit tidak ditemukan.',
+    required: true,
   },
   {
     name: 'department_id',
@@ -76,6 +93,7 @@ const itemFields = [
     optionsKey: 'departments',
     searchPlaceholder: 'Cari channel...',
     emptyMessage: 'Channel tidak ditemukan.',
+    required: true,
   },
   {
     name: 'variant',
@@ -150,6 +168,7 @@ const emptyMasterOptions = {
   skuStatuses: [],
   businessUnits: [],
   departments: [],
+  categories: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -196,18 +215,40 @@ function makeOption(value, labelParts) {
 
 function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
-    .map((parent) =>
-      makeOption(parent.id, [
+    .map((parent) => {
+      const option = makeOption(parent.id, [
         parent.parent_name || parent.item_name,
         parent.parent_code,
-      ]),
-    )
+      ])
+      // Attach category info so it can be shown when parent is selected
+      option.category_id = parent.category?.id ?? ''
+      option.category_label = parent.category?.detail_category ?? ''
+      option.pic_name = parent.category?.pic_name || parent.category?.pic_code || ''
+      return option
+    })
     .filter((option) => option.value && option.label)
 }
 
 function normalizeMasterOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((item) => makeOption(item.id ?? item.value, [item.name, item.code]))
+    .filter((option) => option.value && option.label)
+}
+
+function normalizeCategoryOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .map((cat) => {
+      const labelText = cat.detail_category || cat.main_category || ''
+      const picName = cat.pic_name || cat.pic_code || ''
+      const displayLabel = picName ? `${labelText} - ${picName}` : labelText
+      
+      return {
+        value: String(cat.id ?? ''),
+        label: displayLabel || String(cat.id ?? ''),
+        searchText: [labelText, cat.main_category, picName, String(cat.id ?? '')].filter(Boolean).join(' '),
+        pic_name: picName,
+      }
+    })
     .filter((option) => option.value && option.label)
 }
 
@@ -310,7 +351,7 @@ function buildPayload(formValues, masterOptions) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
-      .filter(([key]) => key !== 'department_id')
+      .filter(([key]) => key !== 'department_id' && key !== 'category_id' && key !== 'pic_name')
       .filter(([, value]) => value !== ''),
   )
   const channels = createChannelPayload(formValues, selectedDepartment)
@@ -346,6 +387,7 @@ function DialogCreateItem({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
+  const [allParentOptions, setAllParentOptions] = useState([]) // full unfiltered list
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -354,10 +396,11 @@ function DialogCreateItem({
     setIsSubmitting(false)
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
+      parents: allParentOptions, // restore full unfiltered parent list
       departments: [],
     }))
     setErrorMessage('')
-  }, [])
+  }, [allParentOptions])
 
   const handleClose = useCallback(() => {
     resetDialogState()
@@ -394,11 +437,12 @@ function DialogCreateItem({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items] = await Promise.all([
+        const [parents, uoms, skuStatuses, items, categoriesResponse] = await Promise.all([
           api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
           api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
+          api.categories.list({ is_active: 1 }, { signal: controller.signal }),
         ])
         let businessUnits = []
 
@@ -418,14 +462,17 @@ function DialogCreateItem({
         }
 
         const itemRows = normalizeListResponse(items)
+        const normalizedParents = normalizeParentOptions(parents)
 
         setItemOptionRows(itemRows)
+        setAllParentOptions(normalizedParents)
         setMasterOptions({
-          parents: normalizeParentOptions(parents),
+          parents: normalizedParents,
           uoms: normalizeMasterOptions(uoms),
           skuStatuses: normalizeMasterOptions(skuStatuses),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
+          categories: normalizeCategoryOptions(categoriesResponse),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -518,11 +565,42 @@ function DialogCreateItem({
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
   const handleFieldChange = (name, value) => {
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-      ...(name === 'business_unit_id' ? { department_id: '' } : {}),
-    }))
+    if (name === 'category_id') {
+      // Filter parent options to only those matching the selected category
+      const filteredParents = value
+        ? allParentOptions.filter((p) => String(p.category_id) === String(value))
+        : allParentOptions
+
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        parents: filteredParents,
+      }))
+
+      // Clear parent & pic since category changed
+      setFormValues((currentValues) => ({
+        ...currentValues,
+        category_id: value,
+        parent_id: '',
+        pic_name: '',
+      }))
+      return
+    }
+
+    setFormValues((currentValues) => {
+      const nextValues = {
+        ...currentValues,
+        [name]: value,
+        ...(name === 'business_unit_id' ? { department_id: '' } : {}),
+      }
+
+      // When parent changes, auto-populate PIC from that parent's data
+      if (name === 'parent_id') {
+        const selectedParent = masterOptions.parents?.find((p) => p.value === value)
+        nextValues.pic_name = selectedParent?.pic_name ?? ''
+      }
+
+      return nextValues
+    })
   }
 
   const handleInputChange = (event) => {
@@ -571,6 +649,7 @@ function DialogCreateItem({
     >
       <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
         {field.label}
+        {field.required && <span style={{ color: 'red', marginLeft: '4px' }}>*</span>}
       </label>
       {field.type === 'select' ? (
         <SearchableItemSelect
@@ -603,7 +682,8 @@ function DialogCreateItem({
           value={formValues[field.name]}
           placeholder={field.placeholder}
           onChange={handleInputChange}
-          disabled={isSubmitting}
+          disabled={isSubmitting || field.readOnly}
+          readOnly={field.readOnly}
         />
       )}
     </div>
@@ -647,10 +727,11 @@ function DialogCreateItem({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div style={{ marginBottom: '8px' }}>
-                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
                     <div className="register-user-popup__field">
                       <label className="register-user-popup__label" htmlFor="item-kind">
                         Item Kind
+                        <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                       </label>
                       <input
                         id="item-kind"
@@ -662,6 +743,45 @@ function DialogCreateItem({
                         disabled
                       />
                     </div>
+
+                    {itemFields
+                      .filter((f) => f.name === 'item_name')
+                      .map((f) => renderField({ ...f, full: false }))}
+
+                    <div className="register-user-popup__field">
+                      <label className="register-user-popup__label" htmlFor="item-barcode">
+                        Barcode
+                      </label>
+                      <input
+                        id="item-barcode"
+                        name="barcode"
+                        className="register-user-popup__input"
+                        type="text"
+                        value="Auto generated"
+                        readOnly
+                        disabled
+                      />
+                    </div>
+                  </div>
+
+                  <div className="register-user-popup__grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
+                    {itemFields
+                      .filter((f) => ['category_id', 'parent_id'].includes(f.name))
+                      .map(renderField)}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
+                    {itemFields
+                      .filter((f) => f.name === 'business_unit_id')
+                      .map((f) => renderField({ ...f, full: false }))}
+
+                    {itemFields
+                      .filter((f) => f.name === 'department_id')
+                      .map((f) => renderField({ ...f, full: false }))}
+
+                    {itemFields
+                      .filter((f) => f.name === 'sku_status_id')
+                      .map((f) => renderField({ ...f, full: false }))}
 
                     <div className="register-user-popup__field">
                       <label className="register-user-popup__label" htmlFor="item-is-active">
@@ -679,18 +799,6 @@ function DialogCreateItem({
                         <option value="0">inactive</option>
                       </select>
                     </div>
-
-                    {itemFields
-                      .filter((f) => ['item_name', 'parent_id', 'sku_status_id'].includes(f.name))
-                      .map(renderField)}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '8px' }}>
-                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
-                    {itemFields
-                      .filter((f) => ['business_unit_id', 'department_id'].includes(f.name))
-                      .map(renderField)}
                   </div>
                 </div>
 

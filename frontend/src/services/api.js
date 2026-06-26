@@ -202,7 +202,11 @@ const api = {
     updateStatus: (id, status, options) =>
       api.put(`/item/item-parents/${id}`, { status }, options),
   },
-  items: createResource('/item/items'),
+  items: {
+    ...createResource('/item/items'),
+    updateStatus: (id, is_active, options) =>
+      api.put(`/item/items/${id}`, { is_active }, options),
+  },
 };
 
 export default api;

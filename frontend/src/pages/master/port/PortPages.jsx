@@ -21,7 +21,7 @@ function PortsPages({ activePage, searchQuery }) {
           <ButtonCreatePort
             onCreated={() => setPortRefreshKey((currentKey) => currentKey + 1)}
           />
-        </div>
+        </div>  
       </div>
 
       <DataTablePorts

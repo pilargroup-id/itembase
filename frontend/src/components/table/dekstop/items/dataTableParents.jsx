@@ -216,22 +216,7 @@ const columns = [
             />
         ),
     },
-    {
-        key: "itemName",
-        header: "Item Name",
-        headerStyle: { width: "13%" },
-        cellStyle: { width: "13%" },
-        render: (parent) => (
-            <DataTableIdentity
-                title={parent.item_name || "-"}
-                subtitle={
-                    <DataTableStatus inline variant={getParentStatusVariant(parent.status)}>
-                        {parent.status || "-"}
-                    </DataTableStatus>
-                }
-            />
-        ),
-    },
+
     {
         key: "brand",
         header: "Brand",
@@ -393,8 +378,59 @@ function DataTableParents({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleParentStatus = async (parent) => {
+        const parentId = parent.id ?? parent.pic_id ?? parent.parent_code
+        const currentStatus = String(parent.status ?? "").toLowerCase()
+        const newStatus = currentStatus === "active" ? "inactive" : "active"
+        const previousParentRows = [...parentRows]
+
+        setParentRows((currentRows) =>
+            currentRows.map((row) =>
+                (row.id ?? row.pic_id ?? row.parent_code) === parentId
+                    ? { ...row, status: newStatus }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.itemParents.updateStatus(parentId, newStatus)
+        } catch (error) {
+            setParentRows(previousParentRows)
+            setErrorMessage(error?.message || "Gagal mengubah status item parent.")
+        }
+    }
+
     const tableColumns = [
-        ...columns,
+        ...columns.slice(0, 1),
+        {
+            key: "itemName",
+            header: "Item Name",
+            headerStyle: { width: "13%" },
+            cellStyle: { width: "13%" },
+            render: (parent) => (
+                <DataTableIdentity
+                    title={parent.item_name || "-"}
+                    subtitle={
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <input
+                                type="checkbox"
+                                checked={String(parent.status ?? "").toLowerCase() === "active"}
+                                onChange={(event) => {
+                                    event.stopPropagation()
+                                    toggleParentStatus(parent)
+                                }}
+                                style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#18786e" }}
+                                title={`Tandai ${parent.item_name || "parent"} sebagai ${String(parent.status ?? "").toLowerCase() === "active" ? "non-aktif" : "aktif"}`}
+                            />
+                            <DataTableStatus inline variant={getParentStatusVariant(parent.status)}>
+                                {parent.status || "-"}
+                            </DataTableStatus>
+                        </div>
+                    }
+                />
+            ),
+        },
+        ...columns.slice(1),
         {
             key: "action",
             header: "Action",

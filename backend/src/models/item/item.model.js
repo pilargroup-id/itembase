@@ -259,6 +259,8 @@ function baseSelectSql() {
       mc.main_category AS category_main_category,
       mc.brand_category AS category_brand_category,
       mc.pic_id AS category_pic_id,
+      mpic.code AS category_pic_code,
+      mpic.name AS category_pic_name,
 
       mit.id AS item_type_id,
       mit.code AS item_type_code,
@@ -279,6 +281,7 @@ function baseSelectSql() {
     LEFT JOIN master_categories mc ON mc.id = ip.category_id
     LEFT JOIN master_item_types mit ON mit.id = ip.item_type_id
     LEFT JOIN master_ports mp ON mp.id = ip.port_id
+    LEFT JOIN master_pics mpic ON mpic.id = mc.pic_id
     LEFT JOIN master_uoms mu ON mu.id = i.uom_id
     LEFT JOIN master_sku_statuses mss ON mss.id = i.sku_status_id
     LEFT JOIN item_channels ic ON ic.item_id = i.id
@@ -329,6 +332,8 @@ function mapBaseRow(row) {
                 main_category: row.category_main_category,
                 brand_category: row.category_brand_category,
                 pic_id: row.category_pic_id,
+                pic_code: row.category_pic_code,
+                pic_name: row.category_pic_name,
               }
             : null,
           item_type: row.item_type_id
@@ -390,6 +395,7 @@ async function findAll(query = {}) {
     LEFT JOIN master_categories mc ON mc.id = ip.category_id
     LEFT JOIN master_item_types mit ON mit.id = ip.item_type_id
     LEFT JOIN master_ports mp ON mp.id = ip.port_id
+    LEFT JOIN master_pics mpic ON mpic.id = mc.pic_id
     LEFT JOIN master_uoms mu ON mu.id = i.uom_id
     LEFT JOIN master_sku_statuses mss ON mss.id = i.sku_status_id
     LEFT JOIN item_channels ic ON ic.item_id = i.id
@@ -839,6 +845,29 @@ async function findComponentsByBundleItemIds(bundleItemIds = [], connection = db
   return grouped;
 }
 
+async function findCentralUsersByIds(ids = []) {
+  if (!ids.length) return [];
+
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (!uniqueIds.length) return [];
+
+  const placeholders = uniqueIds.map(() => '?').join(', ');
+
+  const [rows] = await centralDb.query(
+    `
+      SELECT
+        id,
+        name,
+        username
+      FROM central_users
+      WHERE id IN (${placeholders})
+    `,
+    uniqueIds
+  );
+
+  return rows;
+}
+
 async function findBusinessUnitsByIds(ids = []) {
   if (!ids.length) return [];
 
@@ -933,8 +962,11 @@ async function enrichItems(items = []) {
 
   const businessUnitIds = [];
   const departmentIds = [];
+  const userIds = [];
 
   items.forEach((item) => {
+    if (item.created_by) userIds.push(item.created_by);
+    if (item.updated_by) userIds.push(item.updated_by);
     if (item.business_unit?.id) {
       businessUnitIds.push(item.business_unit.id);
     }
@@ -952,11 +984,26 @@ async function enrichItems(items = []) {
 
   const businessUnits = await findBusinessUnitsByIds(businessUnitIds);
   const departments = await findDepartmentsByIds(departmentIds);
+  const users = await findCentralUsersByIds(userIds);
 
   const businessUnitMap = new Map(businessUnits.map((row) => [row.id, row]));
   const departmentMap = new Map(departments.map((row) => [Number(row.id), row]));
+  const userMap = new Map(users.map((row) => [String(row.id), row]));
 
   items.forEach((item) => {
+    if (item.created_by) {
+      const u = userMap.get(String(item.created_by));
+      if (u) {
+        item.created_by = { id: u.id, name: u.name, username: u.username };
+      }
+    }
+    
+    if (item.updated_by) {
+      const u = userMap.get(String(item.updated_by));
+      if (u) {
+        item.updated_by = { id: u.id, name: u.name, username: u.username };
+      }
+    }
     const businessUnit = businessUnitMap.get(item.business_unit?.id);
 
     if (businessUnit) {

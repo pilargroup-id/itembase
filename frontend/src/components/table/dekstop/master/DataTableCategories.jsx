@@ -261,13 +261,13 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
 const columns = [
     {
         key: "identity",
-        header: "Detail & Main Category",
+        header: "Category",
         headerStyle: { width: "30%" },
         cellStyle: { width: "30%" },
         render: (categories) => (
             <DataTableIdentity
                 title={categories.detail_category || "-"}
-                subtitle={categories.main_category || "-"}
+                subtitle={`PIC — ${categories.pic_name || categories.pic_code || "-"}`}
             />
         ),
     },
@@ -285,13 +285,7 @@ const columns = [
         cellStyle: { width: "15%" },
         render: (categories) => renderCategoriesValue(categories.brand_category),
     },
-    {
-        key: "pic",
-        header: "PIC",
-        headerStyle: { width: "10%" },
-        cellStyle: { width: "10%" },
-        render: (categories) => renderCategoriesValue(categories.pic_name || categories.pic_code),
-    },
+
 ]
 
 function DataTableCategories({

@@ -32,7 +32,7 @@ const INDONESIAN_MONTHS = {
 export const INITIAL_TICKET_ROWS = [
   {
     id: 'LGL-001',
-category: 'Contract',
+    category: 'Contract',
     requestor: 'Nadia Putri',
     issue: 'Permintaan revisi klausul terminasi pada vendor agreement regional.',
     requestDate: '05 Mei 2026',
