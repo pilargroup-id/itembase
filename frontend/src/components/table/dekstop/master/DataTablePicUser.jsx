@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeletePicUser from "../../../Dialog/dialog-pic-users/DialogDeletePicUser.jsx"
-import DialogEditPicUser from "../../../Dialog/dialog-pic-users/DialogEditPicUser.jsx"
+import DialogDeletePicUser from "../../../dialog/dialog-pic-users/DialogDeletePicUser.jsx"
+import DialogEditPicUser from "../../../dialog/dialog-pic-users/DialogEditPicUser.jsx"
 import ButtonDeletePicUser from "../../../button/pic-users-buttons/ButtonDeletePicUser.jsx"
 import ButtonEditPicUser from "../../../button/pic-users-buttons/ButtonEditPicUser.jsx"
 import FilterDropdownPicUser from "../../../dropdown/filter-pic-users/FilterDropdownPicUser.jsx"

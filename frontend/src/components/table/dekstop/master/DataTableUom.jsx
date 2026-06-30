@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeleteUom from "../../../Dialog/dialog-uoms/DialogDeleteUom.jsx"
-import DialogEditUom from "../../../Dialog/dialog-uoms/DialogEditUom.jsx"
+import DialogDeleteUom from "../../../dialog/dialog-uoms/DialogDeleteUom.jsx"
+import DialogEditUom from "../../../dialog/dialog-uoms/DialogEditUom.jsx"
 import ButtonDeleteUom from "../../../button/uoms-buttons/ButtonDeleteUom.jsx"
 import ButtonEditUom from "../../../button/uoms-buttons/ButtonEditUom.jsx"
 import FilterDropdownUom from "../../../dropdown/filter-uoms/FilterDropdownUom.jsx"

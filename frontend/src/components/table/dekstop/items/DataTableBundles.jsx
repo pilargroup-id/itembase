@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogEditBundle from "../../../Dialog/dialog-bundles/DialogEditBundle.jsx"
+import DialogEditBundle from "../../../dialog/dialog-bundles/DialogEditBundle.jsx"
 import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
 import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdownBundles.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"

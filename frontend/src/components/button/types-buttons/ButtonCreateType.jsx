@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateType from '../../Dialog/dialog-types/DialogCreateType.jsx'
+import DialogCreateType from '../../dialog/dialog-types/DialogCreateType.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateType({

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeleteCategories from "../../../Dialog/dialog-categories/DialogDeleteCategories.jsx"
-import DialogEditCategories from "../../../Dialog/dialog-categories/DialogEditCategories.jsx"
+import DialogDeleteCategories from "../../../dialog/dialog-categories/DialogDeleteCategories.jsx"
+import DialogEditCategories from "../../../dialog/dialog-categories/DialogEditCategories.jsx"
 import ButtonDeleteCategories from "../../../button/categories-buttons/ButtonDeleteCategories.jsx"
 import ButtonEditCategories from "../../../button/categories-buttons/ButtonEditCategories.jsx"
 import FilterDropdownCategories from "../../../dropdown/filter-categories/FilterDropdownCategories.jsx"

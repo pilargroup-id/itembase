@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeletePort from "../../../Dialog/dialog-ports/DialogDeletePort.jsx"
-import DialogEditPort from "../../../Dialog/dialog-ports/DialogEditPort.jsx"
+import DialogDeletePort from "../../../dialog/dialog-ports/DialogDeletePort.jsx"
+import DialogEditPort from "../../../dialog/dialog-ports/DialogEditPort.jsx"
 import ButtonDeletePort from "../../../button/ports-buttons/ButtonDeletePort.jsx"
 import ButtonEditPort from "../../../button/ports-buttons/ButtonEditPort.jsx"
 import FilterDropdownPort from "../../../dropdown/filter-port/FilterDropdownPort.jsx"

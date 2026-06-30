@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreatePics from '../../Dialog/dialog-pics/DialogCreatePics.jsx'
+import DialogCreatePics from '../../dialog/dialog-pics/DialogCreatePics.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreatePics({

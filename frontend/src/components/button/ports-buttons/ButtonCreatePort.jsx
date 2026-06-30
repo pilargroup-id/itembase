@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreatePort from '../../Dialog/dialog-ports/DialogCreatePort.jsx'
+import DialogCreatePort from '../../dialog/dialog-ports/DialogCreatePort.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreatePort({

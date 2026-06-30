@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateSkuStatus from '../../Dialog/dialog-sku-statuses/DialogCreateSkuStatus.jsx'
+import DialogCreateSkuStatus from '../../dialog/dialog-sku-statuses/DialogCreateSkuStatus.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateSkuStatus({

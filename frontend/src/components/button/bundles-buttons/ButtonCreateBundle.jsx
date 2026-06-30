@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateBundle from '../../Dialog/dialog-bundles/DialogCreateBundle.jsx'
+import DialogCreateBundle from '../../dialog/dialog-bundles/DialogCreateBundle.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateBundle({

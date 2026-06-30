@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreatePicUser from '../../Dialog/dialog-pic-users/DialogCreatePicUser.jsx'
+import DialogCreatePicUser from '../../dialog/dialog-pic-users/DialogCreatePicUser.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreatePicUser({

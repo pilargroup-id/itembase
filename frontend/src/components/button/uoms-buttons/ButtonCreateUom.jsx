@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import DialogCreateUom from '../../Dialog/dialog-uoms/DialogCreateUom.jsx'
+import DialogCreateUom from '../../dialog/dialog-uoms/DialogCreateUom.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateUom({
