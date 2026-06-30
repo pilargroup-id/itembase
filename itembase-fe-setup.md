@@ -155,7 +155,7 @@ Tambahkan public key ke server atau chat Azi:
 
 ```bash
 nano ~/.ssh/authorized_keys
-```
+```da
 
 Permission di server:
 

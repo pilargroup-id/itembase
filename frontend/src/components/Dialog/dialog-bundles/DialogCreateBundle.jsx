@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
 
 const BUNDLE_MIN_COMPONENTS = 2
@@ -13,8 +13,7 @@ const initialFormValues = {
   uom_id: '',
   sku_status_id: '',
   business_unit_id: '',
-  department_id: '',
-  variant: '',
+  department_id: [],
   qty_per_pack: '',
   is_active: '1',
 }
@@ -30,6 +29,7 @@ const bundleFields = [
     optionsKey: 'parents',
     searchPlaceholder: 'Cari parent...',
     emptyMessage: 'Parent tidak ditemukan.',
+    required: true,
   },
   {
     name: 'uom_id',
@@ -39,6 +39,7 @@ const bundleFields = [
     optionsKey: 'uoms',
     searchPlaceholder: 'Cari UOM...',
     emptyMessage: 'UOM tidak ditemukan.',
+    required: true,
   },
   {
     name: 'sku_status_id',
@@ -48,6 +49,7 @@ const bundleFields = [
     optionsKey: 'skuStatuses',
     searchPlaceholder: 'Cari SKU status...',
     emptyMessage: 'SKU status tidak ditemukan.',
+    required: true,
   },
   {
     name: 'business_unit_id',
@@ -57,33 +59,28 @@ const bundleFields = [
     optionsKey: 'businessUnits',
     searchPlaceholder: 'Cari business unit...',
     emptyMessage: 'Business unit tidak ditemukan.',
+    required: true,
   },
   {
     name: 'department_id',
     label: 'Channel',
     placeholder: 'Pilih channel',
-    type: 'select',
+    type: 'checkbox-list',
     optionsKey: 'departments',
-    searchPlaceholder: 'Cari channel...',
     emptyMessage: 'Channel tidak ditemukan.',
-  },
-  {
-    name: 'variant',
-    label: 'Variant',
-    placeholder: 'BUNDLE TEST',
+    required: true,
   },
   {
     name: 'qty_per_pack',
     label: 'Qty / Pack',
     placeholder: '1',
     type: 'number',
+    required: true,
   },
 ]
 
-const numericFields = new Set([
-  'qty_per_pack',
-  'is_active',
-])
+const numericFields = new Set(['qty_per_pack', 'is_active'])
+const integerInputFields = new Set(['qty_per_pack'])
 
 const emptyMasterOptions = {
   parents: [],
@@ -134,6 +131,16 @@ function makeOption(value, labelParts) {
     label: label || String(value ?? ''),
     searchText: [...labelParts, value].filter(Boolean).join(' '),
   }
+}
+
+function getSelectedDepartmentIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '')).filter(Boolean)
+  }
+
+  const normalizedValue = String(value ?? '').trim()
+
+  return normalizedValue ? [normalizedValue] : []
 }
 
 function normalizeParentOptions(responseData) {
@@ -229,34 +236,63 @@ function normalizeDepartmentOptions(responseData, itemRows = [], businessUnitId 
   )
 }
 
-function createChannelPayload(formValues, departmentOption) {
-  if (!formValues.business_unit_id || !formValues.department_id || !departmentOption) {
+function createChannelPayload(formValues, departmentOptions) {
+  const selectedDepartmentIds = getSelectedDepartmentIds(formValues.department_id)
+
+  if (!formValues.business_unit_id || selectedDepartmentIds.length === 0) {
     return []
   }
 
-  const numericDepartmentId = Number(formValues.department_id)
+  return selectedDepartmentIds
+    .map((departmentId, index) => {
+      const departmentOption = departmentOptions.find(
+        (option) => option.value === String(departmentId),
+      )
 
-  return [
-    {
-      business_unit_id: formValues.business_unit_id,
-      department_id: Number.isNaN(numericDepartmentId)
-        ? formValues.department_id
-        : numericDepartmentId,
-      channel_code: departmentOption.code || departmentOption.value,
-      channel_name: departmentOption.label,
-      is_primary: 1,
-      is_active: 1,
-    },
-  ]
+      if (!departmentOption) {
+        return null
+      }
+
+      const numericDepartmentId = Number(departmentId)
+
+      return {
+        business_unit_id: formValues.business_unit_id,
+        department_id: Number.isNaN(numericDepartmentId)
+          ? departmentId
+          : numericDepartmentId,
+        channel_code: departmentOption.code || departmentOption.value,
+        channel_name: departmentOption.label,
+        is_primary: index === 0 ? 1 : 0,
+        is_active: 1,
+      }
+    })
+    .filter(Boolean)
+}
+
+function sanitizeIntegerInput(value) {
+  return String(value ?? '').replace(/[^\d]/g, '')
+}
+
+function isPositiveInteger(value) {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (!/^\d+$/.test(normalizedValue)) {
+    return false
+  }
+
+  const numberValue = Number(normalizedValue)
+
+  return Number.isSafeInteger(numberValue) && numberValue > 0
 }
 
 function buildPayload(formValues, masterOptions, components) {
-  const selectedDepartment = masterOptions.departments.find(
-    (option) => option.value === String(formValues.department_id),
-  )
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          return [key, value]
+        }
+
         const trimmedValue = String(value ?? '').trim()
 
         if (trimmedValue === '') {
@@ -271,17 +307,17 @@ function buildPayload(formValues, masterOptions, components) {
 
   payload.item_kind = 'bundle'
 
-  const channels = createChannelPayload(formValues, selectedDepartment)
+  const channels = createChannelPayload(formValues, masterOptions.departments)
 
   if (channels.length > 0) {
     payload.channels = channels
   }
 
   const validComponents = components
-    .filter((c) => c.component_item_id && String(c.qty).trim() !== '')
-    .map((c, index) => ({
-      component_item_id: c.component_item_id,
-      qty: Number(c.qty),
+    .filter((component) => component.component_item_id && isPositiveInteger(component.qty))
+    .map((component, index) => ({
+      component_item_id: component.component_item_id,
+      qty: Number(component.qty),
       sort_order: index + 1,
     }))
 
@@ -299,7 +335,6 @@ function hasRequiredValues(payload, components) {
     !payload.uom_id ||
     !payload.sku_status_id ||
     !payload.business_unit_id ||
-    !payload.variant ||
     !payload.qty_per_pack ||
     !Array.isArray(payload.channels) ||
     payload.channels.length === 0
@@ -307,26 +342,224 @@ function hasRequiredValues(payload, components) {
     return false
   }
 
-  const qtyPerPack = Number(payload.qty_per_pack)
-
-  if (!Number.isFinite(qtyPerPack) || qtyPerPack <= 0) {
+  if (!isPositiveInteger(payload.qty_per_pack)) {
     return false
   }
 
-  const validComponents = components.filter((component) => {
-    const qty = Number(component.qty)
-
-    return (
-      component.component_item_id &&
-      String(component.qty).trim() !== '' &&
-      Number.isFinite(qty) &&
-      qty > 0
-    )
-  })
+  const validComponents = components.filter(
+    (component) => component.component_item_id && isPositiveInteger(component.qty),
+  )
 
   return (
     validComponents.length >= BUNDLE_MIN_COMPONENTS &&
     validComponents.length <= BUNDLE_MAX_COMPONENTS
+  )
+}
+
+function ChannelCheckboxSelect({
+  id,
+  label,
+  value = [],
+  options = [],
+  placeholder = 'Pilih data',
+  emptyMessage = 'Data tidak ditemukan.',
+  loading = false,
+  disabled = false,
+  onToggle,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [menuStyle, setMenuStyle] = useState(null)
+  const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
+  const selectedIds = getSelectedDepartmentIds(value)
+  const selectedOptions = options.filter((option) => selectedIds.includes(option.value))
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const updateMenuPosition = () => {
+      const triggerElement = triggerRef.current
+
+      if (!triggerElement) {
+        return
+      }
+
+      const bounds = triggerElement.getBoundingClientRect()
+      const viewportMargin = 12
+      const gap = 8
+      const menuWidth = Math.min(bounds.width, window.innerWidth - viewportMargin * 2)
+      const left = Math.min(
+        Math.max(bounds.left, viewportMargin),
+        Math.max(viewportMargin, window.innerWidth - menuWidth - viewportMargin),
+      )
+      const spaceBelow = window.innerHeight - bounds.bottom - viewportMargin - gap
+      const spaceAbove = bounds.top - viewportMargin - gap
+      const openUp = spaceBelow < 180 && spaceAbove > spaceBelow
+      const optionsHeight = Math.max(96, Math.min(220, openUp ? spaceAbove : spaceBelow))
+      const top = openUp
+        ? Math.max(viewportMargin, bounds.top - gap - optionsHeight - 18)
+        : Math.min(bounds.bottom + gap, window.innerHeight - viewportMargin - optionsHeight - 18)
+
+      setMenuStyle({
+        top,
+        left,
+        width: menuWidth,
+        '--parent-master-select-options-max-height': `${optionsHeight}px`,
+      })
+    }
+
+    updateMenuPosition()
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const closeDropdown = () => {
+      setIsOpen(false)
+    }
+
+    const handlePointerDown = (event) => {
+      if (
+        !rootRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        closeDropdown()
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const handleToggleDropdown = () => {
+    if (disabled) {
+      return
+    }
+
+    setIsOpen((currentState) => {
+      if (currentState) {
+        setMenuStyle(null)
+      }
+
+      return !currentState
+    })
+  }
+
+  const displayValue = loading
+    ? 'Memuat data...'
+    : selectedOptions.length > 0
+      ? selectedOptions.map((option) => option.label).join(', ')
+      : placeholder
+
+  const menuNode =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="parent-master-select__menu item-create-popup__channel-menu"
+            role="listbox"
+            aria-label={label}
+            aria-multiselectable="true"
+            style={menuStyle}
+          >
+            <div className="parent-master-select__options item-create-popup__channel-options">
+              {loading ? (
+                <div className="parent-master-select__empty">Memuat data...</div>
+              ) : options.length > 0 ? (
+                options.map((option) => {
+                  const isChecked = selectedIds.includes(option.value)
+
+                  return (
+                    <label
+                      key={option.value}
+                      className={[
+                        'parent-master-select__option',
+                        'item-create-popup__channel-option',
+                        isChecked ? 'parent-master-select__option--selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      htmlFor={`${id}-${option.value}`}
+                      role="option"
+                      aria-selected={isChecked}
+                    >
+                      <input
+                        id={`${id}-${option.value}`}
+                        type="checkbox"
+                        className="register-user-popup__dropdown-checkbox"
+                        checked={isChecked}
+                        disabled={disabled}
+                        onChange={() => onToggle?.(option.value)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  )
+                })
+              ) : (
+                <div className="parent-master-select__empty">{emptyMessage}</div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <div ref={rootRef} className="parent-master-select item-create-popup__channel-select">
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className={`parent-master-select__trigger${
+          isOpen ? ' parent-master-select__trigger--open' : ''
+        }`}
+        onClick={handleToggleDropdown}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        disabled={disabled}
+      >
+        <span
+          className={`parent-master-select__value${
+            selectedOptions.length > 0 || loading ? '' : ' parent-master-select__value--placeholder'
+          }`}
+        >
+          {displayValue}
+        </span>
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={`parent-master-select__chevron${
+            isOpen ? ' parent-master-select__chevron--open' : ''
+          }`}
+        />
+      </button>
+
+      {menuNode}
+    </div>
   )
 }
 
@@ -517,23 +750,50 @@ function DialogCreateBundle({
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
   const handleFieldChange = (name, value) => {
+    setErrorMessage('')
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
-      ...(name === 'business_unit_id' ? { department_id: '' } : {}),
+      ...(name === 'business_unit_id' ? { department_id: [] } : {}),
     }))
   }
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
+    const normalizedValue = integerInputFields.has(name)
+      ? sanitizeIntegerInput(value)
+      : value
 
-    handleFieldChange(name, value)
+    handleFieldChange(name, normalizedValue)
   }
 
   const handleComponentChange = (index, field, value) => {
+    const normalizedValue = field === 'qty' ? sanitizeIntegerInput(value) : value
+
+    setErrorMessage('')
     setComponents((currentComponents) =>
-      currentComponents.map((comp, i) => (i === index ? { ...comp, [field]: value } : comp)),
+      currentComponents.map((component, currentIndex) =>
+        currentIndex === index
+          ? { ...component, [field]: normalizedValue }
+          : component,
+      ),
     )
+  }
+
+  const handleDepartmentToggle = (departmentId) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const selectedDepartmentIds = getSelectedDepartmentIds(currentValues.department_id)
+      const normalizedDepartmentId = String(departmentId)
+      const isSelected = selectedDepartmentIds.includes(normalizedDepartmentId)
+
+      return {
+        ...currentValues,
+        department_id: isSelected
+          ? selectedDepartmentIds.filter((selectedId) => selectedId !== normalizedDepartmentId)
+          : [...selectedDepartmentIds, normalizedDepartmentId],
+      }
+    })
   }
 
   const handleAddComponent = () => {
@@ -544,7 +804,7 @@ function DialogCreateBundle({
 
   const handleRemoveComponent = (index) => {
     if (components.length > BUNDLE_MIN_COMPONENTS) {
-      setComponents((current) => current.filter((_, i) => i !== index))
+      setComponents((current) => current.filter((_, currentIndex) => currentIndex !== index))
     }
   }
 
@@ -555,7 +815,7 @@ function DialogCreateBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi parent, UOM, SKU status, business unit, channel, variant, qty/pack, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty valid.`,
+        `Lengkapi parent, UOM, SKU status, business unit, channel, qty/pack, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
       )
       return
     }
@@ -578,6 +838,68 @@ function DialogCreateBundle({
   if (!isOpen || typeof document === 'undefined') {
     return null
   }
+
+  const renderField = (field) => (
+    <div
+      key={field.name}
+      className={`register-user-popup__field${
+        field.full ? ' register-user-popup__field--full' : ''
+      }`}
+    >
+      <label className="register-user-popup__label" htmlFor={`bundle-${field.name}`}>
+        {field.label}
+        {field.required ? <span style={{ color: 'red', marginLeft: '4px' }}>*</span> : null}
+      </label>
+      {field.type === 'checkbox-list' ? (
+        <ChannelCheckboxSelect
+          id={`bundle-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          emptyMessage={field.emptyMessage}
+          loading={field.name === 'department_id' && isLoadingDepartments}
+          disabled={
+            isSubmitting ||
+            isLoadingMasters ||
+            (field.name === 'department_id' && !formValues.business_unit_id)
+          }
+          onToggle={handleDepartmentToggle}
+        />
+      ) : field.type === 'select' ? (
+        <SearchableItemSelect
+          id={`bundle-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          loading={field.name === 'department_id' ? isLoadingDepartments : isLoadingMasters}
+          disabled={
+            isSubmitting ||
+            isLoadingMasters ||
+            (field.name === 'department_id' &&
+              (!formValues.business_unit_id || isLoadingDepartments))
+          }
+          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+        />
+      ) : (
+        <input
+          id={`bundle-${field.name}`}
+          name={field.name}
+          className="register-user-popup__input"
+          type="text"
+          inputMode={field.type === 'number' ? 'numeric' : undefined}
+          pattern={field.type === 'number' ? '[0-9]*' : undefined}
+          value={formValues[field.name]}
+          placeholder={field.placeholder}
+          onChange={handleInputChange}
+          disabled={isSubmitting}
+        />
+      )}
+    </div>
+  )
 
   const dialogNode = (
     <div
@@ -616,179 +938,131 @@ function DialogCreateBundle({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="register-user-popup__grid">
-                  {/* Item Kind (readonly) */}
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="bundle-item-kind">
-                      Item Kind
-                    </label>
-                    <input
-                      id="bundle-item-kind"
-                      className="register-user-popup__input"
-                      value="bundle"
-                      readOnly
-                      disabled
-                    />
+                <div className="parent-create-popup__section">
+                  <div className="parent-create-popup__section-header">
+                    <h3 className="parent-create-popup__section-title">Info Bundle</h3>
+                    <p className="parent-create-popup__section-description">
+                      Lengkapi data utama bundle sebelum memilih item regular yang akan digabungkan.
+                    </p>
                   </div>
 
-                  {/* Status */}
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="bundle-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="bundle-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
+                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                    {bundleFields.map(renderField)}
                   </div>
-
-                  {/* Bundle fields */}
-                  {bundleFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className={`register-user-popup__field${
-                        field.full ? ' register-user-popup__field--full' : ''
-                      }`}
-                    >
-                      <label className="register-user-popup__label" htmlFor={`bundle-${field.name}`}>
-                        {field.label}
-                      </label>
-                      {field.type === 'select' ? (
-                        <SearchableItemSelect
-                          id={`bundle-${field.name}`}
-                          label={field.label}
-                          value={formValues[field.name]}
-                          options={masterOptions[field.optionsKey]}
-                          placeholder={field.placeholder}
-                          searchPlaceholder={field.searchPlaceholder}
-                          emptyMessage={field.emptyMessage}
-                          loading={
-                            field.name === 'department_id'
-                              ? isLoadingDepartments
-                              : isLoadingMasters
-                          }
-                          disabled={
-                            isSubmitting ||
-                            isLoadingMasters ||
-                            (field.name === 'department_id' &&
-                              (!formValues.business_unit_id || isLoadingDepartments))
-                          }
-                          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-                        />
-                      ) : (
-                        <input
-                          id={`bundle-${field.name}`}
-                          name={field.name}
-                          className="register-user-popup__input"
-                          type={field.type === 'number' ? 'number' : 'text'}
-                          step={field.type === 'number' ? 'any' : undefined}
-                          value={formValues[field.name]}
-                          placeholder={field.placeholder}
-                          onChange={handleInputChange}
-                          disabled={isSubmitting}
-                        />
-                      )}
-                    </div>
-                  ))}
                 </div>
 
-                {/* Components Section */}
-                <div className="register-user-popup__section" style={{ marginTop: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <p className="register-user-popup__label" style={{ margin: 0, fontWeight: 600 }}>
-                      Components ({components.length}/{BUNDLE_MAX_COMPONENTS})
-                      <span style={{ fontWeight: 400, opacity: 0.6, marginLeft: '0.5rem', fontSize: '0.8em' }}>
-                        min {BUNDLE_MIN_COMPONENTS}, maks {BUNDLE_MAX_COMPONENTS} item regular
-                      </span>
-                    </p>
-                    {components.length < BUNDLE_MAX_COMPONENTS && (
-                      <button
-                        type="button"
-                        className="dashboard-popup__button dashboard-popup__button--secondary"
-                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
-                        onClick={handleAddComponent}
-                        disabled={isSubmitting}
-                      >
-                        + Tambah
-                      </button>
-                    )}
-                  </div>
+                <div className="parent-create-popup__section">
+                  <div className="bundle-create-popup__section-top">
+                    <div className="parent-create-popup__section-header">
+                      <h3 className="parent-create-popup__section-title">Daftar Item Bundle</h3>
+                      <p className="parent-create-popup__section-description">
+                        Tambahkan minimal {BUNDLE_MIN_COMPONENTS} item regular. Qty hanya bisa angka bulat tanpa koma.
+                      </p>
+                    </div>
 
-                  {components.map((comp, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 100px auto',
-                        gap: '0.5rem',
-                        marginBottom: '0.5rem',
-                        alignItems: 'end',
-                      }}
-                    >
-                      <div>
-                        <label
-                          className="register-user-popup__label"
-                          htmlFor={`bundle-component-item-${index}`}
-                          style={{ fontSize: '0.8em' }}
-                        >
-                          Item #{index + 1}
-                        </label>
-                        <SearchableItemSelect
-                          id={`bundle-component-item-${index}`}
-                          label={`Component item ${index + 1}`}
-                          value={comp.component_item_id}
-                          options={masterOptions.regularItems}
-                          placeholder="Pilih regular item..."
-                          searchPlaceholder="Cari item..."
-                          emptyMessage="Item tidak ditemukan."
-                          loading={isLoadingMasters}
-                          disabled={isSubmitting || isLoadingMasters}
-                          onChange={(nextValue) =>
-                            handleComponentChange(index, 'component_item_id', nextValue)
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label
-                          className="register-user-popup__label"
-                          htmlFor={`bundle-component-qty-${index}`}
-                          style={{ fontSize: '0.8em' }}
-                        >
-                          Qty
-                        </label>
-                        <input
-                          id={`bundle-component-qty-${index}`}
-                          className="register-user-popup__input"
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={comp.qty}
-                          placeholder="1"
-                          onChange={(e) => handleComponentChange(index, 'qty', e.target.value)}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      <div style={{ paddingBottom: '0.125rem' }}>
+                    <div className="bundle-create-popup__section-actions">
+                      {components.length < BUNDLE_MAX_COMPONENTS && (
                         <button
                           type="button"
                           className="dashboard-popup__button dashboard-popup__button--secondary"
-                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', opacity: components.length <= BUNDLE_MIN_COMPONENTS ? 0.4 : 1 }}
-                          onClick={() => handleRemoveComponent(index)}
-                          disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
-                          title="Hapus component"
+                          onClick={handleAddComponent}
+                          disabled={isSubmitting}
                         >
-                          ✕
+                          + Tambah Item
                         </button>
-                      </div>
+                      )}
+
+                      <span className="bundle-create-popup__count">
+                        {components.length}/{BUNDLE_MAX_COMPONENTS} item
+                      </span>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="bundle-create-popup__components">
+                    {components.map((component, index) => (
+                      <div
+                        key={`component-${index}`}
+                        className="bundle-create-popup__component-card"
+                      >
+                        <div className="bundle-create-popup__component-card-header">
+                          <div>
+                            <p className="bundle-create-popup__component-title">
+                              Item Bundle #{index + 1}
+                            </p>
+                            <p className="bundle-create-popup__component-caption">
+                              Pilih item regular lalu isi qty dalam bilangan bulat.
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="bundle-create-popup__component-remove"
+                            onClick={() => handleRemoveComponent(index)}
+                            disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
+                            title="Hapus component"
+                            aria-label={`Hapus item bundle ${index + 1}`}
+                          >
+                            <Trash03 size={16} />
+                          </button>
+                        </div>
+
+                        <div className="bundle-create-popup__component-grid">
+                          <div className="register-user-popup__field">
+                            <label
+                              className="register-user-popup__label"
+                              htmlFor={`bundle-component-item-${index}`}
+                            >
+                              Item Regular
+                              <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
+                            </label>
+                            <SearchableItemSelect
+                              id={`bundle-component-item-${index}`}
+                              label={`Component item ${index + 1}`}
+                              value={component.component_item_id}
+                              options={masterOptions.regularItems}
+                              placeholder="Pilih regular item..."
+                              searchPlaceholder="Cari item..."
+                              emptyMessage="Item tidak ditemukan."
+                              loading={isLoadingMasters}
+                              disabled={isSubmitting || isLoadingMasters}
+                              onChange={(nextValue) =>
+                                handleComponentChange(index, 'component_item_id', nextValue)
+                              }
+                            />
+                          </div>
+
+                          <div className="register-user-popup__field">
+                            <label
+                              className="register-user-popup__label"
+                              htmlFor={`bundle-component-qty-${index}`}
+                            >
+                              Qty
+                              <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
+                            </label>
+                            <input
+                              id={`bundle-component-qty-${index}`}
+                              className="register-user-popup__input"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={component.qty}
+                              placeholder="1"
+                              onChange={(event) =>
+                                handleComponentChange(index, 'qty', event.target.value)
+                              }
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bundle-create-popup__footer">
+                    <p className="register-user-popup__hint">
+                      Minimal {BUNDLE_MIN_COMPONENTS} item dan maksimal {BUNDLE_MAX_COMPONENTS} item regular per bundle.
+                    </p>
+                  </div>
                 </div>
 
                 {errorMessage ? (

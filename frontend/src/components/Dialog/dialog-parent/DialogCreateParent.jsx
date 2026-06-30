@@ -15,7 +15,7 @@ const initialFormValues = {
   status: 'active',
 }
 
-const parentFields = [
+const parentFormulaFields = [
   {
     name: 'brand_id',
     label: 'Brand',
@@ -35,6 +35,18 @@ const parentFields = [
     label: 'Item Name',
     placeholder: 'BACKPACK KIDS',
   },
+]
+
+const parentNameField = {
+  name: 'parent_name',
+  label: 'Parent Name',
+  placeholder: 'Akan terbentuk otomatis',
+  full: true,
+  readOnly: true,
+  helperText: 'Otomatis dibuat dari Brand + Sub Brand + Item Name.',
+}
+
+const parentDetailFields = [
   {
     name: 'category_id',
     label: 'Category',
@@ -62,11 +74,15 @@ const parentFields = [
     searchPlaceholder: 'Cari port...',
     emptyMessage: 'Port tidak ditemukan.',
   },
-  {
-    name: 'parent_name',
-    label: 'Parent Name',
-    placeholder: 'GOTO FRUCI BACKPACK KIDS',
-  },
+]
+
+const requiredFieldNames = [
+  'brand_id',
+  'sub_brand',
+  'item_name',
+  'category_id',
+  'item_type_id',
+  'port_id',
 ]
 
 const masterSelectDefaults = {
@@ -115,6 +131,25 @@ function getFirstFilledValue(item, keys) {
   const matchedKey = keys.find((key) => item?.[key] !== undefined && item?.[key] !== null && item?.[key] !== '')
 
   return matchedKey ? item[matchedKey] : ''
+}
+
+function normalizeFieldValue(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function getOptionLabel(options, value) {
+  const normalizedValue = String(value ?? '')
+
+  return options.find((option) => option.value === normalizedValue)?.label ?? ''
+}
+
+function buildParentName({ brandLabel = '', subBrand = '', itemName = '' }) {
+  return [brandLabel, subBrand, itemName]
+    .map(normalizeFieldValue)
+    .filter(Boolean)
+    .join(' ')
 }
 
 function normalizeMasterOptions(responseData, optionsKey) {
@@ -464,9 +499,25 @@ function DialogCreateParent({
     }
   }, [isOpen])
 
+  const selectedBrandLabel = useMemo(
+    () => getOptionLabel(masterOptions.brands, formValues.brand_id),
+    [formValues.brand_id, masterOptions.brands],
+  )
+
+  const generatedParentName = useMemo(
+    () =>
+      buildParentName({
+        brandLabel: selectedBrandLabel,
+        subBrand: formValues.sub_brand,
+        itemName: formValues.item_name,
+      }),
+    [formValues.item_name, formValues.sub_brand, selectedBrandLabel],
+  )
+
   const handleInputChange = (event) => {
     const { name, value } = event.target
 
+    setErrorMessage('')
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
@@ -474,6 +525,7 @@ function DialogCreateParent({
   }
 
   const handleSelectChange = (name, value) => {
+    setErrorMessage('')
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
@@ -481,17 +533,21 @@ function DialogCreateParent({
   }
 
   const buildPayload = () =>
-    Object.fromEntries(
-      Object.entries(formValues).map(([key, value]) => [key, String(value).trim()]),
-    )
+    ({
+      ...Object.fromEntries(
+        Object.entries(formValues).map(([key, value]) => [key, normalizeFieldValue(value)]),
+      ),
+      parent_name: generatedParentName,
+      status: 'active',
+    })
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
     const payload = buildPayload()
-    const hasEmptyValue = Object.values(payload).some((value) => !value)
+    const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => !payload[fieldName])
 
-    if (hasEmptyValue) {
+    if (hasEmptyRequiredValue || !payload.parent_name) {
       setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
       return
     }
@@ -518,6 +574,53 @@ function DialogCreateParent({
   if (typeof document === 'undefined') {
     return null
   }
+
+  const renderField = (field) => (
+    <div
+      key={field.name}
+      className={`register-user-popup__field${
+        field.full ? ' register-user-popup__field--full' : ''
+      }`}
+    >
+      <label
+        className="register-user-popup__label"
+        htmlFor={`parent-${field.name}`}
+      >
+        {field.label}
+      </label>
+      {field.type === 'select' ? (
+        <SearchableMasterSelect
+          id={`parent-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          loading={isLoadingMasters}
+          disabled={isSubmitting || isLoadingMasters}
+          onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
+        />
+      ) : (
+        <input
+          id={`parent-${field.name}`}
+          name={field.name}
+          className={`register-user-popup__input${
+            field.readOnly ? ' register-user-popup__input--readonly' : ''
+          }`}
+          value={field.name === 'parent_name' ? generatedParentName : formValues[field.name]}
+          placeholder={field.placeholder}
+          onChange={field.readOnly ? undefined : handleInputChange}
+          readOnly={field.readOnly}
+          aria-readonly={field.readOnly ? 'true' : undefined}
+          disabled={isSubmitting}
+        />
+      )}
+      {field.helperText ? (
+        <p className="parent-create-popup__field-note">{field.helperText}</p>
+      ) : null}
+    </div>
+  )
 
   const dialogNode = (
     <div
@@ -556,62 +659,24 @@ function DialogCreateParent({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="register-user-popup__grid">
-                  {parentFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className={`register-user-popup__field${
-                        field.full ? ' register-user-popup__field--full' : ''
-                      }`}
-                    >
-                      <label
-                        className="register-user-popup__label"
-                        htmlFor={`parent-${field.name}`}
-                      >
-                        {field.label}
-                      </label>
-                      {field.type === 'select' ? (
-                        <SearchableMasterSelect
-                          id={`parent-${field.name}`}
-                          label={field.label}
-                          value={formValues[field.name]}
-                          options={masterOptions[field.optionsKey]}
-                          placeholder={field.placeholder}
-                          searchPlaceholder={field.searchPlaceholder}
-                          emptyMessage={field.emptyMessage}
-                          loading={isLoadingMasters}
-                          disabled={isSubmitting || isLoadingMasters}
-                          onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
-                        />
-                      ) : (
-                        <input
-                          id={`parent-${field.name}`}
-                          name={field.name}
-                          className="register-user-popup__input"
-                          value={formValues[field.name]}
-                          placeholder={field.placeholder}
-                          onChange={handleInputChange}
-                          disabled={isSubmitting}
-                        />
-                      )}
-                    </div>
-                  ))}
+                <div className="parent-create-popup__section">
+                  <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
+                    {parentFormulaFields.map(renderField)}
+                    {renderField(parentNameField)}
+                  </div>
+                </div>
 
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="parent-status">
-                      Status
-                    </label>
-                    <select
-                      id="parent-status"
-                      name="status"
-                      className="register-user-popup__select"
-                      value={formValues.status}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="active">active</option>
-                      <option value="inactive">inactive</option>
-                    </select>
+                <div className="parent-create-popup__section">
+                  {/* <div className="parent-create-popup__section-header">
+                    <h3 className="parent-create-popup__section-title">Lengkapi Detail</h3>
+                    <p className="parent-create-popup__section-description">
+                      Setelah nama parent terbentuk, lanjutkan dengan category, item type, dan
+                      port.
+                    </p>
+                  </div> */}
+
+                  <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
+                    {parentDetailFields.map(renderField)}
                   </div>
                 </div>
                 {errorMessage ? (

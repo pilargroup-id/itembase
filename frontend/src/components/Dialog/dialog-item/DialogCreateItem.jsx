@@ -1,19 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
   item_kind: 'regular',
   item_name: '',
   category_id: '',
+  category_label: '',
   parent_id: '',
   uom_id: '',
   sku_status_id: '',
   business_unit_id: '',
-  department_id: '',
+  department_id: [],
   variant: '',
   qty_per_pack: '',
   height: '',
@@ -24,28 +25,9 @@ const initialFormValues = {
   container_40hq_qty: '',
   production_time_days: '',
   is_active: '1',
-  pic_name: '',
 }
 
 const itemFields = [
-  {
-    name: 'item_name',
-    label: 'Item Name',
-    placeholder: 'TEST GOTO BOTTLE BLUE',
-    full: true,
-    required: true,
-  },
-  {
-    name: 'category_id',
-    label: 'Category',
-    placeholder: 'Pilih category',
-    type: 'select',
-    optionsKey: 'categories',
-    searchPlaceholder: 'Cari category...',
-    emptyMessage: 'Category tidak ditemukan.',
-    full: true,
-    required: true,
-  },
   {
     name: 'parent_id',
     label: 'Parent',
@@ -58,6 +40,19 @@ const itemFields = [
     required: true,
   },
   {
+    name: 'item_name',
+    label: 'Item Name + Variant',
+    placeholder: 'TEST GOTO BOTTLE BLUE',
+    readOnly: true,
+    required: true,
+  },
+  {
+    name: 'category_label',
+    label: 'Category',
+    placeholder: 'Pilih parent terlebih dahulu',
+    readOnly: true,
+  },
+  {
     name: 'uom_id',
     label: 'UOM',
     placeholder: 'Pilih UOM',
@@ -67,13 +62,16 @@ const itemFields = [
     emptyMessage: 'UOM tidak ditemukan.',
   },
   {
+    name: 'variant',
+    label: 'Variant',
+    placeholder: 'BLUE',
+  },
+  {
     name: 'sku_status_id',
     label: 'SKU Status',
     placeholder: 'Pilih SKU status',
     type: 'select',
     optionsKey: 'skuStatuses',
-    searchPlaceholder: 'Cari SKU status...',
-    emptyMessage: 'SKU status tidak ditemukan.',
   },
   {
     name: 'business_unit_id',
@@ -89,16 +87,10 @@ const itemFields = [
     name: 'department_id',
     label: 'Channel',
     placeholder: 'Pilih channel',
-    type: 'select',
+    type: 'checkbox-list',
     optionsKey: 'departments',
-    searchPlaceholder: 'Cari channel...',
     emptyMessage: 'Channel tidak ditemukan.',
     required: true,
-  },
-  {
-    name: 'variant',
-    label: 'Variant',
-    placeholder: 'BLUE',
   },
   {
     name: 'qty_per_pack',
@@ -168,7 +160,6 @@ const emptyMasterOptions = {
   skuStatuses: [],
   businessUnits: [],
   departments: [],
-  categories: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -213,6 +204,23 @@ function makeOption(value, labelParts) {
   }
 }
 
+function buildItemName(itemName, variant) {
+  return [itemName, variant]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
+function getSelectedDepartmentIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '')).filter(Boolean)
+  }
+
+  const normalizedValue = String(value ?? '').trim()
+
+  return normalizedValue ? [normalizedValue] : []
+}
+
 function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((parent) => {
@@ -220,10 +228,13 @@ function normalizeParentOptions(responseData) {
         parent.parent_name || parent.item_name,
         parent.parent_code,
       ])
-      // Attach category info so it can be shown when parent is selected
+      option.item_name = parent.item_name ?? parent.parent_name ?? ''
       option.category_id = parent.category?.id ?? ''
-      option.category_label = parent.category?.detail_category ?? ''
-      option.pic_name = parent.category?.pic_name || parent.category?.pic_code || ''
+      option.category_label =
+        parent.category?.detail_category ??
+        parent.category?.sub_category ??
+        parent.category?.main_category ??
+        ''
       return option
     })
     .filter((option) => option.value && option.label)
@@ -232,23 +243,6 @@ function normalizeParentOptions(responseData) {
 function normalizeMasterOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((item) => makeOption(item.id ?? item.value, [item.name, item.code]))
-    .filter((option) => option.value && option.label)
-}
-
-function normalizeCategoryOptions(responseData) {
-  return normalizeListResponse(responseData)
-    .map((cat) => {
-      const labelText = cat.detail_category || cat.main_category || ''
-      const picName = cat.pic_name || cat.pic_code || ''
-      const displayLabel = picName ? `${labelText} - ${picName}` : labelText
-      
-      return {
-        value: String(cat.id ?? ''),
-        label: displayLabel || String(cat.id ?? ''),
-        searchText: [labelText, cat.main_category, picName, String(cat.id ?? '')].filter(Boolean).join(' '),
-        pic_name: picName,
-      }
-    })
     .filter((option) => option.value && option.label)
 }
 
@@ -315,31 +309,40 @@ function normalizeDepartmentOptions(responseData, itemRows = [], businessUnitId 
   )
 }
 
-function createChannelPayload(formValues, departmentOption) {
-  if (!formValues.business_unit_id || !formValues.department_id || !departmentOption) {
+function createChannelPayload(formValues, departmentOptions) {
+  const selectedDepartmentIds = getSelectedDepartmentIds(formValues.department_id)
+
+  if (!formValues.business_unit_id || selectedDepartmentIds.length === 0) {
     return []
   }
 
-  const numericDepartmentId = Number(formValues.department_id)
+  return selectedDepartmentIds
+    .map((departmentId, index) => {
+      const departmentOption = departmentOptions.find(
+        (option) => option.value === String(departmentId),
+      )
 
-  return [
-    {
-      business_unit_id: formValues.business_unit_id,
-      department_id: Number.isNaN(numericDepartmentId)
-        ? formValues.department_id
-        : numericDepartmentId,
-      channel_code: departmentOption.code || departmentOption.value,
-      channel_name: departmentOption.label,
-      is_primary: 1,
-      is_active: 1,
-    },
-  ]
+      if (!departmentOption) {
+        return null
+      }
+
+      const numericDepartmentId = Number(departmentId)
+
+      return {
+        business_unit_id: formValues.business_unit_id,
+        department_id: Number.isNaN(numericDepartmentId)
+          ? departmentId
+          : numericDepartmentId,
+        channel_code: departmentOption.code || departmentOption.value,
+        channel_name: departmentOption.label,
+        is_primary: index === 0 ? 1 : 0,
+        is_active: 1,
+      }
+    })
+    .filter(Boolean)
 }
 
 function buildPayload(formValues, masterOptions) {
-  const selectedDepartment = masterOptions.departments.find(
-    (option) => option.value === String(formValues.department_id),
-  )
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
@@ -351,10 +354,10 @@ function buildPayload(formValues, masterOptions) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
-      .filter(([key]) => key !== 'department_id' && key !== 'category_id' && key !== 'pic_name')
+      .filter(([key]) => key !== 'department_id' && key !== 'category_id' && key !== 'category_label')
       .filter(([, value]) => value !== ''),
   )
-  const channels = createChannelPayload(formValues, selectedDepartment)
+  const channels = createChannelPayload(formValues, masterOptions.departments)
 
   if (channels.length > 0) {
     payload.channels = channels
@@ -364,15 +367,218 @@ function buildPayload(formValues, masterOptions) {
 }
 
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.parent_id || !payload.business_unit_id) {
-    return false
-  }
-
-  if (payload.item_kind === 'regular' && !payload.item_name) {
+  if (!payload.item_kind || !payload.parent_id || !payload.business_unit_id || !payload.item_name) {
     return false
   }
 
   return Array.isArray(payload.channels) && payload.channels.length > 0
+}
+
+function ChannelCheckboxSelect({
+  id,
+  label,
+  value = [],
+  options = [],
+  placeholder = 'Pilih data',
+  emptyMessage = 'Data tidak ditemukan.',
+  loading = false,
+  disabled = false,
+  onToggle,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [menuStyle, setMenuStyle] = useState(null)
+  const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
+  const selectedIds = getSelectedDepartmentIds(value)
+  const selectedOptions = options.filter((option) => selectedIds.includes(option.value))
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const updateMenuPosition = () => {
+      const triggerElement = triggerRef.current
+
+      if (!triggerElement) {
+        return
+      }
+
+      const bounds = triggerElement.getBoundingClientRect()
+      const viewportMargin = 12
+      const gap = 8
+      const menuWidth = Math.min(bounds.width, window.innerWidth - viewportMargin * 2)
+      const left = Math.min(
+        Math.max(bounds.left, viewportMargin),
+        Math.max(viewportMargin, window.innerWidth - menuWidth - viewportMargin),
+      )
+      const spaceBelow = window.innerHeight - bounds.bottom - viewportMargin - gap
+      const spaceAbove = bounds.top - viewportMargin - gap
+      const openUp = spaceBelow < 180 && spaceAbove > spaceBelow
+      const optionsHeight = Math.max(96, Math.min(220, openUp ? spaceAbove : spaceBelow))
+      const top = openUp
+        ? Math.max(viewportMargin, bounds.top - gap - optionsHeight - 18)
+        : Math.min(bounds.bottom + gap, window.innerHeight - viewportMargin - optionsHeight - 18)
+
+      setMenuStyle({
+        top,
+        left,
+        width: menuWidth,
+        '--parent-master-select-options-max-height': `${optionsHeight}px`,
+      })
+    }
+
+    updateMenuPosition()
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const closeDropdown = () => {
+      setIsOpen(false)
+    }
+
+    const handlePointerDown = (event) => {
+      if (
+        !rootRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        closeDropdown()
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const handleToggleDropdown = () => {
+    if (disabled) {
+      return
+    }
+
+    setIsOpen((currentState) => {
+      if (currentState) {
+        setMenuStyle(null)
+      }
+
+      return !currentState
+    })
+  }
+
+  const displayValue = loading
+    ? 'Memuat data...'
+    : selectedOptions.length > 0
+      ? selectedOptions.map((option) => option.label).join(', ')
+      : placeholder
+
+  const menuNode =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="parent-master-select__menu item-create-popup__channel-menu"
+            role="listbox"
+            aria-label={label}
+            aria-multiselectable="true"
+            style={menuStyle}
+          >
+            <div className="parent-master-select__options item-create-popup__channel-options">
+              {loading ? (
+                <div className="parent-master-select__empty">Memuat data...</div>
+              ) : options.length > 0 ? (
+                options.map((option) => {
+                  const isChecked = selectedIds.includes(option.value)
+
+                  return (
+                    <label
+                      key={option.value}
+                      className={[
+                        'parent-master-select__option',
+                        'item-create-popup__channel-option',
+                        isChecked ? 'parent-master-select__option--selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      htmlFor={`${id}-${option.value}`}
+                      role="option"
+                      aria-selected={isChecked}
+                    >
+                      <input
+                        id={`${id}-${option.value}`}
+                        type="checkbox"
+                        className="register-user-popup__dropdown-checkbox"
+                        checked={isChecked}
+                        disabled={disabled}
+                        onChange={() => onToggle?.(option.value)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  )
+                })
+              ) : (
+                <div className="parent-master-select__empty">{emptyMessage}</div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <div ref={rootRef} className="parent-master-select item-create-popup__channel-select">
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className={`parent-master-select__trigger${
+          isOpen ? ' parent-master-select__trigger--open' : ''
+        }`}
+        onClick={handleToggleDropdown}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        disabled={disabled}
+      >
+        <span
+          className={`parent-master-select__value${
+            selectedOptions.length > 0 || loading ? '' : ' parent-master-select__value--placeholder'
+          }`}
+        >
+          {displayValue}
+        </span>
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={`parent-master-select__chevron${
+            isOpen ? ' parent-master-select__chevron--open' : ''
+          }`}
+        />
+      </button>
+
+      {menuNode}
+    </div>
+  )
 }
 
 function DialogCreateItem({
@@ -387,7 +593,7 @@ function DialogCreateItem({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
-  const [allParentOptions, setAllParentOptions] = useState([]) // full unfiltered list
+  const [allParentOptions, setAllParentOptions] = useState([])
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -396,7 +602,7 @@ function DialogCreateItem({
     setIsSubmitting(false)
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
-      parents: allParentOptions, // restore full unfiltered parent list
+      parents: allParentOptions,
       departments: [],
     }))
     setErrorMessage('')
@@ -437,12 +643,11 @@ function DialogCreateItem({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items, categoriesResponse] = await Promise.all([
+        const [parents, uoms, skuStatuses, items] = await Promise.all([
           api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
           api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
-          api.categories.list({ is_active: 1 }, { signal: controller.signal }),
         ])
         let businessUnits = []
 
@@ -472,7 +677,6 @@ function DialogCreateItem({
           skuStatuses: normalizeMasterOptions(skuStatuses),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
-          categories: normalizeCategoryOptions(categoriesResponse),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -498,10 +702,6 @@ function DialogCreateItem({
 
   useEffect(() => {
     if (!isOpen || !formValues.business_unit_id) {
-      setMasterOptions((currentOptions) => ({
-        ...currentOptions,
-        departments: [],
-      }))
       return undefined
     }
 
@@ -565,38 +765,37 @@ function DialogCreateItem({
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
   const handleFieldChange = (name, value) => {
-    if (name === 'category_id') {
-      // Filter parent options to only those matching the selected category
-      const filteredParents = value
-        ? allParentOptions.filter((p) => String(p.category_id) === String(value))
-        : allParentOptions
-
-      setMasterOptions((currentOptions) => ({
-        ...currentOptions,
-        parents: filteredParents,
-      }))
-
-      // Clear parent & pic since category changed
-      setFormValues((currentValues) => ({
-        ...currentValues,
-        category_id: value,
-        parent_id: '',
-        pic_name: '',
-      }))
-      return
-    }
-
+    setErrorMessage('')
     setFormValues((currentValues) => {
+      const selectedParent =
+        name === 'parent_id'
+          ? allParentOptions.find((option) => option.value === String(value))
+          : null
       const nextValues = {
         ...currentValues,
         [name]: value,
-        ...(name === 'business_unit_id' ? { department_id: '' } : {}),
+        ...(name === 'business_unit_id' ? { department_id: [] } : {}),
+        ...(name === 'parent_id'
+          ? {
+              item_name: buildItemName(
+                selectedParent?.item_name ?? selectedParent?.label ?? '',
+                currentValues.variant,
+              ),
+              category_id: String(selectedParent?.category_id ?? ''),
+              category_label: selectedParent?.category_label ?? '',
+            }
+          : {}),
       }
 
-      // When parent changes, auto-populate PIC from that parent's data
-      if (name === 'parent_id') {
-        const selectedParent = masterOptions.parents?.find((p) => p.value === value)
-        nextValues.pic_name = selectedParent?.pic_name ?? ''
+      if (name === 'variant') {
+        const parentOption = allParentOptions.find(
+          (option) => option.value === String(currentValues.parent_id),
+        )
+
+        nextValues.item_name = buildItemName(
+          parentOption?.item_name ?? parentOption?.label ?? '',
+          value,
+        )
       }
 
       return nextValues
@@ -609,15 +808,29 @@ function DialogCreateItem({
     handleFieldChange(name, value)
   }
 
+  const handleDepartmentToggle = (departmentId) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const selectedDepartmentIds = getSelectedDepartmentIds(currentValues.department_id)
+      const normalizedDepartmentId = String(departmentId)
+      const isSelected = selectedDepartmentIds.includes(normalizedDepartmentId)
+
+      return {
+        ...currentValues,
+        department_id: isSelected
+          ? selectedDepartmentIds.filter((selectedId) => selectedId !== normalizedDepartmentId)
+          : [...selectedDepartmentIds, normalizedDepartmentId],
+      }
+    })
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
     const payload = buildPayload(formValues, masterOptions)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage(
-        'Lengkapi item kind, parent, business unit, channel, dan item name untuk regular item.',
-      )
+      setErrorMessage('Pilih parent, business unit, dan channel terlebih dahulu.')
       return
     }
 
@@ -651,7 +864,23 @@ function DialogCreateItem({
         {field.label}
         {field.required && <span style={{ color: 'red', marginLeft: '4px' }}>*</span>}
       </label>
-      {field.type === 'select' ? (
+      {field.type === 'checkbox-list' ? (
+        <ChannelCheckboxSelect
+          id={`item-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          emptyMessage={field.emptyMessage}
+          loading={field.name === 'department_id' && isLoadingDepartments}
+          disabled={
+            isSubmitting ||
+            isLoadingMasters ||
+            (field.name === 'department_id' && !formValues.business_unit_id)
+          }
+          onToggle={handleDepartmentToggle}
+        />
+      ) : field.type === 'select' ? (
         <SearchableItemSelect
           id={`item-${field.name}`}
           label={field.label}
@@ -676,14 +905,17 @@ function DialogCreateItem({
         <input
           id={`item-${field.name}`}
           name={field.name}
-          className="register-user-popup__input"
+          className={`register-user-popup__input${
+            field.readOnly ? ' register-user-popup__input--readonly' : ''
+          }`}
           type={field.type === 'number' ? 'number' : 'text'}
           step={field.type === 'number' ? 'any' : undefined}
           value={formValues[field.name]}
           placeholder={field.placeholder}
           onChange={handleInputChange}
-          disabled={isSubmitting || field.readOnly}
+          disabled={isSubmitting}
           readOnly={field.readOnly}
+          aria-readonly={field.readOnly ? 'true' : undefined}
         />
       )}
     </div>
@@ -726,89 +958,44 @@ function DialogCreateItem({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div style={{ marginBottom: '8px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
-                    <div className="register-user-popup__field">
-                      <label className="register-user-popup__label" htmlFor="item-kind">
-                        Item Kind
-                        <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
-                      </label>
-                      <input
-                        id="item-kind"
-                        name="item_kind"
-                        className="register-user-popup__input"
-                        type="text"
-                        value={formValues.item_kind}
-                        readOnly
-                        disabled
-                      />
-                    </div>
-
-                    {itemFields
-                      .filter((f) => f.name === 'item_name')
-                      .map((f) => renderField({ ...f, full: false }))}
-
-                    <div className="register-user-popup__field">
-                      <label className="register-user-popup__label" htmlFor="item-barcode">
-                        Barcode
-                      </label>
-                      <input
-                        id="item-barcode"
-                        name="barcode"
-                        className="register-user-popup__input"
-                        type="text"
-                        value="Auto generated"
-                        readOnly
-                        disabled
-                      />
-                    </div>
+                <div className="parent-create-popup__section">
+                  <div className="parent-create-popup__section-header">
+                    <h3 className="parent-create-popup__section-title">Info Item</h3>
+                    <p className="parent-create-popup__section-description">
+                      Pilih parent terlebih dahulu agar item name dan category terisi otomatis.
+                    </p>
                   </div>
 
                   <div className="register-user-popup__grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
                     {itemFields
-                      .filter((f) => ['category_id', 'parent_id'].includes(f.name))
+                      .filter((field) =>
+                        [
+                          'parent_id',
+                          'item_name',
+                          'category_label',
+                          'variant',
+                          'business_unit_id',
+                          'department_id',
+                          'sku_status_id',
+                        ].includes(field.name),
+                      )
                       .map(renderField)}
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
-                    {itemFields
-                      .filter((f) => f.name === 'business_unit_id')
-                      .map((f) => renderField({ ...f, full: false }))}
-
-                    {itemFields
-                      .filter((f) => f.name === 'department_id')
-                      .map((f) => renderField({ ...f, full: false }))}
-
-                    {itemFields
-                      .filter((f) => f.name === 'sku_status_id')
-                      .map((f) => renderField({ ...f, full: false }))}
-
-                    <div className="register-user-popup__field">
-                      <label className="register-user-popup__label" htmlFor="item-is-active">
-                        Status
-                      </label>
-                      <select
-                        id="item-is-active"
-                        name="is_active"
-                        className="register-user-popup__select"
-                        value={formValues.is_active}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      >
-                        <option value="1">active</option>
-                        <option value="0">inactive</option>
-                      </select>
-                    </div>
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '8px' }}>
+                <div className="parent-create-popup__section">
+                  <div className="parent-create-popup__section-header">
+                    <h3 className="parent-create-popup__section-title">Dimency Item</h3>
+                    <p className="parent-create-popup__section-description">
+                      Lengkapi detail dimensi item mulai dari UOM sampai production days.
+                    </p>
+                  </div>
+
                   <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
                     {itemFields
                       .filter((f) =>
                         [
                           'uom_id',
-                          'variant',
                           'qty_per_pack',
                           'height',
                           'width',

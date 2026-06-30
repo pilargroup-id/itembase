@@ -406,6 +406,12 @@ async function findAll(query = {}) {
   const [countRows] = await db.query(countSql, params);
 
   const items = rows.map(mapBaseRow);
+  const channels = await findChannelsByItemIds(items.map((item) => item.id));
+
+  items.forEach((item) => {
+    item.channels = channels[item.id] || [];
+  });
+
   await enrichItems(items);
 
   const total = countRows[0]?.total || 0;

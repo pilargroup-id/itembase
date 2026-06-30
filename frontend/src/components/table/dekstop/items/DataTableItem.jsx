@@ -56,6 +56,22 @@ function renderItemValue(value) {
     )
 }
 
+function formatItemChannels(item) {
+    if (!Array.isArray(item?.channels) || item.channels.length === 0) {
+        return "-"
+    }
+
+    return item.channels
+        .map((channel) =>
+            formatDisplayValue(
+                channel.channel_code ??
+                    channel.channel_name,
+            ),
+        )
+        .filter((value) => value !== "-")
+        .join(", ") || "-"
+}
+
 function formatNumberValue(value) {
     const numericValue = Number(value)
 
@@ -127,6 +143,10 @@ function matchesSearch(item, searchQuery) {
         item.sku_status?.name,
         item.business_unit?.code,
         item.business_unit?.name,
+        ...(item.channels ?? []).flatMap((channel) => [
+            channel.channel_code,
+            channel.channel_name,
+        ]),
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
@@ -364,6 +384,13 @@ const columns = [
         headerStyle: { width: "6%" },
         cellStyle: { width: "6%" },
         render: (item) => renderItemValue(item.business_unit?.code ?? item.business_unit?.name),
+    },
+    {
+        key: "channels",
+        header: "Channel",
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
+        render: (item) => renderItemValue(formatItemChannels(item)),
     },
     {
         key: "uom",
