@@ -1813,6 +1813,283 @@ select {
   font-size: 0.8rem;
 }
 
+.activity-log-date-filter {
+  position: relative;
+  flex: 1 1 148px;
+  min-width: 136px;
+  min-height: 48px;
+  display: grid;
+  align-items: center;
+  border: 1px solid rgba(120, 138, 168, 0.4);
+  border-radius: 14px;
+  background: #fcfdff;
+  box-shadow: 0 8px 20px rgba(26, 42, 87, 0.06);
+  padding: 0.78rem 0.68rem 0.34rem;
+}
+
+.activity-log-date-filter__label {
+  position: absolute;
+  top: -0.48rem;
+  left: 0.62rem;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.42rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f7faff 0%, #fcfdff 72%);
+  box-shadow:
+    0 0 0 3px #fcfdff,
+    0 1px 2px rgba(26, 42, 87, 0.05);
+  color: rgba(42, 157, 143, 0.86);
+  font-size: 0.54rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.activity-log-date-filter__input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--primary-blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.activity-log-json-viewer {
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid rgba(26, 42, 87, 0.08);
+  border-radius: 12px;
+  background: rgba(26, 42, 87, 0.04);
+  color: var(--primary-blue);
+  padding: 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.activity-log-table {
+  overflow-x: hidden;
+}
+
+.activity-log-table .users-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.activity-log-table .users-table th,
+.activity-log-table .users-table td {
+  padding-left: 0.62rem;
+  padding-right: 0.62rem;
+}
+
+.activity-log-table .users-table__detail-header,
+.activity-log-table .users-table__detail-cell {
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  text-align: center;
+}
+
+.activity-log-table .users-table__detail-cell .users-table__detail-button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.activity-log-table .users-table__identity {
+  min-width: 0;
+}
+
+.activity-log-table .users-table__avatar {
+  flex: 0 0 auto;
+}
+
+.activity-log-table .users-table__name,
+.activity-log-table .users-table__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-log-cell-stack {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.activity-log-cell-stack__primary,
+.activity-log-cell-stack__secondary {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-log-cell-stack__primary {
+  color: var(--primary-blue);
+  font-weight: 800;
+}
+
+.activity-log-cell-stack__secondary {
+  color: #667085;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.activity-log-table .users-table__accordion {
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+}
+
+.activity-log-table .users-table__accordion-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.activity-log-table .users-table__accordion-description {
+  overflow: hidden;
+  color: #667085;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-log-table .users-table__detail-shell {
+  gap: 0.55rem;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.activity-log-table .users-table__detail-section {
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 14px;
+}
+
+.activity-log-table .users-table__detail-list {
+  gap: 0.12rem;
+}
+
+.activity-log-table .users-table__detail-row {
+  gap: 0.55rem;
+  padding: 0.28rem 0;
+}
+
+.activity-log-table .users-table__detail-label {
+  font-size: 0.6rem;
+}
+
+.activity-log-table .users-table__detail-value {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.78rem;
+}
+
+.activity-log-change-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+}
+
+.activity-log-change-summary--empty {
+  display: block;
+  padding: 0.6rem 0.7rem;
+  border: 1px dashed rgba(26, 42, 87, 0.14);
+  border-radius: 12px;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.activity-log-change-card {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(42, 157, 143, 0.13);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.activity-log-change-card__label {
+  overflow: hidden;
+  color: var(--accent-teal-dark);
+  font-size: 0.64rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.activity-log-change-card__values {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.activity-log-change-card__value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--primary-blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-log-change-card__value--before {
+  color: #8a5560;
+}
+
+.activity-log-change-card__value--after {
+  color: #18786e;
+}
+
+.activity-log-change-card__arrow {
+  color: #98a2b3;
+  font-size: 0.72rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 800;
+}
+
+.activity-log-change-summary__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0.45rem 0.65rem;
+  border: 1px dashed rgba(42, 157, 143, 0.28);
+  border-radius: 12px;
+  color: #18786e;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .mtickets-table {
   flex: 1;
   min-height: 0;
@@ -3409,6 +3686,31 @@ select {
 .users-table__status--inactive {
   background: rgba(239, 68, 68, 0.12);
   color: #b42318;
+}
+
+.users-table__status--log-create {
+  background: rgba(42, 157, 143, 0.14);
+  color: #18786e;
+}
+
+.users-table__status--log-update {
+  background: rgba(45, 74, 140, 0.12);
+  color: var(--secondary-blue);
+}
+
+.users-table__status--log-delete {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b42318;
+}
+
+.users-table__status--log-status-change {
+  background: rgba(233, 196, 106, 0.2);
+  color: #8a680f;
+}
+
+.users-table__status--log-sync {
+  background: rgba(157, 78, 221, 0.14);
+  color: #7b2cbf;
 }
 
 .users-table__accordion-header {

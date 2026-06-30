@@ -207,6 +207,7 @@ const api = {
     updateStatus: (id, is_active, options) =>
       api.put(`/item/items/${id}`, { is_active }, options),
   },
+  activityLogs: createResource('/activity-logs'),
 };
 
 export default api;

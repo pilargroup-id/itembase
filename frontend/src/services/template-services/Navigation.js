@@ -2,6 +2,7 @@ import {
   Badge,
   Barcode,
   Boxes01,
+  FileText01,
   Folder,
   Globe,
   LayersTwo,
@@ -9,6 +10,7 @@ import {
   LogOutLeft01,
   Ruler,
   Shapes,
+  Settings01,
   Table01,
   Tag01,
   Ticket01,
@@ -30,7 +32,8 @@ export const implementedNavigationPaths = [
   '/brands',
   '/pics',
   '/pic-users',
-  '/sku-statuses'
+  '/sku-statuses',
+  '/activity-logs',
 ]
 
 export const primaryNavigationItems = [
@@ -124,6 +127,19 @@ export const primaryNavigationItems = [
 ]
 
 export const secondaryNavigationItems = [
+  {
+    id: 'nav-setting',
+    label: 'Setting',
+    icon: Settings01,
+    children: [
+      {
+        id: 'nav-logs',
+        label: 'Logs',
+        href: '/activity-logs',
+        icon: FileText01,
+      },
+    ],
+  },
   {
     id: 'back-pilargroup',
     label: 'Back Pilargroup',

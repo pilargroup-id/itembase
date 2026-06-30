@@ -15,6 +15,8 @@ import UomsPages from './pages/master/uoms/UomsPages.jsx'
 import PicsPages from './pages/master/pics/PicsPages.jsx'
 import PicUsersPage from './pages/master/pic-users/PicUserPages.jsx'
 import SkuStatusesPage from './pages/master/sku-statuses/SkuStatusPages.jsx'
+import ActivityLogs from './pages/activity-logs/ActivityLogs.jsx'
+
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
@@ -135,6 +137,10 @@ const pageDetails = {
     title: 'SKU Status',
     eyebrow: 'Master',
   },
+  '/activity-logs': {
+    title: 'Logs',
+    eyebrow: 'Setting',
+  },
 }
 
 function App() {
@@ -209,6 +215,7 @@ function App() {
   const isPicsPage = activePath === '/pics'
   const isPicUsersPage = activePath === '/pic-users'
   const isSkuStatusesPage = activePath === '/sku-statuses'
+  const isActivityLogsPage = activePath === '/activity-logs'
   const isItemManagementTablePage =
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isTypePage || isPortsPage || isUomsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
@@ -296,6 +303,8 @@ function App() {
               <PicUsersPage activePage={activePage} searchQuery={searchQuery} />
             ) : isSkuStatusesPage ? (
               <SkuStatusesPage activePage={activePage} searchQuery={searchQuery} />
+            ) : isActivityLogsPage ? (
+              <ActivityLogs activePage={activePage} searchQuery={searchQuery} />
             ) : (
               <section className="dashboard-grid" aria-label={activePage.title}>
                 <article className="dashboard-panel">
