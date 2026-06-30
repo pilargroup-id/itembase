@@ -3,8 +3,8 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteType from "../../../dialog/dialog-types/DialogDeleteType.jsx"
 import DialogEditType from "../../../dialog/dialog-types/DialogEditType.jsx"
-import ButtonDeleteType from "../../../button/Types-buttons/ButtonDeleteType.jsx"
-import ButtonEditType from "../../../button/Types-buttons/ButtonEditType.jsx"
+import ButtonDeleteType from "../../../button/types-buttons/ButtonDeleteType.jsx"
+import ButtonEditType from "../../../button/types-buttons/ButtonEditType.jsx"
 import FilterDropdownType from "../../../dropdown/filter-types/FilterDropdownType.jsx"
 import { TypeFilterConfig } from "../../../dropdown/filter-types/FilterDropdownType.config.js"
 import DataTable, {

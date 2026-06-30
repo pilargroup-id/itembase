@@ -13,15 +13,13 @@ import {
   Settings01,
   Table01,
   Tag01,
-  Ticket01,
   UserCheck,
   UserCog,
 } from '../../components/template/TemplateIcons.jsx'
 
-export const defaultNavigationPath = '/dashboard'
+export const defaultNavigationPath = '/parents'
 
 export const implementedNavigationPaths = [
-  '/dashboard',
   '/parents',
   '/items',
   '/bundles',
@@ -38,12 +36,6 @@ export const implementedNavigationPaths = [
 
 export const primaryNavigationItems = [
   {
-    id: 'my-tickets',
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: Ticket01,
-  },
-  {
     id: 'nav-item-management',
     label: 'Item Management',
     href: '/Bundling',
@@ -51,7 +43,7 @@ export const primaryNavigationItems = [
     children: [
       {
         id: 'nav-parents',
-        label: 'Parrent',
+        label: 'Parent',
         href: '/parents',
         icon: Boxes01,
       },

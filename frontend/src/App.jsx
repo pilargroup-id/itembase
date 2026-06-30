@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
 import Sidebar from './components/template/Sidebar.jsx'
-import MyTickets from './pages/my-tickets/MyTickets.jsx'
 import ItemPages from './pages/items/items/ItemPages.jsx'
 import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
@@ -20,13 +19,16 @@ import ActivityLogs from './pages/activity-logs/ActivityLogs.jsx'
 import api from './services/api.js'
 
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
+const DEFAULT_PATH = '/parents'
 
 function getCurrentPath() {
   if (typeof window === 'undefined') {
-    return '/dashboard'
+    return DEFAULT_PATH
   }
 
-  return window.location.pathname === '/' ? '/dashboard' : window.location.pathname
+  return ['/', '/dashboard', '/parent'].includes(window.location.pathname)
+    ? DEFAULT_PATH
+    : window.location.pathname
 }
 
 function getStoredAuthUser() {
@@ -93,10 +95,6 @@ function getAuthUserRole(user, isLoading, error) {
 }
 
 const pageDetails = {
-  '/dashboard': {
-    title: 'Dashboard',
-    eyebrow: 'Item Base',
-  },
   '/parents': {
     title: 'Parent',
     eyebrow: 'Item Management',
@@ -151,7 +149,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [lastUpdated, setLastUpdated] = useState(() => new Date())
+  const [, setLastUpdated] = useState(() => new Date())
 
   useEffect(() => {
     const handleRouteChange = () => {
@@ -202,20 +200,20 @@ function App() {
     }
   }, [])
 
-  const activePage = pageDetails[activePath] ?? pageDetails['/dashboard']
-  const isDashboardPage = activePath === '/dashboard'
-  const isParentsPage = activePath === '/parents'
-  const isItemsPage = activePath === '/items'
-  const isBundlesPage = activePath === '/bundles'
-  const isCategoriesPage = activePath === '/categories'
-  const isBrandsPage = activePath === '/brands'
-  const isTypePage = activePath === '/types'
-  const isPortsPage = activePath === '/ports'
-  const isUomsPage = activePath === '/uoms'
-  const isPicsPage = activePath === '/pics'
-  const isPicUsersPage = activePath === '/pic-users'
-  const isSkuStatusesPage = activePath === '/sku-statuses'
-  const isActivityLogsPage = activePath === '/activity-logs'
+  const currentPagePath = pageDetails[activePath] ? activePath : DEFAULT_PATH
+  const activePage = pageDetails[currentPagePath]
+  const isParentsPage = currentPagePath === '/parents'
+  const isItemsPage = currentPagePath === '/items'
+  const isBundlesPage = currentPagePath === '/bundles'
+  const isCategoriesPage = currentPagePath === '/categories'
+  const isBrandsPage = currentPagePath === '/brands'
+  const isTypePage = currentPagePath === '/types'
+  const isPortsPage = currentPagePath === '/ports'
+  const isUomsPage = currentPagePath === '/uoms'
+  const isPicsPage = currentPagePath === '/pics'
+  const isPicUsersPage = currentPagePath === '/pic-users'
+  const isSkuStatusesPage = currentPagePath === '/sku-statuses'
+  const isActivityLogsPage = currentPagePath === '/activity-logs'
   const isItemManagementTablePage =
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isTypePage || isPortsPage || isUomsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
@@ -235,7 +233,7 @@ function App() {
       <Sidebar
         collapsed={sidebarCollapsed}
         mobileOpen={mobileSidebarOpen}
-        activePath={activePath}
+        activePath={currentPagePath}
         userName={sidebarUserName}
         userRole={sidebarUserRole}
         onToggleCollapse={() => setSidebarCollapsed((currentValue) => !currentValue)}
@@ -260,8 +258,8 @@ function App() {
           ]}
           searchProps={{
             value: searchQuery,
-            placeholder: isDashboardPage ? 'Cari dashboard...' : 'Cari data...',
-            ariaLabel: isDashboardPage ? 'Cari dashboard' : 'Cari data',
+            placeholder: isParentsPage ? 'Cari parent...' : 'Cari data...',
+            ariaLabel: isParentsPage ? 'Cari parent' : 'Cari data',
             onChange: (event) => {
               setSearchQuery(event.target.value)
             },
@@ -274,14 +272,12 @@ function App() {
         />
 
         <main
-          className={`dashboard-main${isDashboardPage ? ' dashboard-main--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
+          className={`dashboard-main${isParentsPage ? ' dashboard-main--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
         >
           <div
-            className={`dashboard-content${isDashboardPage ? ' dashboard-content--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
+            className={`dashboard-content${isParentsPage ? ' dashboard-content--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
           >
-            {isDashboardPage ? (
-              <MyTickets activePage={activePage} searchQuery={searchQuery} />
-            ) : isParentsPage ? (
+            {isParentsPage ? (
               <ParentsPage activePage={activePage} searchQuery={searchQuery} />
             ) : isItemsPage ? (
               <ItemPages activePage={activePage} searchQuery={searchQuery} />
@@ -306,35 +302,7 @@ function App() {
             ) : isActivityLogsPage ? (
               <ActivityLogs activePage={activePage} searchQuery={searchQuery} />
             ) : (
-              <section className="dashboard-grid" aria-label={activePage.title}>
-                <article className="dashboard-panel">
-                  <div className="dashboard-panel__header">
-                    <p className="dashboard-panel__eyebrow">{activePage.eyebrow}</p>
-                    <h1 className="dashboard-panel__title">{activePage.title}</h1>
-                  </div>
-
-                  <p className="dashboard-stack__text">
-                    Halaman ini belum memiliki konten utama di `App.jsx`.
-                  </p>
-                </article>
-
-                <aside className="dashboard-panel">
-                  <div className="dashboard-panel__header">
-                    <p className="dashboard-panel__eyebrow">Workspace</p>
-                    <h2 className="dashboard-panel__title">Status</h2>
-                  </div>
-
-                  <ul className="dashboard-list">
-                    <li className="dashboard-list__item">
-                      Search: {searchQuery || 'Belum ada kata kunci'}
-                    </li>
-                    <li className="dashboard-list__item">Path aktif: {activePath}</li>
-                    <li className="dashboard-list__item">
-                      Update terakhir: {lastUpdated.toLocaleTimeString('id-ID')}
-                    </li>
-                  </ul>
-                </aside>
-              </section>
+              <ParentsPage activePage={activePage} searchQuery={searchQuery} />
             )}
           </div>
         </main>

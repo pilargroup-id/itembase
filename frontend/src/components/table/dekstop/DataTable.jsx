@@ -188,7 +188,7 @@ export function DataTableIdentity({ title, subtitle, initials, badge, className 
           {badge}
         </div>
 
-        {subtitle ? <p className="users-table__meta">{subtitle}</p> : null}
+        {subtitle ? <div className="users-table__meta">{subtitle}</div> : null}
       </div>
     </div>
   )
