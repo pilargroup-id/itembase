@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const ItemParentModel = require('../../models/item/item-parent.model');
+const ActivityLogService = require('../activity-log.service');
 
 const ALLOWED_STATUS = ['draft', 'active', 'inactive', 'discontinued'];
 
@@ -168,7 +169,7 @@ async function getById(id) {
   return ItemParentModel.findById(id);
 }
 
-async function create(payload, userId) {
+async function create(payload, userId, req = null) {
   const payloadErrors = validatePayload(payload, 'create');
 
   if (hasErrors(payloadErrors)) {
@@ -214,11 +215,27 @@ async function create(payload, userId) {
 
     const created = await ItemParentModel.create(data, connection);
 
+    await ActivityLogService.log({
+      user_id: userId,
+      action: 'CREATE',
+      entity_type: 'item_parents',
+      entity_id: created.id,
+      description: `Created item parent ${created.parent_code}`,
+      before_data: null,
+      after_data: created,
+      metadata: {
+        parent_code: created.parent_code,
+        status: created.status,
+      },
+      req,
+      connection,
+    });
+
     return { data: created };
   });
 }
 
-async function update(id, payload, userId) {
+async function update(id, payload, userId, req = null) {
   const existing = await ItemParentModel.findRawById(id);
 
   if (!existing) {
@@ -284,6 +301,25 @@ async function update(id, payload, userId) {
     if (mergedPayload.status === 'inactive') {
       await ItemParentModel.deactivateChildItems(id, connection);
     }
+
+    await ActivityLogService.log({
+      user_id: userId,
+      action: existing.status !== mergedPayload.status ? 'STATUS_CHANGE' : 'UPDATE',
+      entity_type: 'item_parents',
+      entity_id: updated.id,
+      description: existing.status !== mergedPayload.status
+        ? `Changed item parent ${updated.parent_code} status from ${existing.status} to ${mergedPayload.status}`
+        : `Updated item parent ${updated.parent_code}`,
+      before_data: existing,
+      after_data: updated,
+      metadata: {
+        parent_code: updated.parent_code,
+        old_status: existing.status,
+        new_status: updated.status,
+      },
+      req,
+      connection,
+    });
 
     return { data: updated };
   });

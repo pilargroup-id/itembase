@@ -1,11 +1,5 @@
 const ItemTypeModel = require('../../models/master/item-type.model');
-
-function makeError(message, statusCode = 400, code = 'ERROR') {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.code = code;
-  return error;
-}
+const ActivityLogService = require('../activity-log.service');
 
 function normalizePayload(payload) {
   return {
@@ -71,46 +65,84 @@ async function index(query) {
 }
 
 async function show(id) {
-  const itemType = await ItemTypeModel.findById(id);
+  const data = await ItemTypeModel.findById(id);
 
-  if (!itemType) {
+  if (!data) {
     throw makeError('Item type not found', 404, 'ITEM_TYPE_NOT_FOUND');
   }
 
-  return itemType;
+  return data;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
   const createdId = await ItemTypeModel.create(normalizedPayload);
-  const createdItemType = await ItemTypeModel.findById(createdId);
+  const createdData = await ItemTypeModel.findById(createdId);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_item_types',
+    entity_id: createdData.id,
+    description: `Created item type ${createdData.name}`,
+    before_data: null,
+    after_data: createdData,
+    metadata: {
+      code: createdData.code,
+      name: createdData.name,
+      is_active: createdData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Item type created successfully',
-    data: createdItemType,
+    data: createdData,
   };
 }
 
-async function update(id, payload) {
-  await show(id);
+async function update(id, payload, userId = null, req = null) {
+  const existingData = await show(id);
+
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
 
   await ItemTypeModel.update(id, normalizedPayload);
 
-  const updatedItemType = await ItemTypeModel.findById(id);
+  const updatedData = await ItemTypeModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? 'STATUS_CHANGE'
+      : 'UPDATE',
+    entity_type: 'master_item_types',
+    entity_id: updatedData.id,
+    description: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? `Changed item type ${updatedData.name} active status`
+      : `Updated item type ${updatedData.name}`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Item type updated successfully',
-    data: updatedItemType,
+    data: updatedData,
   };
 }
 
-async function destroy(id) {
-  await show(id);
+async function destroy(id, userId = null, req = null) {
+  const existingData = await show(id);
 
   const usedCount = await ItemTypeModel.countUsedByItemParents(id);
 
@@ -120,13 +152,29 @@ async function destroy(id) {
 
   await ItemTypeModel.remove(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_item_types',
+    entity_id: existingData.id,
+    description: `Deleted item type ${existingData.name}`,
+    before_data: existingData,
+    after_data: null,
+    metadata: {
+      code: existingData.code,
+      name: existingData.name,
+      is_active: existingData.is_active,
+    },
+    req,
+  });
+
   return {
     message: 'Item type deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingData = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -134,11 +182,28 @@ async function updateStatus(id, is_active) {
 
   await ItemTypeModel.updateStatus(id, Number(is_active));
 
-  const updatedItemType = await ItemTypeModel.findById(id);
+  const updatedData = await ItemTypeModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_item_types',
+    entity_id: updatedData.id,
+    description: `Changed item type ${updatedData.name} active status`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Item type status updated successfully',
-    data: updatedItemType,
+    data: updatedData,
   };
 }
 

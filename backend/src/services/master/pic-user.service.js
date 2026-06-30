@@ -1,4 +1,5 @@
 const PicUserModel = require('../../models/master/pic-user.model');
+const ActivityLogService = require('../activity-log.service');
 
 function makeError(message, statusCode = 400, code = 'ERROR') {
   const error = new Error(message);
@@ -147,17 +148,35 @@ async function show(id) {
   return picUser;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePicId(payload.pic_id);
   validateUsers(payload.users);
 
   const normalizedPicId = String(payload.pic_id).trim();
   const normalizedUsers = normalizeUsers(payload.users);
 
-  await validatePicExists(normalizedPicId);
+  const pic = await validatePicExists(normalizedPicId);
   await validateCentralUsersExist(normalizedUsers);
 
   const createdPicUsers = await PicUserModel.createMany(normalizedPicId, normalizedUsers);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_pic_users',
+    entity_id: normalizedPicId,
+    description: `Created PIC users for ${pic.name}`,
+    before_data: null,
+    after_data: createdPicUsers,
+    metadata: {
+      pic_id: normalizedPicId,
+      pic_code: pic.code,
+      pic_name: pic.name,
+      total_users: createdPicUsers.length,
+      payload_count: normalizedUsers.length,
+    },
+    req,
+  });
 
   return {
     message: 'PIC users created successfully',
@@ -165,17 +184,37 @@ async function store(payload) {
   };
 }
 
-async function update(picId, payload) {
+async function update(picId, payload, userId = null, req = null) {
   validatePicId(picId);
   validateUsers(payload.users);
 
   const normalizedPicId = String(picId).trim();
   const normalizedUsers = normalizeUsers(payload.users);
 
-  await validatePicExists(normalizedPicId);
+  const pic = await validatePicExists(normalizedPicId);
   await validateCentralUsersExist(normalizedUsers);
 
+  const beforeData = await PicUserModel.findByPicId(normalizedPicId);
   const updatedPicUsers = await PicUserModel.syncByPicId(normalizedPicId, normalizedUsers);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'SYNC',
+    entity_type: 'master_pic_users',
+    entity_id: normalizedPicId,
+    description: `Synced PIC users for ${pic.name}`,
+    before_data: beforeData,
+    after_data: updatedPicUsers,
+    metadata: {
+      pic_id: normalizedPicId,
+      pic_code: pic.code,
+      pic_name: pic.name,
+      before_count: beforeData.length,
+      after_count: updatedPicUsers.length,
+      payload_count: normalizedUsers.length,
+    },
+    req,
+  });
 
   return {
     message: 'PIC users updated successfully',
@@ -183,17 +222,37 @@ async function update(picId, payload) {
   };
 }
 
-async function destroy(id) {
-  await show(id);
-  await PicUserModel.remove(id);
+async function destroy(id, userId = null, req = null) {
+  const existingPicUser = await show(id);
+
+  const deletedData = await PicUserModel.remove(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_pic_users',
+    entity_id: existingPicUser.id,
+    description: `Deleted PIC user ${existingPicUser.central_user_id}`,
+    before_data: existingPicUser,
+    after_data: null,
+    metadata: {
+      pic_id: existingPicUser.pic_id,
+      pic_code: existingPicUser.pic_code,
+      pic_name: existingPicUser.pic_name,
+      central_user_id: existingPicUser.central_user_id,
+      was_primary: Number(existingPicUser.is_primary) === 1,
+      deleted_data: deletedData,
+    },
+    req,
+  });
 
   return {
     message: 'PIC user deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingPicUser = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -202,6 +261,25 @@ async function updateStatus(id, is_active) {
   await PicUserModel.updateStatus(id, Number(is_active));
 
   const updatedPicUser = await PicUserModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_pic_users',
+    entity_id: updatedPicUser.id,
+    description: `Changed PIC user ${updatedPicUser.central_user_id} active status`,
+    before_data: existingPicUser,
+    after_data: updatedPicUser,
+    metadata: {
+      pic_id: updatedPicUser.pic_id,
+      pic_code: updatedPicUser.pic_code,
+      pic_name: updatedPicUser.pic_name,
+      central_user_id: updatedPicUser.central_user_id,
+      old_is_active: existingPicUser.is_active,
+      new_is_active: updatedPicUser.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'PIC user status updated successfully',

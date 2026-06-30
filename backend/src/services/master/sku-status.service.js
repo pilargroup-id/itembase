@@ -1,11 +1,5 @@
 const SkuStatusModel = require('../../models/master/sku-status.model');
-
-function makeError(message, statusCode = 400, code = 'ERROR') {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.code = code;
-  return error;
-}
+const ActivityLogService = require('../activity-log.service');
 
 function normalizePayload(payload) {
   return {
@@ -71,46 +65,84 @@ async function index(query) {
 }
 
 async function show(id) {
-  const skuStatus = await SkuStatusModel.findById(id);
+  const data = await SkuStatusModel.findById(id);
 
-  if (!skuStatus) {
+  if (!data) {
     throw makeError('SKU status not found', 404, 'SKU_STATUS_NOT_FOUND');
   }
 
-  return skuStatus;
+  return data;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
   const createdId = await SkuStatusModel.create(normalizedPayload);
-  const createdSkuStatus = await SkuStatusModel.findById(createdId);
+  const createdData = await SkuStatusModel.findById(createdId);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_sku_statuses',
+    entity_id: createdData.id,
+    description: `Created SKU status ${createdData.name}`,
+    before_data: null,
+    after_data: createdData,
+    metadata: {
+      code: createdData.code,
+      name: createdData.name,
+      is_active: createdData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'SKU status created successfully',
-    data: createdSkuStatus,
+    data: createdData,
   };
 }
 
-async function update(id, payload) {
-  await show(id);
+async function update(id, payload, userId = null, req = null) {
+  const existingData = await show(id);
+
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
 
   await SkuStatusModel.update(id, normalizedPayload);
 
-  const updatedSkuStatus = await SkuStatusModel.findById(id);
+  const updatedData = await SkuStatusModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? 'STATUS_CHANGE'
+      : 'UPDATE',
+    entity_type: 'master_sku_statuses',
+    entity_id: updatedData.id,
+    description: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? `Changed SKU status ${updatedData.name} active status`
+      : `Updated SKU status ${updatedData.name}`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'SKU status updated successfully',
-    data: updatedSkuStatus,
+    data: updatedData,
   };
 }
 
-async function destroy(id) {
-  await show(id);
+async function destroy(id, userId = null, req = null) {
+  const existingData = await show(id);
 
   const usedCount = await SkuStatusModel.countUsedByItems(id);
 
@@ -120,13 +152,29 @@ async function destroy(id) {
 
   await SkuStatusModel.remove(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_sku_statuses',
+    entity_id: existingData.id,
+    description: `Deleted SKU status ${existingData.name}`,
+    before_data: existingData,
+    after_data: null,
+    metadata: {
+      code: existingData.code,
+      name: existingData.name,
+      is_active: existingData.is_active,
+    },
+    req,
+  });
+
   return {
     message: 'SKU status deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingData = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -134,11 +182,28 @@ async function updateStatus(id, is_active) {
 
   await SkuStatusModel.updateStatus(id, Number(is_active));
 
-  const updatedSkuStatus = await SkuStatusModel.findById(id);
+  const updatedData = await SkuStatusModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_sku_statuses',
+    entity_id: updatedData.id,
+    description: `Changed SKU status ${updatedData.name} active status`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'SKU status updated successfully',
-    data: updatedSkuStatus,
+    data: updatedData,
   };
 }
 

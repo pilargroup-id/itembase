@@ -1,4 +1,5 @@
 const PicModel = require('../../models/master/pic.model');
+const ActivityLogService = require('../activity-log.service');
 
 function normalizePayload(payload) {
   return {
@@ -64,68 +65,116 @@ async function index(query) {
 }
 
 async function show(id) {
-  const pic = await PicModel.findById(id);
+  const data = await PicModel.findById(id);
 
-  if (!pic) {
-    const error = new Error('PIC not found');
-    error.statusCode = 404;
-    error.code = 'PIC_NOT_FOUND';
-    throw error;
+  if (!data) {
+    throw makeError('PIC not found', 404, 'PIC_NOT_FOUND');
   }
 
-  return pic;
+  return data;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
   const createdId = await PicModel.create(normalizedPayload);
-  const createdPic = await PicModel.findById(createdId);
+  const createdData = await PicModel.findById(createdId);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_pics',
+    entity_id: createdData.id,
+    description: `Created PIC ${createdData.name}`,
+    before_data: null,
+    after_data: createdData,
+    metadata: {
+      code: createdData.code,
+      name: createdData.name,
+      is_active: createdData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'PIC created successfully',
-    data: createdPic,
+    data: createdData,
   };
 }
 
-async function update(id, payload) {
-  await show(id);
+async function update(id, payload, userId = null, req = null) {
+  const existingData = await show(id);
+
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
 
   await PicModel.update(id, normalizedPayload);
 
-  const updatedPic = await PicModel.findById(id);
+  const updatedData = await PicModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? 'STATUS_CHANGE'
+      : 'UPDATE',
+    entity_type: 'master_pics',
+    entity_id: updatedData.id,
+    description: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? `Changed PIC ${updatedData.name} active status`
+      : `Updated PIC ${updatedData.name}`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'PIC updated successfully',
-    data: updatedPic,
+    data: updatedData,
   };
 }
 
-async function destroy(id) {
-  await show(id);
+async function destroy(id, userId = null, req = null) {
+  const existingData = await show(id);
 
   const usedCount = await PicModel.countUsedByCategories(id);
 
   if (usedCount > 0) {
-    const error = new Error('PIC is already used by categories');
-    error.statusCode = 409;
-    error.code = 'MASTER_DATA_IN_USE';
-    throw error;
+    throw makeError('PIC is already used by categories', 409, 'MASTER_DATA_IN_USE');
   }
 
   await PicModel.remove(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_pics',
+    entity_id: existingData.id,
+    description: `Deleted PIC ${existingData.name}`,
+    before_data: existingData,
+    after_data: null,
+    metadata: {
+      code: existingData.code,
+      name: existingData.name,
+      is_active: existingData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'PIC deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingData = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -133,11 +182,28 @@ async function updateStatus(id, is_active) {
 
   await PicModel.updateStatus(id, Number(is_active));
 
-  const updatedPic = await PicModel.findById(id);
+  const updatedData = await PicModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_pics',
+    entity_id: updatedData.id,
+    description: `Changed PIC ${updatedData.name} active status`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'PIC status updated successfully',
-    data: updatedPic,
+    data: updatedData,
   };
 }
 

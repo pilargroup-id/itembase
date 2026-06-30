@@ -53,7 +53,7 @@ async function show(req, res, next) {
 
 async function store(req, res, next) {
   try {
-    const result = await ItemParentService.create(req.body, req.user.id);
+    const result = await ItemParentService.create(req.body, req.user.id, req);
 
     if (handleServiceError(res, result.error)) {
       return;
@@ -74,7 +74,8 @@ async function update(req, res, next) {
     const result = await ItemParentService.update(
       req.params.id,
       req.body,
-      req.user.id
+      req.user.id,
+      req
     );
 
     if (handleServiceError(res, result.error)) {

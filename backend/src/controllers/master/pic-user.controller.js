@@ -33,7 +33,7 @@ async function show(req, res, next) {
 
 async function store(req, res, next) {
   try {
-    const result = await PicUserService.store(req.body);
+    const result = await PicUserService.store(req.body, req.user.id, req);
 
     return response.created(res, result.data, result.message);
   } catch (err) {
@@ -43,7 +43,12 @@ async function store(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const result = await PicUserService.update(req.params.pic_id, req.body);
+    const result = await PicUserService.update(
+      req.params.pic_id,
+      req.body,
+      req.user.id,
+      req
+    );
 
     return response.ok(res, result.data, result.message);
   } catch (err) {
@@ -53,7 +58,7 @@ async function update(req, res, next) {
 
 async function destroy(req, res, next) {
   try {
-    const result = await PicUserService.destroy(req.params.id);
+    const result = await PicUserService.destroy(req.params.id, req.user.id, req);
 
     return response.ok(res, null, result.message);
   } catch (err) {
@@ -63,7 +68,12 @@ async function destroy(req, res, next) {
 
 async function toggleStatus(req, res, next) {
   try {
-    const result = await PicUserService.updateStatus(req.params.id, req.body.is_active);
+    const result = await PicUserService.updateStatus(
+      req.params.id,
+      req.body.is_active,
+      req.user.id,
+      req
+    );
 
     return response.ok(res, result.data, result.message);
   } catch (err) {

@@ -1,4 +1,5 @@
 const BrandModel = require('../../models/master/brand.model');
+const ActivityLogService = require('../activity-log.service');
 
 function normalizePayload(payload) {
   return {
@@ -76,12 +77,29 @@ async function show(id) {
   return brand;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
+
   const createdId = await BrandModel.create(normalizedPayload);
   const createdBrand = await BrandModel.findById(createdId);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_brands',
+    entity_id: createdBrand.id,
+    description: `Created brand ${createdBrand.name}`,
+    before_data: null,
+    after_data: createdBrand,
+    metadata: {
+      code: createdBrand.code,
+      name: createdBrand.name,
+      is_active: createdBrand.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Brand created successfully',
@@ -89,8 +107,9 @@ async function store(payload) {
   };
 }
 
-async function update(id, payload) {
-  await show(id);
+async function update(id, payload, userId = null, req = null) {
+  const existingBrand = await show(id);
+
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
@@ -99,14 +118,35 @@ async function update(id, payload) {
 
   const updatedBrand = await BrandModel.findById(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: Number(existingBrand.is_active) !== Number(updatedBrand.is_active)
+      ? 'STATUS_CHANGE'
+      : 'UPDATE',
+    entity_type: 'master_brands',
+    entity_id: updatedBrand.id,
+    description: Number(existingBrand.is_active) !== Number(updatedBrand.is_active)
+      ? `Changed brand ${updatedBrand.name} active status`
+      : `Updated brand ${updatedBrand.name}`,
+    before_data: existingBrand,
+    after_data: updatedBrand,
+    metadata: {
+      code: updatedBrand.code,
+      name: updatedBrand.name,
+      old_is_active: existingBrand.is_active,
+      new_is_active: updatedBrand.is_active,
+    },
+    req,
+  });
+
   return {
     message: 'Brand updated successfully',
     data: updatedBrand,
   };
 }
 
-async function destroy(id) {
-  await show(id);
+async function destroy(id, userId = null, req = null) {
+  const existingBrand = await show(id);
 
   const usedCount = await BrandModel.countUsedByItemParents(id);
 
@@ -119,13 +159,29 @@ async function destroy(id) {
 
   await BrandModel.remove(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_brands',
+    entity_id: existingBrand.id,
+    description: `Deleted brand ${existingBrand.name}`,
+    before_data: existingBrand,
+    after_data: null,
+    metadata: {
+      code: existingBrand.code,
+      name: existingBrand.name,
+      is_active: existingBrand.is_active,
+    },
+    req,
+  });
+
   return {
     message: 'Brand deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingBrand = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -134,6 +190,23 @@ async function updateStatus(id, is_active) {
   await BrandModel.updateStatus(id, Number(is_active));
 
   const updatedBrand = await BrandModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_brands',
+    entity_id: updatedBrand.id,
+    description: `Changed brand ${updatedBrand.name} active status`,
+    before_data: existingBrand,
+    after_data: updatedBrand,
+    metadata: {
+      code: updatedBrand.code,
+      name: updatedBrand.name,
+      old_is_active: existingBrand.is_active,
+      new_is_active: updatedBrand.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Brand status updated successfully',

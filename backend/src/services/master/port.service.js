@@ -1,11 +1,5 @@
 const PortModel = require('../../models/master/port.model');
-
-function makeError(message, statusCode = 400, code = 'ERROR') {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.code = code;
-  return error;
-}
+const ActivityLogService = require('../activity-log.service');
 
 function normalizePayload(payload) {
   return {
@@ -71,46 +65,84 @@ async function index(query) {
 }
 
 async function show(id) {
-  const port = await PortModel.findById(id);
+  const data = await PortModel.findById(id);
 
-  if (!port) {
+  if (!data) {
     throw makeError('Port not found', 404, 'PORT_NOT_FOUND');
   }
 
-  return port;
+  return data;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
   const createdId = await PortModel.create(normalizedPayload);
-  const createdPort = await PortModel.findById(createdId);
+  const createdData = await PortModel.findById(createdId);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_ports',
+    entity_id: createdData.id,
+    description: `Created port ${createdData.name}`,
+    before_data: null,
+    after_data: createdData,
+    metadata: {
+      code: createdData.code,
+      name: createdData.name,
+      is_active: createdData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Port created successfully',
-    data: createdPort,
+    data: createdData,
   };
 }
 
-async function update(id, payload) {
-  await show(id);
+async function update(id, payload, userId = null, req = null) {
+  const existingData = await show(id);
+
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
 
   await PortModel.update(id, normalizedPayload);
 
-  const updatedPort = await PortModel.findById(id);
+  const updatedData = await PortModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? 'STATUS_CHANGE'
+      : 'UPDATE',
+    entity_type: 'master_ports',
+    entity_id: updatedData.id,
+    description: Number(existingData.is_active) !== Number(updatedData.is_active)
+      ? `Changed port ${updatedData.name} active status`
+      : `Updated port ${updatedData.name}`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Port updated successfully',
-    data: updatedPort,
+    data: updatedData,
   };
 }
 
-async function destroy(id) {
-  await show(id);
+async function destroy(id, userId = null, req = null) {
+  const existingData = await show(id);
 
   const usedCount = await PortModel.countUsedByItemParents(id);
 
@@ -120,13 +152,29 @@ async function destroy(id) {
 
   await PortModel.remove(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_ports',
+    entity_id: existingData.id,
+    description: `Deleted port ${existingData.name}`,
+    before_data: existingData,
+    after_data: null,
+    metadata: {
+      code: existingData.code,
+      name: existingData.name,
+      is_active: existingData.is_active,
+    },
+    req,
+  });
+
   return {
     message: 'Port deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingData = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -134,11 +182,28 @@ async function updateStatus(id, is_active) {
 
   await PortModel.updateStatus(id, Number(is_active));
 
-  const updatedPort = await PortModel.findById(id);
+  const updatedData = await PortModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_ports',
+    entity_id: updatedData.id,
+    description: `Changed port ${updatedData.name} active status`,
+    before_data: existingData,
+    after_data: updatedData,
+    metadata: {
+      code: updatedData.code,
+      name: updatedData.name,
+      old_is_active: existingData.is_active,
+      new_is_active: updatedData.is_active,
+    },
+    req,
+  });
 
   return {
     message: 'Port status updated successfully',
-    data: updatedPort,
+    data: updatedData,
   };
 }
 

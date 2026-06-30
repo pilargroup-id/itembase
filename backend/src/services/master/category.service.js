@@ -1,9 +1,11 @@
 const CategoryModel = require('../../models/master/category.model');
+const ActivityLogService = require('../activity-log.service');
 
-function makeError(message, statusCode = 400, code = 'ERROR') {
+function makeError(message, statusCode = 400, code = 'ERROR', errors = null) {
   const error = new Error(message);
   error.statusCode = statusCode;
   error.code = code;
+  error.errors = errors;
   return error;
 }
 
@@ -28,6 +30,18 @@ function validateRequired(value) {
 
 function isValidBoolean(value) {
   return [0, 1, '0', '1', true, false].includes(value);
+}
+
+function buildCategoryMetadata(category, existingCategory = null) {
+  return {
+    detail_category: category.detail_category,
+    sub_category: category.sub_category,
+    main_category: category.main_category,
+    brand_category: category.brand_category,
+    pic_id: category.pic_id,
+    old_is_active: existingCategory?.is_active,
+    new_is_active: category.is_active,
+  };
 }
 
 function validatePayload(payload) {
@@ -111,7 +125,7 @@ async function show(id) {
   return category;
 }
 
-async function store(payload) {
+async function store(payload, userId = null, req = null) {
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
@@ -121,14 +135,27 @@ async function store(payload) {
   const createdId = await CategoryModel.create(normalizedPayload);
   const createdCategory = await CategoryModel.findById(createdId);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'master_categories',
+    entity_id: createdCategory.id,
+    description: `Created category ${createdCategory.detail_category}`,
+    before_data: null,
+    after_data: createdCategory,
+    metadata: buildCategoryMetadata(createdCategory),
+    req,
+  });
+
   return {
     message: 'Category created successfully',
     data: createdCategory,
   };
 }
 
-async function update(id, payload) {
-  await show(id);
+async function update(id, payload, userId = null, req = null) {
+  const existingCategory = await show(id);
+
   validatePayload(payload);
 
   const normalizedPayload = normalizePayload(payload);
@@ -138,14 +165,30 @@ async function update(id, payload) {
 
   const updatedCategory = await CategoryModel.findById(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: Number(existingCategory.is_active) !== Number(updatedCategory.is_active)
+      ? 'STATUS_CHANGE'
+      : 'UPDATE',
+    entity_type: 'master_categories',
+    entity_id: updatedCategory.id,
+    description: Number(existingCategory.is_active) !== Number(updatedCategory.is_active)
+      ? `Changed category ${updatedCategory.detail_category} active status`
+      : `Updated category ${updatedCategory.detail_category}`,
+    before_data: existingCategory,
+    after_data: updatedCategory,
+    metadata: buildCategoryMetadata(updatedCategory, existingCategory),
+    req,
+  });
+
   return {
     message: 'Category updated successfully',
     data: updatedCategory,
   };
 }
 
-async function destroy(id) {
-  await show(id);
+async function destroy(id, userId = null, req = null) {
+  const existingCategory = await show(id);
 
   const usedCount = await CategoryModel.countUsedByItemParents(id);
 
@@ -155,13 +198,25 @@ async function destroy(id) {
 
   await CategoryModel.remove(id);
 
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'DELETE',
+    entity_type: 'master_categories',
+    entity_id: existingCategory.id,
+    description: `Deleted category ${existingCategory.detail_category}`,
+    before_data: existingCategory,
+    after_data: null,
+    metadata: buildCategoryMetadata(existingCategory),
+    req,
+  });
+
   return {
     message: 'Category deleted successfully',
   };
 }
 
-async function updateStatus(id, is_active) {
-  await show(id);
+async function updateStatus(id, is_active, userId = null, req = null) {
+  const existingCategory = await show(id);
 
   if (!isValidBoolean(is_active)) {
     throw makeError('is_active must be 0 or 1', 422, 'VALIDATION_ERROR');
@@ -170,6 +225,18 @@ async function updateStatus(id, is_active) {
   await CategoryModel.updateStatus(id, Number(is_active));
 
   const updatedCategory = await CategoryModel.findById(id);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'STATUS_CHANGE',
+    entity_type: 'master_categories',
+    entity_id: updatedCategory.id,
+    description: `Changed category ${updatedCategory.detail_category} active status`,
+    before_data: existingCategory,
+    after_data: updatedCategory,
+    metadata: buildCategoryMetadata(updatedCategory, existingCategory),
+    req,
+  });
 
   return {
     message: 'Category status updated successfully',

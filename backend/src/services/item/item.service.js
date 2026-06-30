@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const ItemModel = require('../../models/item/item.model');
+const ActivityLogService = require('../activity-log.service');
 
 const ALLOWED_ITEM_KIND = ['regular', 'bundle'];
 
@@ -557,7 +558,7 @@ async function show(id) {
   return item;
 }
 
-async function store(payload, userId) {
+async function store(payload, userId, req = null) {
   const errors = validateBasePayload(payload, 'create');
 
   if (Object.keys(errors).length) {
@@ -607,11 +608,31 @@ async function store(payload, userId) {
       await ItemModel.replaceComponents(createdItem.id, components, connection);
     }
 
-    return ItemModel.findById(createdItem.id, connection);
+    const finalItem = await ItemModel.findById(createdItem.id, connection);
+
+    await ActivityLogService.log({
+      user_id: userId,
+      action: 'CREATE',
+      entity_type: 'items',
+      entity_id: finalItem.id,
+      description: `Created ${finalItem.item_kind} item ${finalItem.item_code}`,
+      before_data: null,
+      after_data: finalItem,
+      metadata: {
+        item_code: finalItem.item_code,
+        item_kind: finalItem.item_kind,
+        channel_count: finalItem.channels.length,
+        component_count: finalItem.components.length,
+      },
+      req,
+      connection,
+    });
+
+    return finalItem;
   });
 }
 
-async function update(id, payload, userId) {
+async function update(id, payload, userId, req = null) {
   const existing = await ItemModel.findRawById(id);
 
   if (!existing) {
@@ -700,7 +721,33 @@ async function update(id, payload, userId) {
       await ItemModel.deleteComponents(updatedItem.id, connection);
     }
 
-    return ItemModel.findById(updatedItem.id, connection);
+    const finalItem = await ItemModel.findById(updatedItem.id, connection);
+
+    await ActivityLogService.log({
+      user_id: userId,
+      action: Number(existing.is_active) !== Number(finalItem.is_active)
+        ? 'STATUS_CHANGE'
+        : 'UPDATE',
+      entity_type: 'items',
+      entity_id: finalItem.id,
+      description: Number(existing.is_active) !== Number(finalItem.is_active)
+        ? `Changed item ${finalItem.item_code} active status`
+        : `Updated item ${finalItem.item_code}`,
+      before_data: existing,
+      after_data: finalItem,
+      metadata: {
+        item_code: finalItem.item_code,
+        item_kind: finalItem.item_kind,
+        old_is_active: existing.is_active,
+        new_is_active: finalItem.is_active,
+        channel_count: finalItem.channels.length,
+        component_count: finalItem.components.length,
+      },
+      req,
+      connection,
+    });
+
+    return finalItem;
   });
 }
 

@@ -52,7 +52,7 @@ async function show(req, res) {
 
 async function store(req, res) {
   try {
-    const item = await ItemService.store(req.body, req.user.id);
+    const item = await ItemService.store(req.body, req.user.id, req);
 
     return response.created(
       res,
@@ -69,7 +69,8 @@ async function update(req, res) {
     const item = await ItemService.update(
       req.params.id,
       req.body,
-      req.user.id
+      req.user.id,
+      req
     );
 
     return response.ok(
