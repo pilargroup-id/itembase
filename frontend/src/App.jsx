@@ -52,7 +52,19 @@ function getStoredAuthToken() {
   }
 
   try {
-    return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+    return (
+      window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ||
+      window.localStorage.getItem('token') ||
+      window.localStorage.getItem('authToken') ||
+      window.localStorage.getItem('access_token') ||
+      window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ||
+      window.sessionStorage.getItem('token') ||
+      window.sessionStorage.getItem('authToken') ||
+      window.sessionStorage.getItem('access_token') ||
+      window.__ITEMBASE_AUTH_TOKEN__ ||
+      window.__AUTH_TOKEN__ ||
+      null
+    )
   } catch {
     return null
   }
@@ -66,10 +78,12 @@ function storeAuthToken(token) {
   try {
     if (token) {
       window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+      window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
       return
     }
 
     window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+    window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
   } catch {
     // Ignore storage errors so auth state can still render from memory.
   }
@@ -83,6 +97,8 @@ function getTokenFromUrl() {
   const searchParams = new URLSearchParams(window.location.search)
   const tokenFromUrl =
     searchParams.get('token') ||
+    searchParams.get('auth') ||
+    searchParams.get('bearer') ||
     searchParams.get('authToken') ||
     searchParams.get('access_token')
 
@@ -91,6 +107,8 @@ function getTokenFromUrl() {
   }
 
   searchParams.delete('token')
+  searchParams.delete('auth')
+  searchParams.delete('bearer')
   searchParams.delete('authToken')
   searchParams.delete('access_token')
 
@@ -209,6 +227,8 @@ function App() {
   const [, setLastUpdated] = useState(() => new Date())
 
   useEffect(() => {
+    api.setTokenGetter(getStoredAuthToken)
+
     const tokenFromUrl = getTokenFromUrl()
     const storedToken = getStoredAuthToken()
     const resolvedToken = tokenFromUrl || storedToken
@@ -221,6 +241,10 @@ function App() {
       api.setToken(resolvedToken)
     } else {
       api.clearToken()
+    }
+
+    return () => {
+      api.setTokenGetter(null)
     }
   }, [])
 
