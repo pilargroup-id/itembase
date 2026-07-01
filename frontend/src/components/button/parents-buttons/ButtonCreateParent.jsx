@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateParent from '../../dialog/dialog-parent/DialogCreateParent.jsx'
+import DialogCreateParent from '../../Dialog/dialog-parent/DialogCreateParent.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateParent({

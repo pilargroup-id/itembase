@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeleteSkuStatus from "../../../dialog/dialog-sku-statuses/DialogDeleteSkuStatus.jsx"
-import DialogEditSkuStatus from "../../../dialog/dialog-sku-statuses/DialogEditSkuStatus.jsx"
+import DialogDeleteSkuStatus from "../../../Dialog/dialog-sku-statuses/DialogDeleteSkuStatus.jsx"
+import DialogEditSkuStatus from "../../../Dialog/dialog-sku-statuses/DialogEditSkuStatus.jsx"
 import ButtonDeleteSkuStatus from "../../../button/sku-statuses-buttons/ButtonDeleteSkuStatus.jsx"
 import ButtonEditSkuStatus from "../../../button/sku-statuses-buttons/ButtonEditSkuStatus.jsx"
 import FilterDropdownSkuStatus from "../../../dropdown/filter-sku-statuses/FilterDropdownSkuStatus.jsx"

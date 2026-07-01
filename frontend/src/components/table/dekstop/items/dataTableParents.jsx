@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeleteParent from "../../../dialog/dialog-parent/DialogDeleteParent.jsx"
-import DialogEditParent from "../../../dialog/dialog-parent/DialogEditParent.jsx"
+import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent.jsx"
+import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
 import ButtonDeleteParent from "../../../button/parents-buttons/ButtonDeleteParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
 import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdownParent.jsx"

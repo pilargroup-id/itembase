@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogAction from '../dialog/DialogAction.jsx'
+import DialogAction from '../Dialog/DialogAction.jsx'
 import { Users01 } from '../template/TemplateIcons.jsx'
 
 function ButtonMain({ label = 'Tombol' }) {

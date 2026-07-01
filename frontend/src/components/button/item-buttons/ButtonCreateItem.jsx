@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateItem from '../../dialog/dialog-item/DialogCreateItem.jsx'
+import DialogCreateItem from '../../Dialog/dialog-item/DialogCreateItem.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateItem({

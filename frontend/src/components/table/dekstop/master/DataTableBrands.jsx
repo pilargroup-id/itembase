@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeleteBrand from "../../../dialog/dialog-brands/DialogDeleteBrand.jsx"
-import DialogEditBrand from "../../../dialog/dialog-brands/DialogEditBrand.jsx"
+import DialogDeleteBrand from "../../../Dialog/dialog-brands/DialogDeleteBrand.jsx"
+import DialogEditBrand from "../../../Dialog/dialog-brands/DialogEditBrand.jsx"
 import ButtonDeleteBrand from "../../../button/brands-buttons/ButtonDeleteBrand.jsx"
 import ButtonEditBrand from "../../../button/brands-buttons/ButtonEditBrand.jsx"
 import FilterDropdownBrand from "../../../dropdown/filter-brands/FilterDropdownBrand.jsx"

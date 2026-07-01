@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateCategories from '../../dialog/dialog-categories/DialogCreateCategories.jsx'
+import DialogCreateCategories from '../../Dialog/dialog-categories/DialogCreateCategories.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateCategories({

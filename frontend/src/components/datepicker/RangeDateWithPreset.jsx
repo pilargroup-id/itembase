@@ -10,7 +10,7 @@ import { enGB } from 'date-fns/locale';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import { useAlert } from '../../hooks/useAlert';
-import AlertModal from '../dialog/DialogAlert.jsx';
+import AlertModal from '../Dialog/DialogAlert.jsx';
 import { XClose } from '../template/TemplateIcons.jsx';
 
 const formatDateDisplay = (monthDay, year) => {

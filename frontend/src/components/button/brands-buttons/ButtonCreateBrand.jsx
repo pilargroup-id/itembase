@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateBrand from '../../dialog/dialog-brands/DialogCreateBrand.jsx'
+import DialogCreateBrand from '../../Dialog/dialog-brands/DialogCreateBrand.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateBrand({
