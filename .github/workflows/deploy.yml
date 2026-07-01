@@ -1,0 +1,102 @@
+name: Deploy itembase.pilargroup.id
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy ItemBase
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------
+      # 1. Checkout
+      # -------------------------
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # 2. Setup Node
+      # -------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # -------------------------
+      # 3. Build Frontend
+      # -------------------------
+      - name: Install & build frontend
+        working-directory: frontend
+        run: |
+          echo "VITE_API_BASE_URL=/api" > .env.production
+          npm install
+          npm run build
+
+      # -------------------------
+      # 4. Setup SSH
+      # -------------------------
+      - name: Setup SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.GCP_HOST }} >> ~/.ssh/known_hosts
+
+      # -------------------------
+      # 5. Test SSH
+      # -------------------------
+      - name: Test SSH connection
+        run: |
+          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ~/.ssh/deploy_key \
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} "whoami && hostname"
+
+      # -------------------------
+      # 6. Pull latest code on VM
+      # -------------------------
+      - name: Pull latest code on VM
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} "
+              set -e
+              cd /var/www/itembase
+              git fetch origin
+              git reset --hard origin/main
+            "
+
+      # -------------------------
+      # 7. Upload frontend dist
+      # -------------------------
+      - name: Upload frontend build
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            frontend/dist/ \
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/var/www/itembase/frontend/dist/
+
+      # -------------------------
+      # 8. Install backend & restart PM2
+      # -------------------------
+      - name: Restart backend on VM
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} "
+              set -e
+
+              export NVM_DIR=\"\$HOME/.nvm\"
+              [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+
+              nvm use 24.14.0
+
+              cd /var/www/itembase/backend
+              npm install --omit=dev
+
+              pm2 restart itembase-api --update-env || pm2 start npm --name itembase-api -- run start
+              pm2 save
+
+              sudo nginx -t
+              sudo systemctl reload nginx
+            "
