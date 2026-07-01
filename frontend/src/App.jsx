@@ -18,6 +18,7 @@ import ActivityLogs from './pages/activity-logs/ActivityLogs.jsx'
 
 import api from './services/api.js'
 
+const AUTH_TOKEN_STORAGE_KEY = 'itembase.auth.token'
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
 const DEFAULT_PATH = '/parents'
 
@@ -43,6 +44,62 @@ function getStoredAuthUser() {
   } catch {
     return null
   }
+}
+
+function getStoredAuthToken() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function storeAuthToken(token) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    if (token) {
+      window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+      return
+    }
+
+    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+  } catch {
+    // Ignore storage errors so auth state can still render from memory.
+  }
+}
+
+function getTokenFromUrl() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const searchParams = new URLSearchParams(window.location.search)
+  const tokenFromUrl =
+    searchParams.get('token') ||
+    searchParams.get('authToken') ||
+    searchParams.get('access_token')
+
+  if (!tokenFromUrl) {
+    return null
+  }
+
+  searchParams.delete('token')
+  searchParams.delete('authToken')
+  searchParams.delete('access_token')
+
+  const nextQuery = searchParams.toString()
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`
+
+  window.history.replaceState({}, '', nextUrl)
+
+  return tokenFromUrl
 }
 
 function storeAuthUser(user) {
@@ -152,6 +209,22 @@ function App() {
   const [, setLastUpdated] = useState(() => new Date())
 
   useEffect(() => {
+    const tokenFromUrl = getTokenFromUrl()
+    const storedToken = getStoredAuthToken()
+    const resolvedToken = tokenFromUrl || storedToken
+
+    if (tokenFromUrl) {
+      storeAuthToken(tokenFromUrl)
+    }
+
+    if (resolvedToken) {
+      api.setToken(resolvedToken)
+    } else {
+      api.clearToken()
+    }
+  }, [])
+
+  useEffect(() => {
     const handleRouteChange = () => {
       setActivePath(getCurrentPath())
     }
@@ -183,6 +256,13 @@ function App() {
       } catch (error) {
         if (!isCurrent) {
           return
+        }
+
+        if (error?.status === 401) {
+          api.clearToken()
+          storeAuthToken(null)
+          storeAuthUser(null)
+          setAuthUser(null)
         }
 
         setAuthError(error)
