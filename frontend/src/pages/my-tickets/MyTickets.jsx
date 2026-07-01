@@ -5,7 +5,7 @@ import { Ticket01 } from '../../components/template/TemplateIcons.jsx'
 import { INITIAL_TICKET_ROWS } from '../../services/items/DataTableitems.js'
 import CardStatusMT from './CardStatusMT.jsx'
 import DataTableMT from './DataTableMT.jsx'
-import DialogCreateTicket from '../../components/dialog/DialogCreateMT.jsx'
+import DialogCreateTicket from '../../components/Dialog/DialogCreateMT.jsx'
 
 function MyTickets({ activePage, searchQuery }) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)

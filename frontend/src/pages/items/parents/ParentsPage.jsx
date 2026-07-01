@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import ButtonCreateParent from '../../../components/button/parents-buttons/ButtonCreateParent.jsx'
-import DataTableParents from '../../../components/table/dekstop/items/DataTableParents.jsx'
+import DataTableParents from '../../../components/table/dekstop/items/dataTableParents.jsx'
 
 function ParentsPage({ activePage, searchQuery }) {
   const [parentRefreshKey, setParentRefreshKey] = useState(0)

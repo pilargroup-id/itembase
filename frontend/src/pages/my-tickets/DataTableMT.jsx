@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import CreateButton from '../../components/button/CreateButton.jsx'
-import DialogDelete from '../../components/dialog/DialogDelete.jsx'
-import DialogEdit from '../../components/dialog/DialogEdit.jsx'
-import DialogTimelineMT from '../../components/dialog/DialogTimelineMT.jsx'
+import DialogDelete from '../../components/Dialog/DialogDelete.jsx'
+import DialogEdit from '../../components/Dialog/DialogEdit.jsx'
+import DialogTimelineMT from '../../components/Dialog/DialogTimelineMT.jsx'
 import DataTable, {
   DataTableIdentity,
   DataTableStatus,

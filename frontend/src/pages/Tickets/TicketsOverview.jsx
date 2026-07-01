@@ -4,7 +4,7 @@ import ButtonRangeDate from '../../components/button/ButtonRangeDate.jsx'
 import { Ticket01 } from '../../components/template/TemplateIcons.jsx'
 import CardStatusMT from './CardStatusTickets.jsx'
 import DataTableTickets, { INITIAL_TICKET_ROWS } from './DataTableTickets.jsx'
-import DialogCreateTicket from '../../components/dialog/DialogCreateTickets.jsx'
+import DialogCreateTicket from '../../components/Dialog/DialogCreateTickets.jsx'
 
 function MyTickets({ activePage, searchQuery }) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)

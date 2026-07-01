@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import DialogDelete from '../../components/dialog/DialogDelete.jsx'
-import DialogEdit from '../../components/dialog/DialogEdit.jsx'
+import DialogDelete from '../../components/Dialog/DialogDelete.jsx'
+import DialogEdit from '../../components/Dialog/DialogEdit.jsx'
 import DataTable, {
   DataTableIdentity,
   DataTableStatus,
