@@ -1,6 +1,69 @@
 const DEFAULT_API_BASE_URL = '/api';
+const AUTH_TOKEN_STORAGE_KEYS = [
+  'itembase.auth.token',
+  'token',
+  'authToken',
+  'access_token',
+];
 
 const normalizeBaseUrl = (url) => url.replace(/\/+$/, '');
+const normalizeAuthToken = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const rawValue = String(value).trim();
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+
+    if (typeof parsedValue === 'string') {
+      return normalizeAuthToken(parsedValue);
+    }
+
+    if (parsedValue && typeof parsedValue === 'object') {
+      return normalizeAuthToken(
+        parsedValue.token ||
+          parsedValue.authToken ||
+          parsedValue.access_token ||
+          parsedValue.accessToken ||
+          parsedValue.bearer,
+      );
+    }
+  } catch {
+    // Stored tokens are often plain strings, so JSON parse failures are expected.
+  }
+
+  return rawValue.replace(/^Bearer\s+/i, '').trim() || null;
+};
+
+const getStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const storageAreas = [window.localStorage, window.sessionStorage];
+
+    for (const storage of storageAreas) {
+      for (const storageKey of AUTH_TOKEN_STORAGE_KEYS) {
+        const token = normalizeAuthToken(storage.getItem(storageKey));
+
+        if (token) {
+          return token;
+        }
+      }
+    }
+
+    return normalizeAuthToken(window.__ITEMBASE_AUTH_TOKEN__ || window.__AUTH_TOKEN__);
+  } catch {
+    return null;
+  }
+};
 
 const buildQueryString = (params = {}) => {
   const searchParams = new URLSearchParams();
@@ -41,15 +104,21 @@ let authToken = null;
 let authTokenGetter = null;
 
 const resolveToken = (tokenFromRequest) => {
-  if (tokenFromRequest) {
-    return tokenFromRequest;
+  const requestToken = normalizeAuthToken(tokenFromRequest);
+
+  if (requestToken) {
+    return requestToken;
   }
 
   if (typeof authTokenGetter === 'function') {
-    return authTokenGetter();
+    const getterToken = normalizeAuthToken(authTokenGetter());
+
+    if (getterToken) {
+      return getterToken;
+    }
   }
 
-  return authToken;
+  return normalizeAuthToken(authToken) || getStoredAuthToken();
 };
 
 const createResource = (path) => ({
