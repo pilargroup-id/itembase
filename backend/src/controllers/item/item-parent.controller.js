@@ -51,6 +51,20 @@ async function show(req, res, next) {
   }
 }
 
+async function suggestSubbrands(req, res, next) {
+  try {
+    const data = await ItemParentService.suggestSubbrands(req.query);
+
+    return response.ok(
+      res,
+      data,
+      'Subbrand suggestions retrieved successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function store(req, res, next) {
   try {
     const result = await ItemParentService.create(req.body, req.user.id, req);
@@ -95,6 +109,7 @@ async function update(req, res, next) {
 module.exports = {
   index,
   show,
+  suggestSubbrands,
   store,
   update,
 };

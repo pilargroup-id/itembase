@@ -13,6 +13,13 @@ router.get(
 );
 
 router.get(
+  '/helpers/subbrands',
+  authenticate,
+  requireApp('itembase'),
+  ItemParentController.suggestSubbrands
+);
+
+router.get(
   '/:id',
   authenticate,
   requireApp('itembase'),

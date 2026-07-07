@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { db } = require('../../config/database.config');
 
 function normalizePagination(query = {}) {
@@ -21,6 +22,7 @@ function buildWhereClause(query = {}) {
         OR ip.item_name LIKE ?
         OR ip.parent_name LIKE ?
         OR ip.sub_brand LIKE ?
+        OR ms.name LIKE ?
         OR mb.code LIKE ?
         OR mb.name LIKE ?
         OR mc.detail_category LIKE ?
@@ -48,6 +50,7 @@ function buildWhereClause(query = {}) {
       search,
       search,
       search,
+      search,
       search
     );
   }
@@ -55,6 +58,11 @@ function buildWhereClause(query = {}) {
   if (query.status) {
     conditions.push('ip.status = ?');
     params.push(query.status);
+  }
+
+  if (query.subbrand_id) {
+    conditions.push('ip.subbrand_id = ?');
+    params.push(query.subbrand_id);
   }
 
   if (query.brand_id) {
@@ -87,6 +95,7 @@ function baseSelectSql() {
   return `
     SELECT
       ip.id,
+      ip.subbrand_id,
       ip.parent_code,
       ip.brand_id,
       ip.sub_brand,
@@ -100,6 +109,10 @@ function baseSelectSql() {
       ip.updated_by,
       ip.created_at,
       ip.updated_at,
+
+      ms.name AS subbrand_name,
+      ms.normalized_name AS subbrand_normalized_name,
+      ms.is_active AS subbrand_is_active,
 
       mb.code AS brand_code,
       mb.name AS brand_name,
@@ -116,7 +129,8 @@ function baseSelectSql() {
       mp.code AS port_code,
       mp.name AS port_name
     FROM item_parents ip
-    INNER JOIN master_brands mb ON mb.id = ip.brand_id
+    LEFT JOIN master_subbrands ms ON ms.id = ip.subbrand_id
+    LEFT JOIN master_brands mb ON mb.id = ip.brand_id
     INNER JOIN master_categories mc ON mc.id = ip.category_id
     LEFT JOIN master_item_types mit ON mit.id = ip.item_type_id
     LEFT JOIN master_ports mp ON mp.id = ip.port_id
@@ -129,6 +143,7 @@ function mapRow(row) {
   return {
     id: row.id,
     parent_code: row.parent_code,
+    subbrand_id: row.subbrand_id,
     sub_brand: row.sub_brand,
     item_name: row.item_name,
     parent_name: row.parent_name,
@@ -137,11 +152,21 @@ function mapRow(row) {
     updated_by: row.updated_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
-    brand: {
-      id: row.brand_id,
-      code: row.brand_code,
-      name: row.brand_name,
-    },
+    subbrand: row.subbrand_id
+      ? {
+          id: row.subbrand_id,
+          name: row.subbrand_name,
+          normalized_name: row.subbrand_normalized_name,
+          is_active: row.subbrand_is_active,
+        }
+      : null,
+    brand: row.brand_id
+      ? {
+          id: row.brand_id,
+          code: row.brand_code,
+          name: row.brand_name,
+        }
+      : null,
     category: {
       id: row.category_id,
       detail_category: row.category_detail_category,
@@ -181,7 +206,8 @@ async function findAll(query = {}) {
   const countSql = `
     SELECT COUNT(*) AS total
     FROM item_parents ip
-    INNER JOIN master_brands mb ON mb.id = ip.brand_id
+    LEFT JOIN master_subbrands ms ON ms.id = ip.subbrand_id
+    LEFT JOIN master_brands mb ON mb.id = ip.brand_id
     INNER JOIN master_categories mc ON mc.id = ip.category_id
     LEFT JOIN master_item_types mit ON mit.id = ip.item_type_id
     LEFT JOIN master_ports mp ON mp.id = ip.port_id
@@ -247,6 +273,7 @@ async function create(data, connection = db) {
     `
       INSERT INTO item_parents (
         id,
+        subbrand_id,
         parent_code,
         brand_id,
         sub_brand,
@@ -259,14 +286,15 @@ async function create(data, connection = db) {
         created_by,
         updated_by
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.id,
+      data.subbrand_id || null,
       data.parent_code,
-      data.brand_id,
+      data.brand_id || null,
       data.sub_brand || null,
-      data.item_name,
+      data.item_name || null,
       data.category_id,
       data.item_type_id || null,
       data.port_id || null,
@@ -285,6 +313,7 @@ async function update(id, data, connection = db) {
     `
       UPDATE item_parents
       SET
+        subbrand_id = ?,
         brand_id = ?,
         sub_brand = ?,
         item_name = ?,
@@ -297,9 +326,10 @@ async function update(id, data, connection = db) {
       WHERE id = ?
     `,
     [
-      data.brand_id,
+      data.subbrand_id || null,
+      data.brand_id || null,
       data.sub_brand || null,
-      data.item_name,
+      data.item_name || null,
       data.category_id,
       data.item_type_id || null,
       data.port_id || null,
@@ -326,6 +356,7 @@ async function deactivateChildItems(parentId, connection = db) {
 
 async function existsInTable(tableName, id, connection = db) {
   const allowedTables = [
+    'master_subbrands',
     'master_brands',
     'master_categories',
     'master_item_types',
@@ -347,6 +378,119 @@ async function existsInTable(tableName, id, connection = db) {
   );
 
   return rows.length > 0;
+}
+
+async function findSubbrandById(id, connection = db) {
+  const [rows] = await connection.query(
+    `
+      SELECT
+        id,
+        name,
+        normalized_name,
+        is_active,
+        created_at,
+        updated_at
+      FROM master_subbrands
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
+
+  return rows[0] || null;
+}
+
+async function findSubbrandByName(name, connection = db) {
+  const [rows] = await connection.query(
+    `
+      SELECT
+        id,
+        name,
+        normalized_name,
+        is_active,
+        created_at,
+        updated_at
+      FROM master_subbrands
+      WHERE name = ?
+      LIMIT 1
+    `,
+    [name]
+  );
+
+  return rows[0] || null;
+}
+
+async function createSubbrand(data, connection = db) {
+  const id = crypto.randomUUID();
+
+  await connection.query(
+    `
+      INSERT INTO master_subbrands (
+        id,
+        name,
+        normalized_name,
+        is_active
+      )
+      VALUES (?, ?, ?, 1)
+    `,
+    [
+      id,
+      data.name,
+      data.normalized_name,
+    ]
+  );
+
+  return findSubbrandById(id, connection);
+}
+
+async function upsertSubbrandItem(data, connection = db) {
+  const id = crypto.randomUUID();
+
+  await connection.query(
+    `
+      INSERT INTO master_subbrand_items (
+        id,
+        subbrand_id,
+        item_parent_id,
+        item_name,
+        normalized_item_name,
+        is_active,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        item_parent_id = VALUES(item_parent_id),
+        normalized_item_name = VALUES(normalized_item_name),
+        is_active = 1,
+        updated_at = NOW()
+    `,
+    [
+      id,
+      data.subbrand_id,
+      data.item_parent_id || null,
+      data.item_name,
+      data.normalized_item_name,
+    ]
+  );
+}
+
+async function findSubbrandSuggestionCandidates(connection = db) {
+  const [rows] = await connection.query(
+    `
+      SELECT
+        ms.id AS subbrand_id,
+        ms.name AS sub_brand,
+        msi.item_name AS parent_name
+      FROM master_subbrand_items msi
+      INNER JOIN master_subbrands ms ON ms.id = msi.subbrand_id
+      WHERE ms.is_active = 1
+        AND msi.is_active = 1
+      ORDER BY ms.name ASC, msi.item_name ASC
+    `
+  );
+
+  return rows;
 }
 
 async function transaction(callback) {
@@ -377,5 +521,10 @@ module.exports = {
   update,
   deactivateChildItems,
   existsInTable,
+  findSubbrandById,
+  findSubbrandByName,
+  createSubbrand,
+  upsertSubbrandItem,
+  findSubbrandSuggestionCandidates,
   transaction,
 };
