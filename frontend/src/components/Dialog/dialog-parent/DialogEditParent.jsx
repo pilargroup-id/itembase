@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
   brand_id: '',
@@ -573,16 +573,6 @@ function DialogEditParent({
               {title}
             </h2>
           </div>
-
-          <button
-            type="button"
-            className="dashboard-popup__close"
-            aria-label="Tutup dialog"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            <XClose size={18} />
-          </button>
         </div>
 
         <div className="dashboard-popup__body">

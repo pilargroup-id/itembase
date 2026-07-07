@@ -243,6 +243,10 @@ const api = {
   },
 
   brands: createResource('/master/brands'),
+  subBrands: {
+    suggestions: (params, options) =>
+      api.get('/item/item-parents/helpers/subbrands', { ...options, params }),
+  },
   pics: createResource('/master/pics'),
   categories: createResource('/master/categories'),
   itemTypes: createResource('/master/item-types'),
@@ -268,6 +272,8 @@ const api = {
   },
   itemParents: {
     ...createResource('/item/item-parents'),
+    suggestSubbrands: (params, options) =>
+      api.subBrands.suggestions(params, options),
     updateStatus: (id, status, options) =>
       api.put(`/item/item-parents/${id}`, { status }, options),
   },

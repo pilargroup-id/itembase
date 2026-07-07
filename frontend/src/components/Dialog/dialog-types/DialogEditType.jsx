@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { XClose } from '../../template/TemplateIcons.jsx'
-
 const initialFormValues = {
   code: '',
   name: '',
@@ -178,16 +176,6 @@ function DialogEditType({
               {title}
             </h2>
           </div>
-
-          <button
-            type="button"
-            className="dashboard-popup__close"
-            aria-label="Tutup dialog"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            <XClose size={18} />
-          </button>
         </div>
 
         <div className="dashboard-popup__body">

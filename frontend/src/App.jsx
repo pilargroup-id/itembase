@@ -8,6 +8,7 @@ import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
 import CategoriesPages from './pages/master/categories/CategoriesPages.jsx'
 import BrandsPages from './pages/master/brands/BrandsPages.jsx'
+import SubBrandsPage from './pages/master/sub-brands/SunBrandsPage.jsx'
 import TypePages from './pages/master/type/TypePages.jsx'
 import PortsPage from './pages/master/port/PortPages.jsx'
 import UomsPages from './pages/master/uoms/UomsPages.jsx'
@@ -198,6 +199,10 @@ const pageDetails = {
     title: 'Brands',
     eyebrow: 'Master',
   },
+  '/sub-brands': {
+    title: 'Sub Brands',
+    eyebrow: 'Master',
+  },
   '/pics': {
     title: 'Pics',
     eyebrow: 'Master',
@@ -311,6 +316,7 @@ function App() {
   const isBundlesPage = currentPagePath === '/bundles'
   const isCategoriesPage = currentPagePath === '/categories'
   const isBrandsPage = currentPagePath === '/brands'
+  const isSubBrandsPage = currentPagePath === '/sub-brands'
   const isTypePage = currentPagePath === '/types'
   const isPortsPage = currentPagePath === '/ports'
   const isUomsPage = currentPagePath === '/uoms'
@@ -319,7 +325,7 @@ function App() {
   const isSkuStatusesPage = currentPagePath === '/sku-statuses'
   const isActivityLogsPage = currentPagePath === '/activity-logs'
   const isItemManagementTablePage =
-    isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isTypePage || isPortsPage || isUomsPage
+    isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isSubBrandsPage || isTypePage || isPortsPage || isUomsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
@@ -391,6 +397,8 @@ function App() {
               <CategoriesPages activePage={activePage} searchQuery={searchQuery} />
             ) : isBrandsPage ? (
               <BrandsPages activePage={activePage} searchQuery={searchQuery} />
+            ) : isSubBrandsPage ? (
+              <SubBrandsPage activePage={activePage} searchQuery={searchQuery} />
             ) : isTypePage ? (
               <TypePages activePage={activePage} searchQuery={searchQuery} />
             ) : isPortsPage ? (

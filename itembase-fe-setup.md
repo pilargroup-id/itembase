@@ -137,7 +137,7 @@ Jika central DB berada di server dan tidak bisa diakses langsung dari lokal, gun
 
 Setiap developer wajib punya SSH key masing-masing. Jangan share private key.
 
-Generate SSH key lokal:
+Generate SSH key 
 
 ```bash
 ssh-keygen -t ed25519 -C "itembase-local-<nama-kamu>"

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
+  subbrand_id: '',
   brand_id: '',
   sub_brand: '',
   item_name: '',
@@ -29,6 +30,9 @@ const parentFormulaFields = [
     name: 'sub_brand',
     label: 'Sub Brand',
     placeholder: 'FRUCI',
+    type: 'subBrandSearch',
+    searchPlaceholder: 'Cari sub brand...',
+    emptyMessage: 'Sub brand tidak ditemukan.',
   },
   {
     name: 'item_name',
@@ -171,6 +175,57 @@ function normalizeMasterOptions(responseData, optionsKey) {
     .filter((option) => option.value && option.label)
 }
 
+function normalizeSubbrandOptions(responseData) {
+  const optionsByKey = new Map()
+
+  normalizeListResponse(responseData).forEach((item) => {
+    const subbrandId = getFirstFilledValue(item, ['subbrand_id', 'id', 'value'])
+    const subBrand = getFirstFilledValue(item, ['sub_brand', 'name', 'label'])
+    const parentName = getFirstFilledValue(item, ['parent_name', 'item_name'])
+    const score = getFirstFilledValue(item, ['score'])
+    const label = String(subBrand || '').trim()
+
+    if (!label) {
+      return
+    }
+
+    const value = String(subbrandId || label)
+    const existingOption = optionsByKey.get(value)
+
+    if (existingOption && Number(existingOption.score || 0) >= Number(score || 0)) {
+      return
+    }
+
+    optionsByKey.set(value, {
+      value,
+      subbrand_id: String(subbrandId || ''),
+      sub_brand: label,
+      label,
+      parentName: String(parentName || ''),
+      score,
+      searchText: [label, parentName, score].filter(Boolean).join(' '),
+    })
+  })
+
+  return Array.from(optionsByKey.values())
+}
+
+function formatSubbrandScore(score) {
+  if (score === undefined || score === null || score === '') {
+    return ''
+  }
+
+  const numericScore = Number(score)
+
+  if (!Number.isFinite(numericScore)) {
+    return String(score)
+  }
+
+  return numericScore.toLocaleString('id-ID', {
+    maximumFractionDigits: 2,
+  })
+}
+
 function SearchableMasterSelect({
   id,
   label,
@@ -247,7 +302,6 @@ function SearchableMasterSelect({
 
   useLayoutEffect(() => {
     if (!isOpen) {
-      setMenuStyle(null)
       return undefined
     }
 
@@ -406,6 +460,263 @@ function SearchableMasterSelect({
   )
 }
 
+function SearchableSubBrandInput({
+  id,
+  label,
+  value = '',
+  placeholder = 'Cari sub brand',
+  searchPlaceholder = 'Cari sub brand...',
+  emptyMessage = 'Sub brand tidak ditemukan.',
+  disabled = false,
+  onChange,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [options, setOptions] = useState([])
+  const [menuStyle, setMenuStyle] = useState(null)
+  const rootRef = useRef(null)
+  const inputRef = useRef(null)
+  const menuRef = useRef(null)
+  const normalizedValue = normalizeFieldValue(value)
+
+  const updateMenuPosition = useCallback(() => {
+    const inputElement = inputRef.current
+
+    if (!inputElement) {
+      return
+    }
+
+    const inputBounds = inputElement.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const viewportMargin = 12
+    const menuGap = 8
+    const menuChromeHeight = 18
+    const maxOptionsHeight = 220
+    const maxMenuWidth = Math.max(0, viewportWidth - viewportMargin * 2)
+    const menuWidth = Math.min(inputBounds.width, maxMenuWidth)
+    const nextLeft = Math.min(
+      Math.max(inputBounds.left, viewportMargin),
+      Math.max(viewportMargin, viewportWidth - menuWidth - viewportMargin),
+    )
+    const spaceBelow = viewportHeight - inputBounds.bottom - viewportMargin - menuGap
+    const spaceAbove = inputBounds.top - viewportMargin - menuGap
+    const shouldOpenUp = spaceBelow < 160 && spaceAbove > spaceBelow
+    const availableHeight = Math.max(112, shouldOpenUp ? spaceAbove : spaceBelow)
+    const nextOptionsHeight = Math.max(
+      96,
+      Math.min(maxOptionsHeight, availableHeight - menuChromeHeight),
+    )
+    const menuHeight = nextOptionsHeight + menuChromeHeight
+    const nextTop = shouldOpenUp
+      ? Math.max(viewportMargin, inputBounds.top - menuGap - menuHeight)
+      : Math.min(inputBounds.bottom + menuGap, viewportHeight - viewportMargin - menuHeight)
+
+    setMenuStyle({
+      top: nextTop,
+      left: nextLeft,
+      width: menuWidth,
+      '--parent-master-select-options-max-height': `${nextOptionsHeight}px`,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    updateMenuPosition()
+
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [isOpen, updateMenuPosition])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const closeDropdown = () => {
+      setIsOpen(false)
+    }
+
+    const handlePointerDown = (event) => {
+      if (
+        !rootRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        closeDropdown()
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !normalizedValue) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(async () => {
+      setIsLoading(true)
+
+      try {
+        const response = await api.itemParents.suggestSubbrands(
+          { input: normalizedValue, limit: 30 },
+          { signal: controller.signal },
+        )
+
+        setOptions(normalizeSubbrandOptions(response))
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          setOptions([])
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false)
+        }
+      }
+    }, 250)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [isOpen, normalizedValue])
+
+  const handleInputChange = (event) => {
+    const nextValue = event.target.value
+
+    setOptions([])
+    setIsLoading(Boolean(normalizeFieldValue(nextValue)))
+    onChange?.(nextValue, null)
+    setIsOpen(true)
+  }
+
+  const handleFocus = () => {
+    if (!disabled) {
+      setIsOpen(true)
+    }
+  }
+
+  const handleSelect = (option) => {
+    onChange?.(option.sub_brand, option)
+    setOptions([])
+    setIsLoading(false)
+    setIsOpen(false)
+  }
+
+  const visibleOptions = normalizedValue ? options : []
+
+  const menuNode =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="parent-master-select__menu parent-subbrand-search__menu"
+            role="listbox"
+            aria-label={label}
+            style={menuStyle}
+          >
+            <div className="parent-master-select__options">
+              {visibleOptions.length > 0 ? (
+                visibleOptions.map((option) => {
+                  const isSelected =
+                    normalizeFieldValue(option.sub_brand).toLowerCase() ===
+                    normalizedValue.toLowerCase()
+                  const scoreLabel = formatSubbrandScore(option.score)
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={[
+                        'parent-master-select__option',
+                        'parent-subbrand-search__option',
+                        isSelected ? 'parent-master-select__option--selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => handleSelect(option)}
+                    >
+                      <span className="parent-subbrand-search__option-row">
+                        <span className="parent-subbrand-search__option-label">
+                          {option.label}
+                        </span>
+                        {scoreLabel ? (
+                          <span className="parent-subbrand-search__option-score">
+                            Score {scoreLabel}
+                          </span>
+                        ) : null}
+                      </span>
+                      {option.parentName ? (
+                        <span className="parent-subbrand-search__option-meta">
+                          {option.parentName}
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="parent-master-select__empty">
+                  {isLoading && normalizedValue
+                    ? 'Memuat data...'
+                    : normalizedValue
+                      ? emptyMessage
+                      : searchPlaceholder}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <div ref={rootRef} className="parent-subbrand-search">
+      <input
+        ref={inputRef}
+        id={id}
+        name="sub_brand"
+        className="register-user-popup__input parent-subbrand-search__input"
+        value={value}
+        placeholder={placeholder}
+        onChange={handleInputChange}
+        onFocus={handleFocus}
+        autoComplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        disabled={disabled}
+      />
+
+      {menuNode}
+    </div>
+  )
+}
+
 function DialogCreateParent({
   isOpen = false,
   eyebrow = 'Create Item Parent',
@@ -532,6 +843,15 @@ function DialogCreateParent({
     }))
   }
 
+  const handleSubBrandChange = (value, option) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      subbrand_id: option?.subbrand_id || '',
+      sub_brand: value,
+    }))
+  }
+
   const buildPayload = () =>
     ({
       ...Object.fromEntries(
@@ -601,6 +921,17 @@ function DialogCreateParent({
           disabled={isSubmitting || isLoadingMasters}
           onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
         />
+      ) : field.type === 'subBrandSearch' ? (
+        <SearchableSubBrandInput
+          id={`parent-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          disabled={isSubmitting}
+          onChange={handleSubBrandChange}
+        />
       ) : (
         <input
           id={`parent-${field.name}`}
@@ -643,16 +974,6 @@ function DialogCreateParent({
               {title}
             </h2>
           </div>
-
-          <button
-            type="button"
-            className="dashboard-popup__close"
-            aria-label="Tutup dialog"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            <XClose size={18} />
-          </button>
         </div>
 
         <div className="dashboard-popup__body">

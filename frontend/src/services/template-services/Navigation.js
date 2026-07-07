@@ -32,6 +32,7 @@ export const implementedNavigationPaths = [
   '/pic-users',
   '/sku-statuses',
   '/activity-logs',
+  '/sub-brands',
 ]
 
 export const primaryNavigationItems = [
@@ -76,6 +77,12 @@ export const primaryNavigationItems = [
         id: 'nav-brands',
         label: 'Brands',
         href: '/brands',
+        icon: Badge,
+      },
+      {
+        id: 'nav-sub-brands',
+        label: 'Sub Brands',
+        href: '/sub-brands',
         icon: Badge,
       },
       {
