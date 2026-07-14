@@ -19,6 +19,7 @@ import {
 
 const ALL_FILTER_VALUE = "all"
 const DEFAULT_PARENT_SORT = "date-desc"
+const API_PAGE_SIZE = 100
 const parentSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
@@ -80,6 +81,51 @@ function normalizeParentRows(responseData) {
     }
 
     return []
+}
+
+function getPaginationMeta(responseData, rows) {
+    const meta = responseData?.meta
+
+    if (!meta) {
+        return null
+    }
+
+    const page = Number(meta.page) || 1
+    const limit = Number(meta.limit) || rows.length || API_PAGE_SIZE
+    const total = Number(meta.total) || rows.length
+    const computedTotalPages = limit > 0 ? Math.ceil(total / limit) : 1
+
+    return {
+        page,
+        totalPages: Math.max(1, computedTotalPages),
+    }
+}
+
+async function fetchAllParentRows(params = {}, options = {}) {
+    const rows = []
+    let currentPage = 1
+    let totalPages = 1
+
+    do {
+        const response = await api.itemParents.list(
+            { ...params, page: currentPage, limit: API_PAGE_SIZE },
+            options,
+        )
+        const pageRows = normalizeParentRows(response)
+
+        rows.push(...pageRows)
+
+        const meta = getPaginationMeta(response, pageRows)
+
+        if (!meta) {
+            break
+        }
+
+        totalPages = meta.totalPages
+        currentPage = meta.page + 1
+    } while (currentPage <= totalPages)
+
+    return rows
 }
 
 function matchesSearch(parent, searchQuery) {
@@ -334,21 +380,22 @@ function DataTableParents({
 
     useEffect(() => {
         let isMounted = true
+        const controller = new AbortController()
 
         const loadItemParents = async () => {
             setIsLoading(true)
             setErrorMessage("")
 
             try {
-                const response = await api.itemParents.list()
+                const parentRows = await fetchAllParentRows({}, { signal: controller.signal })
 
                 if (!isMounted) {
                     return
                 }
 
-                setParentRows(normalizeParentRows(response))
+                setParentRows(parentRows)
             } catch (error) {
-                if (!isMounted) {
+                if (!isMounted || error?.name === "AbortError") {
                     return
                 }
 
@@ -365,6 +412,7 @@ function DataTableParents({
 
         return () => {
             isMounted = false
+            controller.abort()
         }
     }, [refreshKey, reloadKey])
 

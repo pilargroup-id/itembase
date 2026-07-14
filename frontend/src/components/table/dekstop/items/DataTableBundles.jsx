@@ -17,6 +17,7 @@ import {
 
 const ALL_FILTER_VALUE = "all"
 const DEFAULT_ITEM_SORT = "date-desc"
+const API_PAGE_SIZE = 100
 const itemSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
@@ -96,6 +97,51 @@ function normalizeItemRows(responseData) {
     }
 
     return []
+}
+
+function getPaginationMeta(responseData, rows) {
+    const meta = responseData?.meta
+
+    if (!meta) {
+        return null
+    }
+
+    const page = Number(meta.page) || 1
+    const limit = Number(meta.limit) || rows.length || API_PAGE_SIZE
+    const total = Number(meta.total) || rows.length
+    const computedTotalPages = limit > 0 ? Math.ceil(total / limit) : 1
+
+    return {
+        page,
+        totalPages: Math.max(1, computedTotalPages),
+    }
+}
+
+async function fetchAllItemRows(params = {}, options = {}) {
+    const rows = []
+    let currentPage = 1
+    let totalPages = 1
+
+    do {
+        const response = await api.items.list(
+            { ...params, page: currentPage, limit: API_PAGE_SIZE },
+            options,
+        )
+        const pageRows = normalizeItemRows(response)
+
+        rows.push(...pageRows)
+
+        const meta = getPaginationMeta(response, pageRows)
+
+        if (!meta) {
+            break
+        }
+
+        totalPages = meta.totalPages
+        currentPage = meta.page + 1
+    } while (currentPage <= totalPages)
+
+    return rows
 }
 
 function matchesSearch(item, searchQuery) {
@@ -461,13 +507,16 @@ function DataTableBundles({
             setIsLoadingFilterOptions(true)
 
             try {
-                const response = await api.items.list({ item_kind: "bundle" }, { signal: controller.signal })
+                const optionRows = await fetchAllItemRows(
+                    { item_kind: "bundle" },
+                    { signal: controller.signal },
+                )
 
                 if (!isMounted) {
                     return
                 }
 
-                setFilterOptionRows(normalizeItemRows(response))
+                setFilterOptionRows(optionRows)
             } catch (error) {
                 if (!isMounted || error?.name === "AbortError") {
                     return
@@ -498,13 +547,13 @@ function DataTableBundles({
             setErrorMessage("")
 
             try {
-                const response = await api.items.list(itemApiParams, { signal: controller.signal })
+                const itemRows = await fetchAllItemRows(itemApiParams, { signal: controller.signal })
 
                 if (!isMounted) {
                     return
                 }
 
-                setItemRows(normalizeItemRows(response))
+                setItemRows(itemRows)
             } catch (error) {
                 if (!isMounted || error?.name === "AbortError") {
                     return
