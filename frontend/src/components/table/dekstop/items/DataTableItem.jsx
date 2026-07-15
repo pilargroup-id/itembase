@@ -643,8 +643,13 @@ function DataTableItem({
         })
     }
 
+    const loadingPageMessage = `Memuat data item halaman ${currentPage}...`
+    const paginationSummary = isLoading
+        ? `Memuat halaman ${currentPage} dari ${totalPages}`
+        : getPaginationSummary(firstItem, lastItem, totalItems)
+
     const pagination = {
-        summary: getPaginationSummary(firstItem, lastItem, sortedRows.length),
+        summary: paginationSummary,
         currentPage: safeCurrentPage,
         totalPages,
         items: getPaginationItems(safeCurrentPage, totalPages),
@@ -663,7 +668,7 @@ function DataTableItem({
     }
 
     const emptyMessage = isLoading
-        ? "Memuat data item..."
+        ? loadingPageMessage
         : errorMessage || "Belum ada data item untuk ditampilkan."
 
     return (
@@ -697,7 +702,7 @@ function DataTableItem({
 
             <DataTable
                 className="mtickets-table"
-                rows={rows}
+                rows={isLoading ? [] : rows}
                 columns={tableColumns}
                 getRowId={(item) => item.id ?? item.item_code ?? item.barcode}
                 tableLabel={tableLabel}
