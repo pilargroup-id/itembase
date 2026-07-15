@@ -19,7 +19,6 @@ import {
 
 const ALL_FILTER_VALUE = "all"
 const DEFAULT_ITEM_SORT = "date-desc"
-const API_PAGE_SIZE = 100
 const itemSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
@@ -118,82 +117,22 @@ function normalizeItemRows(responseData) {
 }
 
 function getPaginationMeta(responseData, rows) {
-    const meta = responseData?.meta
-
-    if (!meta) {
-        return null
-    }
-
-    const page = Number(meta.page) || 1
-    const limit = Number(meta.limit) || rows.length || API_PAGE_SIZE
-    const total = Number(meta.total) || rows.length
-    const computedTotalPages = limit > 0 ? Math.ceil(total / limit) : 1
+    const meta = responseData?.meta ?? responseData?.data?.meta ?? {}
+    const page = Number(meta.page ?? meta.current_page ?? 1)
+    const limit = Number(meta.limit ?? meta.per_page ?? rows.length)
+    const total = Number(meta.total ?? meta.total_data ?? rows.length)
+    const totalPages = Number(meta.total_page ?? meta.totalPage ?? meta.total_pages ?? meta.last_page)
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : rows.length || 1
+    const safeTotal = Number.isInteger(total) && total >= 0 ? total : rows.length
 
     return {
-        page,
-        totalPages: Math.max(1, computedTotalPages),
+        page: Number.isInteger(page) && page > 0 ? page : 1,
+        limit: safeLimit,
+        total: safeTotal,
+        totalPages: Number.isInteger(totalPages) && totalPages > 0
+            ? totalPages
+            : Math.max(1, Math.ceil(safeTotal / safeLimit)),
     }
-}
-
-async function fetchAllItemRows(params = {}, options = {}) {
-    const rows = []
-    let currentPage = 1
-    let totalPages = 1
-
-    do {
-        const response = await api.items.list(
-            { ...params, page: currentPage, limit: API_PAGE_SIZE },
-            options,
-        )
-        const pageRows = normalizeItemRows(response)
-
-        rows.push(...pageRows)
-
-        const meta = getPaginationMeta(response, pageRows)
-
-        if (!meta) {
-            break
-        }
-
-        totalPages = meta.totalPages
-        currentPage = meta.page + 1
-    } while (currentPage <= totalPages)
-
-    return rows
-}
-
-function matchesSearch(item, searchQuery) {
-    const normalizedQuery = String(searchQuery ?? "").trim().toLowerCase()
-
-    if (!normalizedQuery) {
-        return true
-    }
-
-    return [
-        item.item_code,
-        item.barcode,
-        item.item_name,
-        item.item_kind,
-        item.variant,
-        getItemStatusLabel(item),
-        item.parent?.parent_code,
-        item.parent?.parent_name,
-        item.parent?.brand?.name,
-        item.parent?.category?.detail_category,
-        item.parent?.category?.sub_category,
-        item.parent?.category?.main_category,
-        item.parent?.item_type?.name,
-        item.parent?.port?.name,
-        item.uom?.code,
-        item.uom?.name,
-        item.sku_status?.name,
-        item.business_unit?.code,
-        item.business_unit?.name,
-        ...(item.channels ?? []).flatMap((channel) => [
-            channel.channel_code,
-            channel.channel_name,
-        ]),
-    ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
 function normalizeFilterValue(value) {
@@ -283,6 +222,19 @@ function createItemApiParams(filters, searchQuery) {
     return params
 }
 
+function createPaginatedItemApiParams({
+    filters,
+    searchQuery,
+    currentPage,
+    pageSize,
+}) {
+    return {
+        ...createItemApiParams(filters, searchQuery),
+        page: currentPage,
+        limit: pageSize,
+    }
+}
+
 function getItemDateValue(item) {
     const dateValue =
         item.created_at ??
@@ -330,21 +282,15 @@ function matchesItemFilters(item, filters) {
     })
 }
 
-function getPageRows(filteredRows, currentPage, pageSize) {
-    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
-    const safeCurrentPage = Math.min(currentPage, totalPages)
-    const currentPageStart = (safeCurrentPage - 1) * pageSize
-    const rows = filteredRows.slice(currentPageStart, currentPageStart + pageSize)
-    const firstItem = filteredRows.length === 0 ? 0 : currentPageStart + 1
+function getServerPageSummary(rowCount, currentPage, pageSize, totalItems) {
+    const currentPageStart = (currentPage - 1) * pageSize
+    const firstItem = totalItems === 0 || rowCount === 0 ? 0 : currentPageStart + 1
     const lastItem =
-        filteredRows.length === 0
+        totalItems === 0 || rowCount === 0
             ? 0
-            : Math.min(currentPageStart + rows.length, filteredRows.length)
+            : Math.min(currentPageStart + rowCount, totalItems)
 
     return {
-        totalPages,
-        safeCurrentPage,
-        rows,
         firstItem,
         lastItem,
     }
@@ -481,16 +427,12 @@ function DataTableItem({
     const [sortValue, setSortValue] = useState(DEFAULT_ITEM_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
-    const [isLoadingFilterOptions, setIsLoadingFilterOptions] = useState(false)
     const [errorMessage, setErrorMessage] = useState("")
-    const [filterOptionRows, setFilterOptionRows] = useState([])
+    const [totalItems, setTotalItems] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedItem, setSelectedItem] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
-    const itemApiParams = useMemo(
-        () => createItemApiParams(filters, searchQuery),
-        [filters, searchQuery],
-    )
     const filterResetKey = useMemo(
         () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
         [filters, pageSize, searchQuery, sortValue],
@@ -501,33 +443,37 @@ function DataTableItem({
     })
     const currentPage =
         paginationState.resetKey === filterResetKey ? paginationState.currentPage : 1
-    const optionSourceRows = filterOptionRows.length > 0 ? filterOptionRows : itemRows
 
     const filterOptions = useMemo(
         () =>
             itemFilterConfig.reduce(
                 (options, filterConfig) => ({
                     ...options,
-                    [filterConfig.key]: createFilterOptions(optionSourceRows, filterConfig),
+                    [filterConfig.key]: createFilterOptions(itemRows, filterConfig),
                 }),
                 {},
             ),
-        [optionSourceRows],
+        [itemRows],
     )
-    const filteredRows = useMemo(
+    const itemApiParams = useMemo(
         () =>
-            itemRows.filter(
-                (item) => matchesSearch(item, searchQuery) && matchesItemFilters(item, filters),
-            ),
-        [filters, itemRows, searchQuery],
+            createPaginatedItemApiParams({
+                filters,
+                searchQuery,
+                currentPage,
+                pageSize,
+            }),
+        [currentPage, filters, pageSize, searchQuery],
     )
     const sortedRows = useMemo(
-        () => sortItemRows(filteredRows, sortValue),
-        [filteredRows, sortValue],
+        () => sortItemRows(itemRows.filter((item) => matchesItemFilters(item, filters)), sortValue),
+        [filters, itemRows, sortValue],
     )
-    const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
-        () => getPageRows(sortedRows, currentPage, pageSize),
-        [currentPage, pageSize, sortedRows],
+    const safeCurrentPage = Math.min(currentPage, totalPages)
+    const rows = sortedRows
+    const { firstItem, lastItem } = useMemo(
+        () => getServerPageSummary(rows.length, safeCurrentPage, pageSize, totalItems),
+        [pageSize, rows.length, safeCurrentPage, totalItems],
     )
 
     const selectedItemName =
@@ -538,60 +484,30 @@ function DataTableItem({
         let isMounted = true
         const controller = new AbortController()
 
-        const loadFilterOptionRows = async () => {
-            setIsLoadingFilterOptions(true)
-
-            try {
-                const optionRows = await fetchAllItemRows({}, { signal: controller.signal })
-
-                if (!isMounted) {
-                    return
-                }
-
-                setFilterOptionRows(optionRows)
-            } catch (error) {
-                if (!isMounted || error?.name === "AbortError") {
-                    return
-                }
-
-                setFilterOptionRows([])
-            } finally {
-                if (isMounted) {
-                    setIsLoadingFilterOptions(false)
-                }
-            }
-        }
-
-        loadFilterOptionRows()
-
-        return () => {
-            isMounted = false
-            controller.abort()
-        }
-    }, [refreshKey, reloadKey])
-
-    useEffect(() => {
-        let isMounted = true
-        const controller = new AbortController()
-
         const loadItems = async () => {
             setIsLoading(true)
             setErrorMessage("")
 
             try {
-                const itemRows = await fetchAllItemRows(itemApiParams, { signal: controller.signal })
+                const response = await api.items.list(itemApiParams, { signal: controller.signal })
+                const itemRows = normalizeItemRows(response)
+                const meta = getPaginationMeta(response, itemRows)
 
                 if (!isMounted) {
                     return
                 }
 
                 setItemRows(itemRows)
+                setTotalItems(meta.total)
+                setTotalPages(meta.totalPages)
             } catch (error) {
                 if (!isMounted || error?.name === "AbortError") {
                     return
                 }
 
                 setItemRows([])
+                setTotalItems(0)
+                setTotalPages(1)
                 setErrorMessage(error?.message || "Gagal memuat data item.")
             } finally {
                 if (isMounted) {
@@ -772,9 +688,7 @@ function DataTableItem({
                             label={filterConfig.label}
                             placeholder={filterConfig.placeholder}
                             searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={
-                                isLoadingFilterOptions ? "Memuat opsi..." : filterConfig.emptyMessage
-                            }
+                            emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
                     ))}
