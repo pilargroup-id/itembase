@@ -1,6 +1,7 @@
 export const parentFilterConfig = [
     {
         key: "status",
+        apiParam: "status",
         label: "Status",
         placeholder: "All Status",
         searchPlaceholder: "Search status...",
@@ -13,6 +14,7 @@ export const parentFilterConfig = [
     },
     {
         key: "mainCategory",
+        apiParam: "main_category",
         label: "Main Category",
         placeholder: "All Main Category",
         searchPlaceholder: "Search main category...",
@@ -21,6 +23,7 @@ export const parentFilterConfig = [
     },
     {
         key: "subCategory",
+        apiParam: "sub_category",
         label: "Sub Category",
         placeholder: "All Sub Category",
         searchPlaceholder: "Search sub category...",
@@ -29,6 +32,7 @@ export const parentFilterConfig = [
     },
     {
         key: "detailCategory",
+        apiParam: "detail_category",
         label: "Detail Category",
         placeholder: "All Detail Category",
         searchPlaceholder: "Search detail category...",
@@ -37,6 +41,7 @@ export const parentFilterConfig = [
     },
     {
         key: "brandCategory",
+        apiParam: "brand_category",
         label: "Brand Category",
         placeholder: "All Brand Category",
         searchPlaceholder: "Search brand category...",
@@ -45,6 +50,7 @@ export const parentFilterConfig = [
     },
     {
         key: "brand",
+        apiParam: "brand_name",
         label: "Brand",
         placeholder: "All Brand",
         searchPlaceholder: "Search brand...",
@@ -53,6 +59,7 @@ export const parentFilterConfig = [
     },
     {
         key: "subBrand",
+        apiParam: "sub_brand",
         label: "Sub Brand",
         placeholder: "All Sub Brand",
         searchPlaceholder: "Search sub brand...",

@@ -3,7 +3,6 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent.jsx"
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
-import ButtonDeleteParent from "../../../button/parents-buttons/ButtonDeleteParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
 import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdownParent.jsx"
 import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
@@ -19,7 +18,6 @@ import {
 
 const ALL_FILTER_VALUE = "all"
 const DEFAULT_PARENT_SORT = "date-desc"
-const API_PAGE_SIZE = 100
 const parentSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
@@ -84,71 +82,24 @@ function normalizeParentRows(responseData) {
 }
 
 function getPaginationMeta(responseData, rows) {
-    const meta = responseData?.meta
-
-    if (!meta) {
-        return null
-    }
-
-    const page = Number(meta.page) || 1
-    const limit = Number(meta.limit) || rows.length || API_PAGE_SIZE
-    const total = Number(meta.total) || rows.length
-    const computedTotalPages = limit > 0 ? Math.ceil(total / limit) : 1
+    const meta = responseData?.meta ?? responseData?.data?.meta ?? {}
+    const page = Number(meta.page ?? meta.current_page ?? 1)
+    const limit = Number(meta.limit ?? meta.per_page ?? rows.length)
+    const total = Number(meta.total ?? meta.total_data ?? rows.length)
+    const totalPages = Number(
+        meta.totalPages ?? meta.total_page ?? meta.totalPage ?? meta.total_pages ?? meta.last_page,
+    )
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : rows.length || 1
+    const safeTotal = Number.isInteger(total) && total >= 0 ? total : rows.length
 
     return {
-        page,
-        totalPages: Math.max(1, computedTotalPages),
+        page: Number.isInteger(page) && page > 0 ? page : 1,
+        limit: safeLimit,
+        total: safeTotal,
+        totalPages: Number.isInteger(totalPages) && totalPages > 0
+            ? totalPages
+            : Math.max(1, Math.ceil(safeTotal / safeLimit)),
     }
-}
-
-async function fetchAllParentRows(params = {}, options = {}) {
-    const rows = []
-    let currentPage = 1
-    let totalPages = 1
-
-    do {
-        const response = await api.itemParents.list(
-            { ...params, page: currentPage, limit: API_PAGE_SIZE },
-            options,
-        )
-        const pageRows = normalizeParentRows(response)
-
-        rows.push(...pageRows)
-
-        const meta = getPaginationMeta(response, pageRows)
-
-        if (!meta) {
-            break
-        }
-
-        totalPages = meta.totalPages
-        currentPage = meta.page + 1
-    } while (currentPage <= totalPages)
-
-    return rows
-}
-
-function matchesSearch(parent, searchQuery) {
-    const normalizedQuery = String(searchQuery ?? "").trim().toLowerCase()
-
-    if (!normalizedQuery) {
-        return true
-    }
-
-    return [
-        parent.parent_code,
-        parent.parent_name,
-        parent.item_name,
-        parent.sub_brand,
-        parent.status,
-        parent.brand?.name,
-        parent.category?.detail_category,
-        parent.category?.sub_category,
-        parent.category?.main_category,
-        parent.category?.brand_category,
-        parent.item_type?.name,
-        parent.port?.name,
-    ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
 function normalizeFilterValue(value) {
@@ -177,68 +128,52 @@ function createFilterOptions(rows, filterConfig) {
     ]
 }
 
-function getParentDateValue(parent) {
-    const dateValue =
-        parent.created_at ??
-        parent.createdAt ??
-        parent.updated_at ??
-        parent.updatedAt ??
-        parent.date ??
-        parent.created_date
-    const parsedDate = new Date(dateValue).getTime()
+function createParentApiParams(filters, searchQuery) {
+    const params = {}
 
-    return Number.isNaN(parsedDate) ? 0 : parsedDate
-}
+    parentFilterConfig.forEach((filterConfig) => {
+        const selectedValue = normalizeFilterValue(filters[filterConfig.key])
 
-function sortParentRows(rows, sortValue) {
-    const sortDirection = sortValue === "date-asc" ? 1 : -1
-
-    return [...rows].sort((firstParent, secondParent) => {
-        const dateDifference =
-            (getParentDateValue(firstParent) - getParentDateValue(secondParent)) * sortDirection
-
-        if (dateDifference !== 0) {
-            return dateDifference
+        if (!filterConfig.apiParam || !selectedValue || selectedValue === ALL_FILTER_VALUE) {
+            return
         }
 
-        return (
-            String(firstParent.parent_code ?? "").localeCompare(
-                String(secondParent.parent_code ?? ""),
-            ) * sortDirection
-        )
+        params[filterConfig.apiParam] = selectedValue
     })
-}
 
-function matchesParentFilters(parent, filters) {
-    return parentFilterConfig.every((filterConfig) => {
-        const selectedValue = filters[filterConfig.key]
+    const normalizedSearchQuery = normalizeFilterValue(searchQuery)
 
-        if (!selectedValue || selectedValue === ALL_FILTER_VALUE) {
-            return true
-        }
-
-        return normalizeFilterValue(filterConfig.getValue(parent)) === selectedValue
-    })
-}
-
-function getPageRows(filteredRows, currentPage, pageSize) {
-    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
-    const safeCurrentPage = Math.min(currentPage, totalPages)
-    const currentPageStart = (safeCurrentPage - 1) * pageSize
-    const rows = filteredRows.slice(currentPageStart, currentPageStart + pageSize)
-    const firstItem = filteredRows.length === 0 ? 0 : currentPageStart + 1
-    const lastItem =
-        filteredRows.length === 0
-            ? 0
-            : Math.min(currentPageStart + rows.length, filteredRows.length)
-
-    return {
-        totalPages,
-        safeCurrentPage,
-        rows,
-        firstItem,
-        lastItem,
+    if (normalizedSearchQuery) {
+        params.search = normalizedSearchQuery
     }
+
+    return params
+}
+
+function createPaginatedParentApiParams({
+    filters,
+    searchQuery,
+    currentPage,
+    pageSize,
+    sortValue,
+}) {
+    return {
+        ...createParentApiParams(filters, searchQuery),
+        page: currentPage,
+        limit: pageSize,
+        sort: sortValue,
+    }
+}
+
+function getServerPageSummary(rowCount, currentPage, pageSize, totalItems) {
+    const currentPageStart = (currentPage - 1) * pageSize
+    const firstItem = totalItems === 0 || rowCount === 0 ? 0 : currentPageStart + 1
+    const lastItem =
+        totalItems === 0 || rowCount === 0
+            ? 0
+            : Math.min(currentPageStart + rowCount, totalItems)
+
+    return { firstItem, lastItem }
 }
 
 function getPaginationSummary(firstItem, lastItem, totalItems) {
@@ -247,6 +182,20 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
     }
 
     return `${firstItem}-${lastItem} dari ${totalItems} data`
+}
+
+function useDebouncedValue(value, delay = 350) {
+    const [debouncedValue, setDebouncedValue] = useState(value)
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedValue(value)
+        }, delay)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [delay, value])
+
+    return debouncedValue
 }
 
 const columns = [
@@ -332,12 +281,15 @@ function DataTableParents({
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
+    const [totalParents, setTotalParents] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedParent, setSelectedParent] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
+    const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
-        () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
-        [filters, pageSize, searchQuery, sortValue],
+        () => JSON.stringify({ filters, pageSize, searchQuery: debouncedSearchQuery, sortValue }),
+        [debouncedSearchQuery, filters, pageSize, sortValue],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -357,21 +309,22 @@ function DataTableParents({
             ),
         [parentRows],
     )
-    const filteredRows = useMemo(
+    const parentApiParams = useMemo(
         () =>
-            parentRows.filter(
-                (parent) =>
-                    matchesSearch(parent, searchQuery) && matchesParentFilters(parent, filters),
-            ),
-        [filters, parentRows, searchQuery],
+            createPaginatedParentApiParams({
+                filters,
+                searchQuery: debouncedSearchQuery,
+                currentPage,
+                pageSize,
+                sortValue,
+            }),
+        [currentPage, debouncedSearchQuery, filters, pageSize, sortValue],
     )
-    const sortedRows = useMemo(
-        () => sortParentRows(filteredRows, sortValue),
-        [filteredRows, sortValue],
-    )
-    const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
-        () => getPageRows(sortedRows, currentPage, pageSize),
-        [currentPage, pageSize, sortedRows],
+    const safeCurrentPage = Math.min(currentPage, totalPages)
+    const rows = parentRows
+    const { firstItem, lastItem } = useMemo(
+        () => getServerPageSummary(rows.length, safeCurrentPage, pageSize, totalParents),
+        [pageSize, rows.length, safeCurrentPage, totalParents],
     )
 
     const selectedParentName =
@@ -387,19 +340,32 @@ function DataTableParents({
             setErrorMessage("")
 
             try {
-                const parentRows = await fetchAllParentRows({}, { signal: controller.signal })
+                const response = await api.itemParents.list(parentApiParams, { signal: controller.signal })
+                const parentRows = normalizeParentRows(response)
+                const meta = getPaginationMeta(response, parentRows)
 
                 if (!isMounted) {
                     return
                 }
 
                 setParentRows(parentRows)
+                setTotalParents(meta.total)
+                setTotalPages(meta.totalPages)
+
+                if (meta.page > meta.totalPages) {
+                    setPaginationState({
+                        currentPage: meta.totalPages,
+                        resetKey: filterResetKey,
+                    })
+                }
             } catch (error) {
                 if (!isMounted || error?.name === "AbortError") {
                     return
                 }
 
                 setParentRows([])
+                setTotalParents(0)
+                setTotalPages(1)
                 setErrorMessage(error?.message || "Gagal memuat data item parent.")
             } finally {
                 if (isMounted) {
@@ -414,7 +380,7 @@ function DataTableParents({
             isMounted = false
             controller.abort()
         }
-    }, [refreshKey, reloadKey])
+    }, [filterResetKey, parentApiParams, refreshKey, reloadKey])
 
     const closeActionDialog = () => {
         setActiveActionDialog(null)
@@ -517,13 +483,29 @@ function DataTableParents({
     }
 
     const handleFilterChange = (filterKey, nextValue) => {
+        if (filters[filterKey] === nextValue) {
+            return
+        }
+
         setFilters((currentFilters) => ({
             ...currentFilters,
             [filterKey]: nextValue,
         }))
     }
 
+    const handleSortChange = (nextSortValue) => {
+        if (nextSortValue === sortValue) {
+            return
+        }
+
+        setSortValue(nextSortValue)
+    }
+
     const setPaginationPage = (nextPage) => {
+        if (nextPage === currentPage && paginationState.resetKey === filterResetKey) {
+            return
+        }
+
         setPaginationState({
             currentPage: nextPage,
             resetKey: filterResetKey,
@@ -531,15 +513,29 @@ function DataTableParents({
     }
 
     const handlePageSizeChange = (nextPageSize) => {
+        if (nextPageSize === pageSize) {
+            return
+        }
+
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery, sortValue }),
+            resetKey: JSON.stringify({
+                filters,
+                pageSize: nextPageSize,
+                searchQuery: debouncedSearchQuery,
+                sortValue,
+            }),
         })
     }
 
+    const loadingPageMessage = `Memuat data item parent halaman ${currentPage}...`
+    const paginationSummary = isLoading
+        ? `Memuat halaman ${currentPage} dari ${totalPages}`
+        : getPaginationSummary(firstItem, lastItem, totalParents)
+
     const pagination = {
-        summary: getPaginationSummary(firstItem, lastItem, sortedRows.length),
+        summary: paginationSummary,
         currentPage: safeCurrentPage,
         totalPages,
         items: getPaginationItems(safeCurrentPage, totalPages),
@@ -558,7 +554,7 @@ function DataTableParents({
     }
 
     const emptyMessage = isLoading
-        ? "Memuat data item parent..."
+        ? loadingPageMessage
         : errorMessage || "Belum ada data item parent untuk ditampilkan."
 
     return (
@@ -572,7 +568,7 @@ function DataTableParents({
                         label="Sort By"
                         placeholder="Date Desc"
                         searchable={false}
-                        onChange={setSortValue}
+                        onChange={handleSortChange}
                     />
                     {parentFilterConfig.map((filterConfig) => (
                         <FilterDropdownParent
@@ -583,7 +579,7 @@ function DataTableParents({
                             label={filterConfig.label}
                             placeholder={filterConfig.placeholder}
                             searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
+                            emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
                     ))}

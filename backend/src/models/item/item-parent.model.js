@@ -3,10 +3,23 @@ const { db } = require('../../config/database.config');
 
 function normalizePagination(query = {}) {
   const page = Math.max(parseInt(query.page || 1, 10), 1);
-  const limit = Math.min(Math.max(parseInt(query.limit || 10, 10), 1), 100);
+  const limit = Math.min(Math.max(parseInt(query.limit || 10, 10), 1), 250);
   const offset = (page - 1) * limit;
 
   return { page, limit, offset };
+}
+
+function buildOrderByClause(sort = '') {
+  const sortMap = {
+    'date-desc': 'ip.created_at DESC, ip.parent_code DESC',
+    'date-asc': 'ip.created_at ASC, ip.parent_code ASC',
+    'code-desc': 'ip.parent_code DESC',
+    'code-asc': 'ip.parent_code ASC',
+    'name-desc': 'ip.parent_name DESC, ip.parent_code DESC',
+    'name-asc': 'ip.parent_name ASC, ip.parent_code ASC',
+  };
+
+  return `ORDER BY ${sortMap[sort] || sortMap['date-desc']}`;
 }
 
 function buildWhereClause(query = {}) {
@@ -58,6 +71,36 @@ function buildWhereClause(query = {}) {
   if (query.status) {
     conditions.push('ip.status = ?');
     params.push(query.status);
+  }
+
+  if (query.main_category) {
+    conditions.push('mc.main_category = ?');
+    params.push(query.main_category);
+  }
+
+  if (query.sub_category) {
+    conditions.push('mc.sub_category = ?');
+    params.push(query.sub_category);
+  }
+
+  if (query.detail_category) {
+    conditions.push('mc.detail_category = ?');
+    params.push(query.detail_category);
+  }
+
+  if (query.brand_category) {
+    conditions.push('mc.brand_category = ?');
+    params.push(query.brand_category);
+  }
+
+  if (query.brand_name) {
+    conditions.push('mb.name = ?');
+    params.push(query.brand_name);
+  }
+
+  if (query.sub_brand) {
+    conditions.push('ip.sub_brand = ?');
+    params.push(query.sub_brand);
   }
 
   if (query.subbrand_id) {
@@ -195,11 +238,12 @@ function mapRow(row) {
 async function findAll(query = {}) {
   const { page, limit, offset } = normalizePagination(query);
   const { whereSql, params } = buildWhereClause(query);
+  const orderBySql = buildOrderByClause(query.sort);
 
   const sql = `
     ${baseSelectSql()}
     ${whereSql}
-    ORDER BY ip.created_at DESC, ip.parent_code DESC
+    ${orderBySql}
     LIMIT ? OFFSET ?
   `;
 
@@ -225,6 +269,7 @@ async function findAll(query = {}) {
       page,
       limit,
       total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       total_page: Math.ceil(total / limit),
     },
   };
