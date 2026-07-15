@@ -3,7 +3,7 @@ const { db, centralDb } = require('../../config/database.config');
 
 function normalizePagination(query = {}) {
   const page = Math.max(parseInt(query.page || 1, 10), 1);
-  const limit = Math.min(Math.max(parseInt(query.limit || 10, 10), 1), 100);
+  const limit = Math.min(Math.max(parseInt(query.limit || 10, 10), 1), 250);
   const offset = (page - 1) * limit;
 
   return { page, limit, offset };
