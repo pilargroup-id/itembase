@@ -121,7 +121,9 @@ function getPaginationMeta(responseData, rows) {
     const page = Number(meta.page ?? meta.current_page ?? 1)
     const limit = Number(meta.limit ?? meta.per_page ?? rows.length)
     const total = Number(meta.total ?? meta.total_data ?? rows.length)
-    const totalPages = Number(meta.total_page ?? meta.totalPage ?? meta.total_pages ?? meta.last_page)
+    const totalPages = Number(
+        meta.totalPages ?? meta.total_page ?? meta.totalPage ?? meta.total_pages ?? meta.last_page,
+    )
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : rows.length || 1
     const safeTotal = Number.isInteger(total) && total >= 0 ? total : rows.length
 
@@ -227,59 +229,14 @@ function createPaginatedItemApiParams({
     searchQuery,
     currentPage,
     pageSize,
+    sortValue,
 }) {
     return {
         ...createItemApiParams(filters, searchQuery),
         page: currentPage,
         limit: pageSize,
+        sort: sortValue,
     }
-}
-
-function getItemDateValue(item) {
-    const dateValue =
-        item.created_at ??
-        item.createdAt ??
-        item.updated_at ??
-        item.updatedAt ??
-        item.date ??
-        item.created_date
-    const parsedDate = new Date(dateValue).getTime()
-
-    return Number.isNaN(parsedDate) ? 0 : parsedDate
-}
-
-function sortItemRows(rows, sortValue) {
-    const sortDirection = sortValue === "date-asc" ? 1 : -1
-
-    return [...rows].sort((firstItem, secondItem) => {
-        const dateDifference =
-            (getItemDateValue(firstItem) - getItemDateValue(secondItem)) * sortDirection
-
-        if (dateDifference !== 0) {
-            return dateDifference
-        }
-
-        return (
-            String(firstItem.item_code ?? "").localeCompare(String(secondItem.item_code ?? "")) *
-            sortDirection
-        )
-    })
-}
-
-function matchesItemFilters(item, filters) {
-    return itemFilterConfig.every((filterConfig) => {
-        if (filterConfig.apiParam) {
-            return true
-        }
-
-        const selectedValue = filters[filterConfig.key]
-
-        if (!selectedValue || selectedValue === ALL_FILTER_VALUE) {
-            return true
-        }
-
-        return normalizeFilterValue(filterConfig.getValue(item)) === selectedValue
-    })
 }
 
 function getServerPageSummary(rowCount, currentPage, pageSize, totalItems) {
@@ -302,6 +259,20 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
     }
 
     return `${firstItem}-${lastItem} dari ${totalItems} data`
+}
+
+function useDebouncedValue(value, delay = 350) {
+    const [debouncedValue, setDebouncedValue] = useState(value)
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedValue(value)
+        }, delay)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [delay, value])
+
+    return debouncedValue
 }
 
 const columns = [
@@ -433,9 +404,10 @@ function DataTableItem({
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedItem, setSelectedItem] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
+    const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
-        () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
-        [filters, pageSize, searchQuery, sortValue],
+        () => JSON.stringify({ filters, pageSize, searchQuery: debouncedSearchQuery, sortValue }),
+        [debouncedSearchQuery, filters, pageSize, sortValue],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -459,18 +431,15 @@ function DataTableItem({
         () =>
             createPaginatedItemApiParams({
                 filters,
-                searchQuery,
+                searchQuery: debouncedSearchQuery,
                 currentPage,
                 pageSize,
+                sortValue,
             }),
-        [currentPage, filters, pageSize, searchQuery],
-    )
-    const sortedRows = useMemo(
-        () => sortItemRows(itemRows.filter((item) => matchesItemFilters(item, filters)), sortValue),
-        [filters, itemRows, sortValue],
+        [currentPage, debouncedSearchQuery, filters, pageSize, sortValue],
     )
     const safeCurrentPage = Math.min(currentPage, totalPages)
-    const rows = sortedRows
+    const rows = itemRows
     const { firstItem, lastItem } = useMemo(
         () => getServerPageSummary(rows.length, safeCurrentPage, pageSize, totalItems),
         [pageSize, rows.length, safeCurrentPage, totalItems],
@@ -500,6 +469,13 @@ function DataTableItem({
                 setItemRows(itemRows)
                 setTotalItems(meta.total)
                 setTotalPages(meta.totalPages)
+
+                if (meta.page > meta.totalPages) {
+                    setPaginationState({
+                        currentPage: meta.totalPages,
+                        resetKey: filterResetKey,
+                    })
+                }
             } catch (error) {
                 if (!isMounted || error?.name === "AbortError") {
                     return
@@ -522,7 +498,7 @@ function DataTableItem({
             isMounted = false
             controller.abort()
         }
-    }, [itemApiParams, refreshKey, reloadKey])
+    }, [filterResetKey, itemApiParams, refreshKey, reloadKey])
 
     const closeActionDialog = () => {
         setActiveActionDialog(null)
@@ -622,13 +598,29 @@ function DataTableItem({
     }
 
     const handleFilterChange = (filterKey, nextValue) => {
+        if (filters[filterKey] === nextValue) {
+            return
+        }
+
         setFilters((currentFilters) => ({
             ...currentFilters,
             [filterKey]: nextValue,
         }))
     }
 
+    const handleSortChange = (nextSortValue) => {
+        if (nextSortValue === sortValue) {
+            return
+        }
+
+        setSortValue(nextSortValue)
+    }
+
     const setPaginationPage = (nextPage) => {
+        if (nextPage === currentPage && paginationState.resetKey === filterResetKey) {
+            return
+        }
+
         setPaginationState({
             currentPage: nextPage,
             resetKey: filterResetKey,
@@ -636,10 +628,19 @@ function DataTableItem({
     }
 
     const handlePageSizeChange = (nextPageSize) => {
+        if (nextPageSize === pageSize) {
+            return
+        }
+
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery, sortValue }),
+            resetKey: JSON.stringify({
+                filters,
+                pageSize: nextPageSize,
+                searchQuery: debouncedSearchQuery,
+                sortValue,
+            }),
         })
     }
 
@@ -682,7 +683,7 @@ function DataTableItem({
                         label="Sort By"
                         placeholder="Date Desc"
                         searchable={false}
-                        onChange={setSortValue}
+                        onChange={handleSortChange}
                     />
                     {itemFilterConfig.map((filterConfig) => (
                         <FilterDropdownItem

@@ -23,7 +23,7 @@ function paginated(res, data = [], meta = {}, message = 'OK') {
       page       : meta.page       ?? 1,
       limit      : meta.limit      ?? data.length,
       total      : meta.total      ?? data.length,
-      totalPages : meta.totalPages ?? 1,
+      totalPages : meta.totalPages ?? meta.total_page ?? meta.total_pages ?? 1,
     },
   });
 }

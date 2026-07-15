@@ -9,6 +9,19 @@ function normalizePagination(query = {}) {
   return { page, limit, offset };
 }
 
+function buildOrderByClause(sort = '') {
+  const sortMap = {
+    'date-desc': 'i.created_at DESC, i.item_code DESC',
+    'date-asc': 'i.created_at ASC, i.item_code ASC',
+    'code-desc': 'i.item_code DESC',
+    'code-asc': 'i.item_code ASC',
+    'name-desc': 'i.item_name DESC, i.item_code DESC',
+    'name-asc': 'i.item_name ASC, i.item_code ASC',
+  };
+
+  return `ORDER BY ${sortMap[sort] || sortMap['date-desc']}`;
+}
+
 function normalizeBooleanFilter(value) {
   if (value === undefined || value === null || value === '') {
     return null;
@@ -379,11 +392,12 @@ function mapBaseRow(row) {
 async function findAll(query = {}) {
   const { page, limit, offset } = normalizePagination(query);
   const { whereSql, params } = buildWhereClause(query);
+  const orderBySql = buildOrderByClause(query.sort);
 
   const sql = `
     ${baseSelectSql()}
     ${whereSql}
-    ORDER BY i.created_at DESC, i.item_code DESC
+    ${orderBySql}
     LIMIT ? OFFSET ?
   `;
 
@@ -422,6 +436,7 @@ async function findAll(query = {}) {
       page,
       limit,
       total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       total_page: Math.ceil(total / limit),
     },
   };
