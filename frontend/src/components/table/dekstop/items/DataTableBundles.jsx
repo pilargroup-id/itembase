@@ -7,7 +7,6 @@ import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdow
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
     DataTableIdentity,
-    DataTableStatus,
 } from "../DataTable.jsx"
 import {
     DEFAULT_PAGE_SIZE,
@@ -29,14 +28,6 @@ const defaultItemFilters = itemFilterConfig.reduce(
     }),
     {},
 )
-
-function getItemStatusLabel(item) {
-    return Number(item?.is_active) === 1 ? "active" : "inactive"
-}
-
-function getItemStatusVariant(item) {
-    return Number(item?.is_active) === 1 ? "active" : "inactive"
-}
 
 function formatDisplayValue(value) {
     const displayValue = String(value ?? "").trim()
@@ -475,54 +466,8 @@ function DataTableBundles({
         setActiveActionDialog(dialogType)
     }
 
-    const toggleItemStatus = async (item) => {
-        const itemId = item.id ?? item.item_code ?? item.barcode
-        const currentStatus = Number(item.is_active) === 1 ? 1 : 0
-        const newStatus = currentStatus === 1 ? 0 : 1
-        const previousItemRows = [...itemRows]
-
-        setItemRows((currentRows) =>
-            currentRows.map((row) =>
-                (row.id ?? row.item_code ?? row.barcode) === itemId
-                    ? { ...row, is_active: newStatus }
-                    : row,
-            ),
-        )
-
-        try {
-            await api.items.updateStatus(itemId, newStatus)
-        } catch (error) {
-            setItemRows(previousItemRows)
-            setErrorMessage(error?.message || "Gagal mengubah status bundle.")
-        }
-    }
-
     const tableColumns = [
-        ...columns.slice(0, 1),
-        {
-            key: "status",
-            header: "Status",
-            headerStyle: { width: "8%" },
-            cellStyle: { width: "8%" },
-            render: (item) => (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                        type="checkbox"
-                        checked={Number(item?.is_active) === 1}
-                        onChange={(event) => {
-                            event.stopPropagation()
-                            toggleItemStatus(item)
-                        }}
-                        style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#18786e" }}
-                        title={`Tandai ${item.item_name || item.item_code || "bundle"} sebagai ${Number(item?.is_active) === 1 ? "non-aktif" : "aktif"}`}
-                    />
-                    <DataTableStatus inline variant={getItemStatusVariant(item)}>
-                        {getItemStatusLabel(item)}
-                    </DataTableStatus>
-                </div>
-            ),
-        },
-        ...columns.slice(1),
+        ...columns,
         {
             key: "action",
             header: "Action",

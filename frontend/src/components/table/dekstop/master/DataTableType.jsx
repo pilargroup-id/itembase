@@ -9,7 +9,6 @@ import FilterDropdownType from "../../../dropdown/filter-types/FilterDropdownTyp
 import { TypeFilterConfig } from "../../../dropdown/filter-types/FilterDropdownType.config.js"
 import DataTable, {
     DataTableIdentity,
-    DataTableStatus,
 } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
@@ -56,52 +55,6 @@ function getTypeId(Type) {
     return Type?.id ?? Type?.type_id ?? null
 }
 
-function getTypeStatusValue(Type) {
-    if (Type?.is_active !== undefined && Type?.is_active !== null) {
-        return Number(Type.is_active) === 1 ? "1" : "0"
-    }
-
-    const normalizedStatus = String(Type?.status ?? "").toLowerCase()
-
-    if (normalizedStatus === "active") {
-        return "1"
-    }
-
-    if (normalizedStatus === "inactive") {
-        return "0"
-    }
-
-    return ""
-}
-
-function getTypeStatusLabel(Type) {
-    const statusValue = getTypeStatusValue(Type)
-
-    if (statusValue === "1") {
-        return "active"
-    }
-
-    if (statusValue === "0") {
-        return "inactive"
-    }
-
-    return "-"
-}
-
-function getTypeStatusVariant(Type) {
-    const statusValue = getTypeStatusValue(Type)
-
-    if (statusValue === "1") {
-        return "active"
-    }
-
-    if (statusValue === "0") {
-        return "inactive"
-    }
-
-    return "pending"
-}
-
 function formatDisplayValue(value) {
     const displayValue = String(value ?? "").trim()
 
@@ -130,7 +83,6 @@ function matchesSearch(Type, searchQuery) {
         Type.Type_code,
         Type.name,
         Type.Type_name,
-        getTypeStatusLabel(Type),
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
@@ -379,53 +331,8 @@ function DataTableType({
         setActiveActionDialog(dialogType)
     }
 
-    const toggleTypeStatus = async (Type) => {
-        const TypeId = getTypeId(Type)
-        const currentStatus = getTypeStatusValue(Type) === "1" ? 1 : 0
-        const newStatus = currentStatus === 1 ? 0 : 1
-        const previousTypeRows = [...TypeRows]
-
-        setTypeRows((currentRows) =>
-            currentRows.map((row) =>
-                getTypeId(row) === TypeId
-                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
-                    : row,
-            ),
-        )
-
-        try {
-            await api.itemTypes.updateStatus(TypeId, newStatus)
-        } catch (error) {
-            setTypeRows(previousTypeRows)
-            setErrorMessage(error?.message || "Gagal mengubah status Type.")
-        }
-    }
-
     const tableColumns = [
         ...columns,
-        {
-            key: "status",
-            header: "Status",
-            headerStyle: { width: "18%" },
-            cellStyle: { width: "18%" },
-            render: (Type) => (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                        type="checkbox"
-                        checked={getTypeStatusValue(Type) === "1"}
-                        onChange={(event) => {
-                            event.stopPropagation()
-                            toggleTypeStatus(Type)
-                        }}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                        title={`Tandai ${Type.name || Type.Type_name || "Type"} sebagai ${getTypeStatusValue(Type) === "1" ? "non-aktif" : "aktif"}`}
-                    />
-                    <DataTableStatus inline variant={getTypeStatusVariant(Type)}>
-                        {getTypeStatusLabel(Type)}
-                    </DataTableStatus>
-                </div>
-            ),
-        },
         {
             key: "action",
             header: "Action",
