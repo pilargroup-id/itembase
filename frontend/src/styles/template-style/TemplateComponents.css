@@ -2196,7 +2196,9 @@ select {
 }
 
 .parent-table-shell .mtickets-table .users-table__meta {
-  font-size: 0.58rem;
+  color: var(--primary-blue);
+  font-size: 0.66rem;
+  font-weight: 700;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
