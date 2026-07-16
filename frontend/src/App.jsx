@@ -183,6 +183,10 @@ const pageDetails = {
     title: 'Bundles',
     eyebrow: 'Item Management',
   },
+  '/categories': {
+    title: 'Categories',
+    eyebrow: 'Master',
+  },
   '/types': {
     title: 'Types',
     eyebrow: 'Master',
