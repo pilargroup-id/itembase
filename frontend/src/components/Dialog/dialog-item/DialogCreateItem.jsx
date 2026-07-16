@@ -162,6 +162,13 @@ const emptyMasterOptions = {
   departments: [],
 }
 
+const parentListBaseParams = {
+  status: 'active',
+  page: 1,
+  limit: 25,
+  sort: 'date-desc',
+}
+
 function normalizeListResponse(responseData) {
   if (Array.isArray(responseData)) {
     return responseData
@@ -224,11 +231,12 @@ function getSelectedDepartmentIds(value) {
 function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((parent) => {
+      const parentName = parent.parent_name ?? ''
       const option = makeOption(parent.id, [
-        parent.parent_name || parent.item_name,
+        parentName,
         parent.parent_code,
       ])
-      option.item_name = parent.item_name ?? parent.parent_name ?? ''
+      option.item_name = parentName
       option.category_id = parent.category?.id ?? ''
       option.category_label =
         parent.category?.detail_category ??
@@ -238,6 +246,15 @@ function normalizeParentOptions(responseData) {
       return option
     })
     .filter((option) => option.value && option.label)
+}
+
+function createParentListParams(searchQuery = '') {
+  const normalizedSearchQuery = String(searchQuery ?? '').trim()
+
+  return {
+    ...parentListBaseParams,
+    ...(normalizedSearchQuery ? { search: normalizedSearchQuery } : {}),
+  }
 }
 
 function normalizeMasterOptions(responseData) {
@@ -591,15 +608,20 @@ function DialogCreateItem({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
+  const [isLoadingParents, setIsLoadingParents] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [allParentOptions, setAllParentOptions] = useState([])
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
+  const parentSearchControllerRef = useRef(null)
 
   const resetDialogState = useCallback(() => {
+    parentSearchControllerRef.current?.abort()
+    parentSearchControllerRef.current = null
     setFormValues(initialFormValues)
     setIsSubmitting(false)
+    setIsLoadingParents(false)
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
       parents: allParentOptions,
@@ -631,6 +653,49 @@ function DialogCreateItem({
     }
   }, [handleClose, isOpen, isSubmitting])
 
+  const handleParentSearchChange = useCallback(
+    async (searchQuery) => {
+      if (!isOpen) {
+        return
+      }
+
+      parentSearchControllerRef.current?.abort()
+
+      const controller = new AbortController()
+      parentSearchControllerRef.current = controller
+
+      setIsLoadingParents(true)
+
+      try {
+        const parents = await api.itemParents.list(createParentListParams(searchQuery), {
+          signal: controller.signal,
+        })
+
+        if (controller.signal.aborted) {
+          return
+        }
+
+        const normalizedParents = normalizeParentOptions(parents)
+
+        setAllParentOptions(normalizedParents)
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          parents: normalizedParents,
+        }))
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          setErrorMessage(error?.message || 'Gagal mencari data parent.')
+        }
+      } finally {
+        if (parentSearchControllerRef.current === controller) {
+          parentSearchControllerRef.current = null
+          setIsLoadingParents(false)
+        }
+      }
+    },
+    [isOpen],
+  )
+
   useEffect(() => {
     if (!isOpen) {
       return undefined
@@ -644,7 +709,7 @@ function DialogCreateItem({
 
       try {
         const [parents, uoms, skuStatuses, items] = await Promise.all([
-          api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
+          api.itemParents.list(createParentListParams(), { signal: controller.signal }),
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
           api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
@@ -696,6 +761,7 @@ function DialogCreateItem({
 
     return () => {
       isMounted = false
+      parentSearchControllerRef.current?.abort()
       controller.abort()
     }
   }, [isOpen])
@@ -892,14 +958,20 @@ function DialogCreateItem({
           loading={
             field.name === 'department_id'
               ? isLoadingDepartments
-              : isLoadingMasters
+              : field.name === 'parent_id'
+                ? isLoadingMasters || isLoadingParents
+                : isLoadingMasters
           }
           disabled={
             isSubmitting ||
             isLoadingMasters ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
+          remoteSearch={field.name === 'parent_id'}
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+          onSearchChange={
+            field.name === 'parent_id' ? handleParentSearchChange : undefined
+          }
         />
       ) : (
         <input

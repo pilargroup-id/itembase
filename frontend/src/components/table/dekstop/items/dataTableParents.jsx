@@ -8,7 +8,6 @@ import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdown
 import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
 import DataTable, {
     DataTableIdentity,
-    DataTableStatus,
 } from "../DataTable.jsx"
 import {
     DEFAULT_PAGE_SIZE,
@@ -30,20 +29,6 @@ const defaultParentFilters = parentFilterConfig.reduce(
     }),
     {},
 )
-
-function getParentStatusVariant(status) {
-    const normalizedStatus = String(status ?? "").toLowerCase()
-
-    if (normalizedStatus === "active") {
-        return "active"
-    }
-
-    if (normalizedStatus === "inactive") {
-        return "inactive"
-    }
-
-    return "pending"
-}
 
 function formatDisplayValue(value) {
     const displayValue = String(value ?? "").trim()
@@ -392,28 +377,6 @@ function DataTableParents({
         setActiveActionDialog(dialogType)
     }
 
-    const toggleParentStatus = async (parent) => {
-        const parentId = parent.id ?? parent.pic_id ?? parent.parent_code
-        const currentStatus = String(parent.status ?? "").toLowerCase()
-        const newStatus = currentStatus === "active" ? "inactive" : "active"
-        const previousParentRows = [...parentRows]
-
-        setParentRows((currentRows) =>
-            currentRows.map((row) =>
-                (row.id ?? row.pic_id ?? row.parent_code) === parentId
-                    ? { ...row, status: newStatus }
-                    : row,
-            ),
-        )
-
-        try {
-            await api.itemParents.updateStatus(parentId, newStatus)
-        } catch (error) {
-            setParentRows(previousParentRows)
-            setErrorMessage(error?.message || "Gagal mengubah status item parent.")
-        }
-    }
-
     const tableColumns = [
         ...columns.slice(0, 1),
         {
@@ -424,23 +387,6 @@ function DataTableParents({
             render: (parent) => (
                 <DataTableIdentity
                     title={parent.item_name || "-"}
-                    subtitle={
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <input
-                                type="checkbox"
-                                checked={String(parent.status ?? "").toLowerCase() === "active"}
-                                onChange={(event) => {
-                                    event.stopPropagation()
-                                    toggleParentStatus(parent)
-                                }}
-                                style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: "#18786e" }}
-                                title={`Tandai ${parent.item_name || "parent"} sebagai ${String(parent.status ?? "").toLowerCase() === "active" ? "non-aktif" : "aktif"}`}
-                            />
-                            <DataTableStatus inline variant={getParentStatusVariant(parent.status)}>
-                                {parent.status || "-"}
-                            </DataTableStatus>
-                        </div>
-                    }
                 />
             ),
         },
