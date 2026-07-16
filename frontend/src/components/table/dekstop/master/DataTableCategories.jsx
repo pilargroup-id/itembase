@@ -272,6 +272,13 @@ const columns = [
         ),
     },
     {
+        key: "main_category",
+        header: "Main Category",
+        headerStyle: { width: "15%" },
+        cellStyle: { width: "15%" },
+        render: (categories) => renderCategoriesValue(categories.main_category),
+    },
+    {
         key: "sub_category",
         header: "Sub Category",
         headerStyle: { width: "15%" },

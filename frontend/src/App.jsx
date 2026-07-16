@@ -386,13 +386,17 @@ function App() {
         />
 
         <main
-          className={`dashboard-main${isParentsPage ? ' dashboard-main--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
+          className={`dashboard-main${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
         >
           <div
-            className={`dashboard-content${isParentsPage ? ' dashboard-content--mytickets' : ''}${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
+            className={`dashboard-content${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
           >
             {isParentsPage ? (
-              <ParentsPage activePage={activePage} searchQuery={searchQuery} />
+              <ParentsPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isItemsPage ? (
               <ItemPages activePage={activePage} searchQuery={searchQuery} />
             ) : isBundlesPage ? (
@@ -418,7 +422,11 @@ function App() {
             ) : isActivityLogsPage ? (
               <ActivityLogs activePage={activePage} searchQuery={searchQuery} />
             ) : (
-              <ParentsPage activePage={activePage} searchQuery={searchQuery} />
+              <ParentsPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             )}
           </div>
         </main>

@@ -193,7 +193,7 @@ function CheckboxSelect({
         </span>
         <ChevronDown
           size={16}
-          aria-hidden="true"
+        aria-hidden="true"
           className={`parent-master-select__chevron${
             isOpen ? ' parent-master-select__chevron--open' : ''
           }`}

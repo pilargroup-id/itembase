@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateParent from '../../../components/button/parents-buttons/ButtonCreateParent.jsx'
+import SearchParent from '../../../components/search/SearchParent.jsx'
 import DataTableParents from '../../../components/table/dekstop/items/dataTableParents.jsx'
 
-function ParentsPage({ activePage, searchQuery }) {
+function ParentsPage({ activePage, searchQuery, onSearchQueryChange }) {
   const [parentRefreshKey, setParentRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,10 @@ function ParentsPage({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchParent
+            value={searchQuery}
+            onChange={onSearchQueryChange}
+          />
           <ButtonCreateParent
             onCreated={() => setParentRefreshKey((currentKey) => currentKey + 1)}
           />

@@ -10,13 +10,13 @@ import DataTable, {
     DataTableIdentity,
 } from "../DataTable.jsx"
 import {
-    DEFAULT_PAGE_SIZE,
     PAGE_SIZE_OPTIONS,
     getPaginationItems,
 } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
 const DEFAULT_PARENT_SORT = "date-desc"
+const DEFAULT_PARENT_PAGE_SIZE = 50
 const parentSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
@@ -263,7 +263,7 @@ function DataTableParents({
     const [parentRows, setParentRows] = useState([])
     const [filters, setFilters] = useState(defaultParentFilters)
     const [sortValue, setSortValue] = useState(DEFAULT_PARENT_SORT)
-    const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+    const [pageSize, setPageSize] = useState(DEFAULT_PARENT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
     const [totalParents, setTotalParents] = useState(0)

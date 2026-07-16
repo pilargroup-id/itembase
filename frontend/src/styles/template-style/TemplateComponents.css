@@ -2579,6 +2579,54 @@ select {
   flex-wrap: wrap;
 }
 
+.parent-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: clamp(220px, 26vw, 320px);
+  flex: 1 1 240px;
+  max-width: 340px;
+}
+
+.parent-search__icon {
+  position: absolute;
+  left: 1rem;
+  color: #7b8ca8;
+  pointer-events: none;
+}
+
+.parent-search__input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.85rem 1rem 0.85rem 2.75rem;
+  border: 1px solid rgba(125, 143, 174, 0.28);
+  border-radius: 999px;
+  background: #fff;
+  color: #26364f;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(45, 59, 82, 0.08);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.parent-search__input::placeholder {
+  color: #8291a8;
+}
+
+.parent-search__input:focus {
+  outline: none;
+  border-color: rgba(42, 157, 143, 0.58);
+  box-shadow:
+    0 0 0 4px rgba(42, 157, 143, 0.12),
+    0 12px 26px rgba(45, 59, 82, 0.1);
+}
+
+.parent-search__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
 .users-table-card__action {
   min-height: 48px;
   display: inline-flex;
@@ -5606,6 +5654,11 @@ select {
 
   .users-table-card__action {
     width: 100%;
+  }
+
+  .parent-search {
+    width: 100%;
+    max-width: none;
   }
 
   .users-table-card__actions,
