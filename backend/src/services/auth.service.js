@@ -1,48 +1,71 @@
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const UserModel = require('../models/user.model');
 
-let _devTokenCache = { token: null, exp: 0 };
+let devTokenCache = { token: null, exp: 0 };
 
 function createHttpError(message, statusCode = 500, code = null) {
-  const err = new Error(message);
-  err.statusCode = statusCode;
-  if (code) err.code = code;
-  return err;
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  if (code) error.code = code;
+  return error;
 }
 
 function throwUnauthorized(message, code = 'UNAUTHORIZED') {
   throw createHttpError(message, 401, code);
 }
 
+function getAxiosErrorCode(error) {
+  return error.response?.data?.code || error.code || null;
+}
+
+function getAxiosErrorMessage(error, fallbackMessage) {
+  return error.response?.data?.message || error.message || fallbackMessage;
+}
+
 async function fetchTokenFromPilargroup(username, password) {
   const url = `${config.pilargroup.url}/api/auth/login`;
 
-  const res = await axios.post(
-    url,
-    { username, password },
-    { timeout: 10_000 }
-  );
+  try {
+    const response = await axios.post(
+      url,
+      { username, password },
+      { timeout: 10_000 }
+    );
 
-  const token =
-    res.data?.token ||
-    res.data?.access_token ||
-    res.data?.data?.token ||
-    res.data?.data?.access_token;
+    const token =
+      response.data?.token ||
+      response.data?.access_token ||
+      response.data?.data?.token ||
+      response.data?.data?.access_token;
 
-  if (!token) {
-    throw createHttpError('Token not found in pilargroup response', 500, 'CENTRAL_LOGIN_INVALID_RESPONSE');
+    if (!token) {
+      throw createHttpError(
+        'Token not found in pilargroup response',
+        500,
+        'CENTRAL_LOGIN_INVALID_RESPONSE'
+      );
+    }
+
+    return token;
+  } catch (error) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    const statusCode = error.response?.status || 500;
+    const message = getAxiosErrorMessage(error, 'Failed to login to pilargroup');
+    const code = getAxiosErrorCode(error) || 'CENTRAL_LOGIN_FAILED';
+
+    throw createHttpError(message, statusCode, code);
   }
-
-  return token;
 }
 
 async function getDevToken() {
   const now = Math.floor(Date.now() / 1000);
 
-  if (_devTokenCache.token && _devTokenCache.exp - 60 > now) {
-    return _devTokenCache.token;
+  if (devTokenCache.token && devTokenCache.exp - 60 > now) {
+    return devTokenCache.token;
   }
 
   const token = await fetchTokenFromPilargroup(
@@ -52,7 +75,7 @@ async function getDevToken() {
 
   const decoded = jwt.decode(token);
 
-  _devTokenCache = {
+  devTokenCache = {
     token,
     exp: decoded?.exp || now + 3600,
   };
@@ -82,31 +105,92 @@ async function resolveRawToken(bearerToken) {
   return bearerToken;
 }
 
+function normalizeAuthMeResponse(payload) {
+  const user = payload?.data?.user || payload?.data || payload?.user || payload;
+
+  if (!user || typeof user !== 'object' || Array.isArray(user)) {
+    throw createHttpError(
+      'Invalid auth/me response from pilargroup',
+      502,
+      'CENTRAL_AUTH_ME_INVALID_RESPONSE'
+    );
+  }
+
+  const departments = Array.isArray(user.departments) ? user.departments : [];
+  const companies = Array.isArray(user.companies) ? user.companies : [];
+  const apps = Array.isArray(user.apps) ? user.apps : [];
+
+  const primaryDepartment =
+    departments.find((item) => Number(item.is_primary) === 1) ||
+    departments[0] ||
+    null;
+
+  const primaryCompany =
+    companies.find((item) => Number(item.is_primary) === 1) ||
+    companies[0] ||
+    null;
+
+  return {
+    ...user,
+    departments,
+    companies,
+    apps,
+    department_id: user.department_id ?? primaryDepartment?.id ?? null,
+    department: user.department ?? primaryDepartment?.name ?? null,
+    department_class: user.department_class ?? primaryDepartment?.class ?? null,
+    department_code: user.department_code ?? primaryDepartment?.code ?? null,
+    company_id: user.company_id ?? primaryCompany?.id ?? null,
+    company: user.company ?? primaryCompany?.name ?? null,
+    company_code: user.company_code ?? primaryCompany?.code ?? null,
+    job_level_value:
+      user.job_level_value === null || user.job_level_value === undefined
+        ? null
+        : Number(user.job_level_value),
+    cv: user.cv ?? user.token_version ?? null,
+  };
+}
+
+async function fetchProfileFromPilargroup(token) {
+  const url = `${config.pilargroup.url}/api/auth/me`;
+
+  try {
+    const response = await axios.get(url, {
+      timeout: 10_000,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+
+    return normalizeAuthMeResponse(response.data);
+  } catch (error) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    const statusCode = error.response?.status || 502;
+    const message = getAxiosErrorMessage(
+      error,
+      'Failed to fetch profile from pilargroup'
+    );
+    const code = getAxiosErrorCode(error) || 'CENTRAL_AUTH_ME_FAILED';
+
+    throw createHttpError(message, statusCode, code);
+  }
+}
+
 async function resolveToken(bearerToken) {
   const token = await resolveRawToken(bearerToken);
   const decoded = verifyToken(token);
+  const user = await fetchProfileFromPilargroup(token);
 
-  const userId = decoded?.sub || decoded?.id;
-
-  if (!userId) {
-    throwUnauthorized('User id not found in token', 'TOKEN_INVALID_PAYLOAD');
+  if (!user.id) {
+    throwUnauthorized('User id not found in auth/me response', 'USER_INVALID_PROFILE');
   }
 
-  const user = await UserModel.findFullProfileById(userId);
-
-  if (!user) {
-    throwUnauthorized('User not found', 'USER_NOT_FOUND');
-  }
-
-  if (Number(user.is_active) !== 1) {
-    throwUnauthorized('User is inactive', 'USER_INACTIVE');
-  }
-
-  const tokenVersion = decoded?.token_version;
-
-  if (tokenVersion !== undefined && tokenVersion !== null) {
-    if (Number(tokenVersion) !== Number(user.token_version)) {
-      throwUnauthorized('Session is no longer valid', 'TOKEN_REVOKED');
+  if (user.is_active !== undefined && user.is_active !== null) {
+    if (Number(user.is_active) !== 1) {
+      throwUnauthorized('User is inactive', 'USER_INACTIVE');
     }
   }
 
@@ -117,10 +201,14 @@ async function resolveToken(bearerToken) {
   };
 }
 
-async function getUserById(id) {
-  const user = await UserModel.findFullProfileById(id);
+async function getCurrentUser(token) {
+  return fetchProfileFromPilargroup(token);
+}
 
-  if (!user) {
+async function getUserById(id, token) {
+  const user = await fetchProfileFromPilargroup(token);
+
+  if (String(user.id) !== String(id)) {
     throw createHttpError('User not found', 404, 'USER_NOT_FOUND');
   }
 
@@ -132,5 +220,6 @@ module.exports = {
   verifyToken,
   decodeToken,
   getDevToken,
+  getCurrentUser,
   getUserById,
 };

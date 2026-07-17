@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { db, centralDb } = require('../config/database.config');
+const { db } = require('../config/database.config');
 
 function normalizePagination(query = {}) {
   const page = Math.max(parseInt(query.page || 1, 10), 1);
@@ -27,11 +27,11 @@ function stringifyJson(value) {
   return JSON.stringify(value);
 }
 
-function buildWhereClause(query = {}) {
+function buildWhereClause(query = {}, { includeSearch = true } = {}) {
   const conditions = [];
   const params = [];
 
-  if (query.search) {
+  if (includeSearch && query.search) {
     const search = `%${query.search}%`;
 
     conditions.push(`
@@ -40,12 +40,10 @@ function buildWhereClause(query = {}) {
         OR al.entity_type LIKE ?
         OR al.entity_id LIKE ?
         OR al.action LIKE ?
-        OR cu.name LIKE ?
-        OR cu.username LIKE ?
       )
     `);
 
-    params.push(search, search, search, search, search, search);
+    params.push(search, search, search, search);
   }
 
   if (query.user_id) {
@@ -90,14 +88,7 @@ function mapRow(row) {
   return {
     id: row.id,
     user_id: row.user_id,
-    user: row.user_id
-      ? {
-          id: row.user_id,
-          username: row.username || null,
-          name: row.user_name || null,
-          email: row.email || null,
-        }
-      : null,
+    user: null,
     action: row.action,
     entity_type: row.entity_type,
     entity_id: row.entity_id,
@@ -111,17 +102,11 @@ function mapRow(row) {
   };
 }
 
-async function findAll(query = {}) {
-  const { page, limit, offset } = normalizePagination(query);
-  const { whereSql, params } = buildWhereClause(query);
-
-  const sql = `
+function baseSelectSql() {
+  return `
     SELECT
       al.id,
       al.user_id,
-      cu.username,
-      cu.name AS user_name,
-      cu.email,
       al.action,
       al.entity_type,
       al.entity_id,
@@ -133,7 +118,15 @@ async function findAll(query = {}) {
       al.user_agent,
       al.created_at
     FROM activity_logs al
-    LEFT JOIN pilargroup.central_users cu ON cu.id = al.user_id
+  `;
+}
+
+async function findAll(query = {}) {
+  const { page, limit, offset } = normalizePagination(query);
+  const { whereSql, params } = buildWhereClause(query);
+
+  const sql = `
+    ${baseSelectSql()}
     ${whereSql}
     ORDER BY al.created_at DESC
     LIMIT ? OFFSET ?
@@ -142,14 +135,12 @@ async function findAll(query = {}) {
   const countSql = `
     SELECT COUNT(*) AS total
     FROM activity_logs al
-    LEFT JOIN pilargroup.central_users cu ON cu.id = al.user_id
     ${whereSql}
   `;
 
   const [rows] = await db.query(sql, [...params, limit, offset]);
   const [countRows] = await db.query(countSql, params);
-
-  const total = countRows[0]?.total || 0;
+  const total = Number(countRows[0]?.total || 0);
 
   return {
     data: rows.map(mapRow),
@@ -162,27 +153,25 @@ async function findAll(query = {}) {
   };
 }
 
+async function findAllForSearch(query = {}) {
+  const { whereSql, params } = buildWhereClause(query, { includeSearch: false });
+
+  const [rows] = await db.query(
+    `
+      ${baseSelectSql()}
+      ${whereSql}
+      ORDER BY al.created_at DESC
+    `,
+    params
+  );
+
+  return rows.map(mapRow);
+}
+
 async function findById(id) {
   const [rows] = await db.query(
     `
-      SELECT
-        al.id,
-        al.user_id,
-        cu.username,
-        cu.name AS user_name,
-        cu.email,
-        al.action,
-        al.entity_type,
-        al.entity_id,
-        al.description,
-        al.before_data,
-        al.after_data,
-        al.metadata,
-        al.ip_address,
-        al.user_agent,
-        al.created_at
-      FROM activity_logs al
-      LEFT JOIN pilargroup.central_users cu ON cu.id = al.user_id
+      ${baseSelectSql()}
       WHERE al.id = ?
       LIMIT 1
     `,
@@ -232,6 +221,7 @@ async function create(data, connection = db) {
 
 module.exports = {
   findAll,
+  findAllForSearch,
   findById,
   create,
 };

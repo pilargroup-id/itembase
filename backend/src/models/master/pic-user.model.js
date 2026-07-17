@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { db, centralDb } = require('../../config/database.config');
+const { db } = require('../../config/database.config');
 
 const table = 'master_pic_users';
 const PRODUCT_DEPARTMENT_ID = 13;
@@ -136,41 +136,6 @@ async function findPicById(picId) {
   return rows[0] || null;
 }
 
-async function findCentralUserById(centralUserId) {
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id
-      FROM central_users
-      WHERE id = ?
-      LIMIT 1
-    `,
-    [centralUserId]
-  );
-
-  return rows[0] || null;
-}
-
-async function findCentralUsersByIds(centralUserIds = []) {
-  if (!centralUserIds.length) {
-    return [];
-  }
-
-  const placeholders = centralUserIds.map(() => '?').join(', ');
-
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id
-      FROM central_users
-      WHERE id IN (${placeholders})
-    `,
-    centralUserIds
-  );
-
-  return rows;
-}
-
 async function findActivePics() {
   const [rows] = await db.query(
     `
@@ -185,57 +150,6 @@ async function findActivePics() {
     `
   );
 
-  return rows;
-}
-
-async function findCentralUsersByDepartment({
-  active = 1,
-  search,
-} = {}) {
-  const params = [PRODUCT_DEPARTMENT_ID];
-
-  let sql = `
-    SELECT
-      cu.id,
-      cu.internal_id,
-      cu.username,
-      cu.email,
-      cu.phone,
-      cu.name,
-      cu.job_position,
-      cu.job_level_id,
-      cu.is_active,
-      md.id AS department_id,
-      md.name AS department_name,
-      md.class AS department_class,
-      md.code AS department_code,
-      md.company_id,
-      cud.is_primary
-    FROM central_users cu
-    LEFT JOIN central_user_departments cud ON cud.user_id = cu.id
-    LEFT JOIN master_departments md ON md.id = cud.department_id
-    WHERE md.id = ?
-  `;
-
-  if (active !== null && active !== undefined && active !== 'all') {
-    sql += ` AND cu.is_active = ?`;
-    params.push(Number(active));
-  }
-
-  if (search) {
-    sql += `
-      AND (
-        cu.name LIKE ?
-        OR cu.username LIKE ?
-        OR cu.email LIKE ?
-      )
-    `;
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-  }
-
-  sql += ` ORDER BY cu.name ASC`;
-
-  const [rows] = await centralDb.query(sql, params);
   return rows;
 }
 
@@ -529,10 +443,7 @@ module.exports = {
   findById,
   findByPicId,
   findPicById,
-  findCentralUserById,
-  findCentralUsersByIds,
   findActivePics,
-  findCentralUsersByDepartment,
   create,
   createMany,
   update,

@@ -1,5 +1,6 @@
 const PicUserModel = require('../../models/master/pic-user.model');
 const ActivityLogService = require('../activity-log.service');
+const DirectoryService = require('../pilargroup-directory.service');
 
 function makeError(message, statusCode = 400, code = 'ERROR') {
   const error = new Error(message);
@@ -104,8 +105,9 @@ async function validatePicExists(picId) {
 
 async function validateCentralUsersExist(users) {
   const centralUserIds = users.map((user) => user.central_user_id);
-  const centralUsers = await PicUserModel.findCentralUsersByIds(centralUserIds);
-  const foundIds = new Set(centralUsers.map((user) => user.id));
+  const directoryUsers = await DirectoryService.getUsers();
+  const centralUsers = DirectoryService.findUsersByIds(directoryUsers, centralUserIds);
+  const foundIds = new Set(centralUsers.map((user) => String(user.id)));
 
   const missingIds = centralUserIds.filter((id) => !foundIds.has(id));
 
@@ -127,10 +129,24 @@ async function index(query) {
 async function options(query) {
   const pics = await PicUserModel.findActivePics();
 
-  const users = await PicUserModel.findCentralUsersByDepartment({
-    active: query.active ?? 1,
-    search: query.search,
-  });
+  const allUsers = await DirectoryService.getUsers();
+  const activeFilter = query.active ?? 1;
+  const search = String(query.search || '').trim().toLowerCase();
+
+  const users = allUsers
+    .filter((user) => Number(user.department_id) === 13)
+    .filter((user) =>
+      activeFilter === 'all' || activeFilter === null || activeFilter === undefined
+        ? true
+        : Number(user.is_active) === Number(activeFilter)
+    )
+    .filter((user) => {
+      if (!search) return true;
+
+      return [user.name, user.username, user.email]
+        .some((value) => String(value ?? '').toLowerCase().includes(search));
+    })
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
   return {
     pics,

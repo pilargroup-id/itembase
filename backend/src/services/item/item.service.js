@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const ItemModel = require('../../models/item/item.model');
 const ActivityLogService = require('../activity-log.service');
+const DirectoryService = require('../pilargroup-directory.service');
 
 const ALLOWED_ITEM_KIND = ['regular', 'bundle'];
 
@@ -33,6 +34,118 @@ const INTEGER_FIELDS = [
   'container_40hq_qty',
   'production_time_days',
 ];
+
+
+async function enrichItems(items = []) {
+  if (!items.length) return items;
+
+  const businessUnitIds = [];
+  const departmentIds = [];
+  const userIds = [];
+
+  items.forEach((item) => {
+    if (item.created_by && typeof item.created_by !== 'object') {
+      userIds.push(item.created_by);
+    }
+
+    if (item.updated_by && typeof item.updated_by !== 'object') {
+      userIds.push(item.updated_by);
+    }
+
+    if (item.business_unit?.id) {
+      businessUnitIds.push(item.business_unit.id);
+    }
+
+    (item.channels || []).forEach((channel) => {
+      if (channel.business_unit_id) {
+        businessUnitIds.push(channel.business_unit_id);
+      }
+
+      if (channel.department_id !== undefined && channel.department_id !== null) {
+        departmentIds.push(channel.department_id);
+      }
+    });
+  });
+
+  const [allBusinessUnits, allDepartments, allUsers] = await Promise.all([
+    DirectoryService.getBusinessUnits(),
+    DirectoryService.getDepartments(),
+    DirectoryService.getUsers(),
+  ]);
+
+  const businessUnits = DirectoryService.findBusinessUnitsByIds(
+    allBusinessUnits,
+    businessUnitIds
+  );
+  const departments = DirectoryService.findDepartmentsByIds(
+    allDepartments,
+    departmentIds
+  );
+  const users = DirectoryService.findUsersByIds(allUsers, userIds);
+
+  const businessUnitMap = new Map(
+    businessUnits.map((row) => [String(row.id), row])
+  );
+  const departmentMap = new Map(
+    departments.map((row) => [Number(row.id), row])
+  );
+  const userMap = new Map(users.map((row) => [String(row.id), row]));
+
+  items.forEach((item) => {
+    if (item.created_by && typeof item.created_by !== 'object') {
+      const user = userMap.get(String(item.created_by));
+
+      if (user) {
+        item.created_by = {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+        };
+      }
+    }
+
+    if (item.updated_by && typeof item.updated_by !== 'object') {
+      const user = userMap.get(String(item.updated_by));
+
+      if (user) {
+        item.updated_by = {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+        };
+      }
+    }
+
+    const businessUnit = businessUnitMap.get(
+      String(item.business_unit?.id ?? '')
+    );
+
+    if (businessUnit) {
+      item.business_unit = {
+        id: businessUnit.id,
+        code: businessUnit.code,
+        name: businessUnit.name,
+      };
+    }
+
+    item.channels = (item.channels || []).map((channel) => {
+      const channelBusinessUnit = businessUnitMap.get(
+        String(channel.business_unit_id)
+      );
+      const department = departmentMap.get(Number(channel.department_id));
+
+      return {
+        ...channel,
+        business_unit_code: channelBusinessUnit?.code || null,
+        business_unit_name: channelBusinessUnit?.name || null,
+        department_code: department?.code || null,
+        department_name: department?.name || null,
+      };
+    });
+  });
+
+  return items;
+}
 
 function makeError(message, statusCode = 400, code = 'ERROR', errors = null) {
   const error = new Error(message);
@@ -457,7 +570,12 @@ async function validateReferences(payload, connection) {
   }
 
   if (payload.business_unit_id) {
-    const businessUnit = await ItemModel.findBusinessUnitById(payload.business_unit_id);
+    const businessUnits = await DirectoryService.getBusinessUnits();
+    const businessUnit = businessUnits.find(
+      (item) =>
+        String(item.id) === String(payload.business_unit_id) &&
+        Number(item.is_active) === 1
+    );
 
     if (!businessUnit) {
       throw makeError('Business unit not found or inactive', 404, 'BUSINESS_UNIT_NOT_FOUND');
@@ -466,18 +584,36 @@ async function validateReferences(payload, connection) {
 }
 
 async function validateChannelsAgainstCentral(channels = []) {
-  for (const channel of channels) {
-    const pair = await ItemModel.findBusinessUnitDepartmentPair(
-      channel.business_unit_id,
-      channel.department_id
+  const groupedChannels = new Map();
+
+  channels.forEach((channel) => {
+    const key = String(channel.business_unit_id);
+
+    if (!groupedChannels.has(key)) {
+      groupedChannels.set(key, []);
+    }
+
+    groupedChannels.get(key).push(channel);
+  });
+
+  for (const [businessUnitId, businessUnitChannels] of groupedChannels) {
+    const departments = await DirectoryService.getBusinessUnitDepartments(
+      businessUnitId
+    );
+    const validDepartmentIds = new Set(
+      departments
+        .filter((department) => Number(department.is_active) === 1)
+        .map((department) => Number(department.department_id))
     );
 
-    if (!pair) {
-      throw makeError(
-        `Department ${channel.department_id} is not valid for business unit ${channel.business_unit_id}`,
-        422,
-        'INVALID_CHANNEL_DEPARTMENT'
-      );
+    for (const channel of businessUnitChannels) {
+      if (!validDepartmentIds.has(Number(channel.department_id))) {
+        throw makeError(
+          `Department ${channel.department_id} is not valid for business unit ${channel.business_unit_id}`,
+          422,
+          'INVALID_CHANNEL_DEPARTMENT'
+        );
+      }
     }
   }
 }
@@ -545,7 +681,9 @@ function normalizeItemData(payload, userId, generatedCode = null, existing = nul
 }
 
 async function index(query) {
-  return ItemModel.findAll(query);
+  const result = await ItemModel.findAll(query);
+  await enrichItems(result.data);
+  return result;
 }
 
 async function show(id) {
@@ -555,6 +693,7 @@ async function show(id) {
     throw makeError('Item not found', 404, 'ITEM_NOT_FOUND');
   }
 
+  await enrichItems([item]);
   return item;
 }
 
@@ -609,6 +748,7 @@ async function store(payload, userId, req = null) {
     }
 
     const finalItem = await ItemModel.findById(createdItem.id, connection);
+    await enrichItems([finalItem]);
 
     await ActivityLogService.log({
       user_id: userId,
@@ -722,6 +862,7 @@ async function update(id, payload, userId, req = null) {
     }
 
     const finalItem = await ItemModel.findById(updatedItem.id, connection);
+    await enrichItems([finalItem]);
 
     await ActivityLogService.log({
       user_id: userId,

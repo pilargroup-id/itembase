@@ -1,87 +1,77 @@
-const { centralDb } = require('../../config/database.config');
+const DirectoryService = require('../../services/pilargroup-directory.service');
 
 function hasValue(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function matchesSearch(item, search, fields) {
+  if (!hasValue(search)) return true;
+
+  const needle = String(search).trim().toLowerCase();
+  return fields.some((field) =>
+    String(item[field] ?? '').toLowerCase().includes(needle)
+  );
+}
+
 async function findAll({ active, is_active, search } = {}) {
-  const params = [];
   const activeFilter = hasValue(active) ? active : is_active;
+  const businessUnits = await DirectoryService.getBusinessUnits();
 
-  let sql = `
-    SELECT
-      id,
-      code,
-      name,
-      is_active
-    FROM master_business_units
-    WHERE 1 = 1
-  `;
-
-  if (hasValue(search)) {
-    sql += `
-      AND (
-        code LIKE ?
-        OR name LIKE ?
-      )
-    `;
-    params.push(`%${search}%`, `%${search}%`);
-  }
-
-  if (hasValue(activeFilter)) {
-    sql += ` AND is_active = ?`;
-    params.push(Number(activeFilter));
-  }
-
-  sql += ` ORDER BY name ASC`;
-
-  const [rows] = await centralDb.query(sql, params);
-  return rows;
+  return businessUnits
+    .filter((businessUnit) =>
+      matchesSearch(businessUnit, search, ['code', 'name'])
+    )
+    .filter((businessUnit) =>
+      hasValue(activeFilter)
+        ? Number(businessUnit.is_active) === Number(activeFilter)
+        : true
+    )
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .map((businessUnit) => ({
+      id: businessUnit.id,
+      code: businessUnit.code,
+      name: businessUnit.name,
+      is_active: businessUnit.is_active,
+    }));
 }
 
 async function findDepartmentsByBusinessUnitId(
   businessUnitId,
-  { active, is_active, search } = {},
+  { active, is_active, search } = {}
 ) {
-  const params = [businessUnitId];
   const activeFilter = hasValue(active) ? active : is_active;
+  const departments = await DirectoryService.getBusinessUnitDepartments(
+    businessUnitId
+  );
 
-  let sql = `
-    SELECT
-      mbud.business_unit_id,
-      md.id AS department_id,
-      md.code AS department_code,
-      md.name AS department_name,
-      mbud.is_primary,
-      mbud.is_active
-    FROM master_business_unit_departments mbud
-    INNER JOIN master_departments md ON md.id = mbud.department_id
-    WHERE mbud.business_unit_id = ?
-  `;
+  return departments
+    .filter((department) =>
+      matchesSearch(department, search, [
+        'department_code',
+        'department_name',
+      ])
+    )
+    .filter((department) =>
+      hasValue(activeFilter)
+        ? Number(department.is_active) === Number(activeFilter)
+        : true
+    )
+    .sort((a, b) => {
+      const primaryDiff = Number(b.is_primary) - Number(a.is_primary);
+      if (primaryDiff !== 0) return primaryDiff;
 
-  if (hasValue(search)) {
-    sql += `
-      AND (
-        md.code LIKE ?
-        OR md.name LIKE ?
-      )
-    `;
-    params.push(`%${search}%`, `%${search}%`);
-  }
-
-  if (hasValue(activeFilter)) {
-    sql += ` AND mbud.is_active = ?`;
-    params.push(Number(activeFilter));
-  }
-
-  sql += `
-    ORDER BY
-      mbud.is_primary DESC,
-      md.name ASC
-  `;
-
-  const [rows] = await centralDb.query(sql, params);
-  return rows;
+      return String(a.department_name).localeCompare(
+        String(b.department_name)
+      );
+    })
+    .map((department) => ({
+      business_unit_id: department.business_unit_id,
+      department_id: department.department_id,
+      department_code: department.department_code,
+      department_name: department.department_name,
+      is_primary: department.is_primary,
+      is_active: department.is_active,
+    }));
 }
 
 module.exports = {

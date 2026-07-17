@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { db, centralDb } = require('../../config/database.config');
+const { db } = require('../../config/database.config');
 
 function normalizePagination(query = {}) {
   const page = Math.max(parseInt(query.page || 1, 10), 1);
@@ -426,7 +426,6 @@ async function findAll(query = {}) {
     item.channels = channels[item.id] || [];
   });
 
-  await enrichItems(items);
 
   const total = countRows[0]?.total || 0;
 
@@ -460,7 +459,6 @@ async function findById(id, connection = db) {
   item.channels = channels[id] || [];
   item.components = components[id] || [];
 
-  await enrichItems([item]);
 
   return item;
 }
@@ -866,192 +864,6 @@ async function findComponentsByBundleItemIds(bundleItemIds = [], connection = db
   return grouped;
 }
 
-async function findCentralUsersByIds(ids = []) {
-  if (!ids.length) return [];
-
-  const uniqueIds = [...new Set(ids.filter(Boolean))];
-  if (!uniqueIds.length) return [];
-
-  const placeholders = uniqueIds.map(() => '?').join(', ');
-
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id,
-        name,
-        username
-      FROM central_users
-      WHERE id IN (${placeholders})
-    `,
-    uniqueIds
-  );
-
-  return rows;
-}
-
-async function findBusinessUnitsByIds(ids = []) {
-  if (!ids.length) return [];
-
-  const uniqueIds = [...new Set(ids.filter(Boolean))];
-  if (!uniqueIds.length) return [];
-
-  const placeholders = uniqueIds.map(() => '?').join(', ');
-
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id,
-        code,
-        name,
-        is_active
-      FROM master_business_units
-      WHERE id IN (${placeholders})
-    `,
-    uniqueIds
-  );
-
-  return rows;
-}
-
-async function findBusinessUnitById(id) {
-  if (!id) return null;
-
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id,
-        code,
-        name,
-        is_active
-      FROM master_business_units
-      WHERE id = ?
-        AND is_active = 1
-      LIMIT 1
-    `,
-    [id]
-  );
-
-  return rows[0] || null;
-}
-
-async function findDepartmentsByIds(ids = []) {
-  if (!ids.length) return [];
-
-  const uniqueIds = [...new Set(ids.filter((id) => id !== undefined && id !== null))];
-  if (!uniqueIds.length) return [];
-
-  const placeholders = uniqueIds.map(() => '?').join(', ');
-
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id,
-        code,
-        name,
-        class
-      FROM master_departments
-      WHERE id IN (${placeholders})
-    `,
-    uniqueIds
-  );
-
-  return rows;
-}
-
-async function findBusinessUnitDepartmentPair(businessUnitId, departmentId) {
-  const [rows] = await centralDb.query(
-    `
-      SELECT
-        id,
-        business_unit_id,
-        department_id,
-        is_active
-      FROM master_business_unit_departments
-      WHERE business_unit_id = ?
-        AND department_id = ?
-        AND is_active = 1
-      LIMIT 1
-    `,
-    [businessUnitId, departmentId]
-  );
-
-  return rows[0] || null;
-}
-
-async function enrichItems(items = []) {
-  if (!items.length) return items;
-
-  const businessUnitIds = [];
-  const departmentIds = [];
-  const userIds = [];
-
-  items.forEach((item) => {
-    if (item.created_by) userIds.push(item.created_by);
-    if (item.updated_by) userIds.push(item.updated_by);
-    if (item.business_unit?.id) {
-      businessUnitIds.push(item.business_unit.id);
-    }
-
-    item.channels.forEach((channel) => {
-      if (channel.business_unit_id) {
-        businessUnitIds.push(channel.business_unit_id);
-      }
-
-      if (channel.department_id !== undefined && channel.department_id !== null) {
-        departmentIds.push(channel.department_id);
-      }
-    });
-  });
-
-  const businessUnits = await findBusinessUnitsByIds(businessUnitIds);
-  const departments = await findDepartmentsByIds(departmentIds);
-  const users = await findCentralUsersByIds(userIds);
-
-  const businessUnitMap = new Map(businessUnits.map((row) => [row.id, row]));
-  const departmentMap = new Map(departments.map((row) => [Number(row.id), row]));
-  const userMap = new Map(users.map((row) => [String(row.id), row]));
-
-  items.forEach((item) => {
-    if (item.created_by) {
-      const u = userMap.get(String(item.created_by));
-      if (u) {
-        item.created_by = { id: u.id, name: u.name, username: u.username };
-      }
-    }
-    
-    if (item.updated_by) {
-      const u = userMap.get(String(item.updated_by));
-      if (u) {
-        item.updated_by = { id: u.id, name: u.name, username: u.username };
-      }
-    }
-    const businessUnit = businessUnitMap.get(item.business_unit?.id);
-
-    if (businessUnit) {
-      item.business_unit = {
-        id: businessUnit.id,
-        code: businessUnit.code,
-        name: businessUnit.name,
-      };
-    }
-
-    item.channels = item.channels.map((channel) => {
-      const channelBusinessUnit = businessUnitMap.get(channel.business_unit_id);
-      const department = departmentMap.get(Number(channel.department_id));
-
-      return {
-        ...channel,
-        business_unit_code: channelBusinessUnit?.code || null,
-        business_unit_name: channelBusinessUnit?.name || null,
-        department_code: department?.code || null,
-        department_name: department?.name || null,
-      };
-    });
-  });
-
-  return items;
-}
-
 async function transaction(callback) {
   const connection = await db.getConnection();
 
@@ -1085,7 +897,5 @@ module.exports = {
   replaceChannels,
   replaceComponents,
   deleteComponents,
-  findBusinessUnitById,
-  findBusinessUnitDepartmentPair,
   transaction,
 };
