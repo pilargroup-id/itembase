@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateBundle from '../../../components/button/bundles-buttons/ButtonCreateBundle.jsx'
+import SearchBundle from '../../../components/search/SearchBundle.jsx'
 import DataTableBundles from '../../../components/table/dekstop/items/DataTableBundles.jsx'
 
-function BundlesPage({ activePage, searchQuery }) {
+function BundlesPage({ activePage, searchQuery, onSearchQueryChange }) {
   const [bundleRefreshKey, setBundleRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,10 @@ function BundlesPage({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchBundle
+            value={searchQuery}
+            onChange={onSearchQueryChange}
+          />
           <ButtonCreateBundle
             onCreated={() => setBundleRefreshKey((currentKey) => currentKey + 1)}
           />

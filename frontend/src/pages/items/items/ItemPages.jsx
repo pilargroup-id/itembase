@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateItem from '../../../components/button/item-buttons/ButtonCreateItem.jsx'
+import SearchItem from '../../../components/search/SearchItem.jsx'
 import DataTableItem from '../../../components/table/dekstop/items/DataTableItem.jsx'
 
-function ItemPages({ activePage, searchQuery }) {
+function ItemPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [itemRefreshKey, setItemRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,10 @@ function ItemPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchItem
+            value={searchQuery}
+            onChange={onSearchQueryChange}
+          />
           <ButtonCreateItem
             onCreated={() => setItemRefreshKey((currentKey) => currentKey + 1)}
           />

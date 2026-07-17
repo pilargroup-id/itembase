@@ -8,8 +8,8 @@ import DataTable, {
 } from '../../components/table/DataTable.jsx'
 import { Edit03, Trash03 } from '../../components/template/TemplateIcons.jsx'
 
-const PAGE_SIZE_OPTIONS = [5, 10, 15]
-const DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0]
+const PAGE_SIZE_OPTIONS = [50, 100, 250]
+const DEFAULT_PAGE_SIZE = 50
 const EMPTY_DATE_RANGE = {
   startDate: '',
   endDate: '',

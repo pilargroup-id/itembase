@@ -5,8 +5,8 @@ import FilterDropdownBrand from "../../../dropdown/filter-brands/FilterDropdownB
 import DataTable, { DataTableIdentity } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
-const DEFAULT_SUB_BRAND_PAGE_SIZE = 25
-const SUB_BRAND_PAGE_SIZE_OPTIONS = [25, 50, 100]
+const DEFAULT_SUB_BRAND_PAGE_SIZE = 50
+const SUB_BRAND_PAGE_SIZE_OPTIONS = [50, 100, 250]
 const DEFAULT_SUB_BRAND_SORT = "score-desc"
 const SUB_BRAND_SUGGESTION_LIMIT = 200
 const SUB_BRAND_LIST_LIMIT = 100

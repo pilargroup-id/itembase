@@ -14,8 +14,8 @@ import DataTable, {
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-const DEFAULT_PORT_PAGE_SIZE = 25
-const PORT_PAGE_SIZE_OPTIONS = [25, 50, 100]
+const DEFAULT_PORT_PAGE_SIZE = 50
+const PORT_PAGE_SIZE_OPTIONS = [50, 100, 250]
 const DEFAULT_PORT_SORT = "date-desc"
 const portSortOptions = [
     { value: "date-desc", label: "Date Desc" },

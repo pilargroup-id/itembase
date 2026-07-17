@@ -398,9 +398,17 @@ function App() {
                 onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
               />
             ) : isItemsPage ? (
-              <ItemPages activePage={activePage} searchQuery={searchQuery} />
+              <ItemPages
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isBundlesPage ? (
-              <BundlesPage activePage={activePage} searchQuery={searchQuery} />
+              <BundlesPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isCategoriesPage ? (
               <CategoriesPages activePage={activePage} searchQuery={searchQuery} />
             ) : isBrandsPage ? (

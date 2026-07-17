@@ -13,8 +13,8 @@ import DataTable, {
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-const DEFAULT_PICS_PAGE_SIZE = 25
-const PICS_PAGE_SIZE_OPTIONS = [25, 50, 100]
+const DEFAULT_PICS_PAGE_SIZE = 50
+const PICS_PAGE_SIZE_OPTIONS = [50, 100, 250]
 const DEFAULT_PICS_SORT = "date-desc"
 const picsSortOptions = [
     { value: "date-desc", label: "Date Desc" },

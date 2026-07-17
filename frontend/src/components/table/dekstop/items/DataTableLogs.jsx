@@ -9,8 +9,8 @@ import DataTable, {
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-const DEFAULT_PAGE_SIZE = 10
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+const DEFAULT_PAGE_SIZE = 50
+const PAGE_SIZE_OPTIONS = [50, 100, 250]
 
 const actionOptions = [
     { value: ALL_FILTER_VALUE, label: "All Action" },
