@@ -723,8 +723,8 @@ function SearchableSubBrandInput({
 
 function DialogCreateParent({
   isOpen = false,
-  eyebrow = 'Create Item Parent',
-  title = 'Create Parent',
+  eyebrow = 'Item Parent',
+  title = 'Create ...',
   onClose,
   onCreated,
 }) {

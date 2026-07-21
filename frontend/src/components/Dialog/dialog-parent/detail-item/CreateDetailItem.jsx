@@ -100,7 +100,7 @@ function CreateDetailItem({
             <div className="parent-detail-item__grid">
               <div className="register-user-popup__field">
                 <label className="register-user-popup__label" htmlFor={`parent-detail-item-variant-${item.id}`}>
-                  Item + Variant
+                  Item Name (+ Variant)
                 </label>
                 <input
                   id={`parent-detail-item-variant-${item.id}`}
