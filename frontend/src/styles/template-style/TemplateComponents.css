@@ -4559,6 +4559,10 @@ select {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.parent-create-popup .dashboard-popup__header {
+  align-items: center;
+}
+
 .parent-create-popup__section {
   display: grid;
   gap: 0.9rem;
@@ -4568,6 +4572,31 @@ select {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
   border-top: 1px solid rgba(26, 42, 87, 0.08);
+}
+
+.parent-create-popup__close {
+  align-self: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.parent-create-popup__close:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+
+.parent-create-popup__close:focus-visible {
+  outline: 2px solid rgba(233, 196, 106, 0.8);
+  outline-offset: 3px;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .parent-create-popup__section-header {
@@ -4590,8 +4619,40 @@ select {
   line-height: 1.5;
 }
 
-.parent-create-popup__grid--formula,
-.parent-create-popup__grid--detail {
+.parent-create-popup__parent-name-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.parent-create-popup__save-parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #344054;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.parent-create-popup__save-parent-input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent-teal);
+  cursor: pointer;
+}
+
+.parent-create-popup__save-parent-input:disabled,
+.parent-create-popup__save-parent-input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.parent-create-popup .parent-create-popup__grid--formula,
+.parent-create-popup .parent-create-popup__grid--detail {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -5564,8 +5625,8 @@ select {
 }
 
 @media (max-width: 1024px) {
-  .parent-create-popup__grid--formula,
-  .parent-create-popup__grid--detail {
+  .parent-create-popup .parent-create-popup__grid--formula,
+  .parent-create-popup .parent-create-popup__grid--detail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -5718,8 +5779,8 @@ select {
 }
 
 @media (max-width: 768px) {
-  .parent-create-popup__grid--formula,
-  .parent-create-popup__grid--detail {
+  .parent-create-popup .parent-create-popup__grid--formula,
+  .parent-create-popup .parent-create-popup__grid--detail {
     grid-template-columns: 1fr;
   }
 

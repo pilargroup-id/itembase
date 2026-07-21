@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
   subbrand_id: '',
@@ -14,6 +14,15 @@ const initialFormValues = {
   port_id: '',
   parent_name: '',
   status: 'active',
+}
+
+const parentNameField = {
+  name: 'parent_name',
+  label: 'Parent Name',
+  placeholder: 'Akan terbentuk otomatis',
+  full: true,
+  readOnly: true,
+  helperText: 'Otomatis dibuat dari Brand + Sub Brand + Item Name.',
 }
 
 const parentFormulaFields = [
@@ -41,15 +50,6 @@ const parentFormulaFields = [
   },
 ]
 
-const parentNameField = {
-  name: 'parent_name',
-  label: 'Parent Name',
-  placeholder: 'Akan terbentuk otomatis',
-  full: true,
-  readOnly: true,
-  helperText: 'Otomatis dibuat dari Brand + Sub Brand + Item Name.',
-}
-
 const parentDetailFields = [
   {
     name: 'category_id',
@@ -62,8 +62,8 @@ const parentDetailFields = [
   },
   {
     name: 'item_type_id',
-    label: 'Item Type',
-    placeholder: 'Pilih item type',
+    label: 'Item Source',
+    placeholder: 'Pilih Source',
     type: 'select',
     optionsKey: 'itemTypes',
     searchPlaceholder: 'Cari item type...',
@@ -729,35 +729,19 @@ function DialogCreateParent({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isSaveParentChecked, setIsSaveParentChecked] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setIsSubmitting(false)
     setErrorMessage('')
+    setIsSaveParentChecked(false)
   }, [])
 
   const handleClose = useCallback(() => {
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        handleClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleClose, isOpen, isSubmitting])
 
   useEffect(() => {
     if (!isOpen) {
@@ -867,6 +851,11 @@ function DialogCreateParent({
     const payload = buildPayload()
     const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => !payload[fieldName])
 
+    if (!isSaveParentChecked) {
+      setErrorMessage('Centang Save Parent terlebih dahulu sebelum membuat item parent.')
+      return
+    }
+
     if (hasEmptyRequiredValue || !payload.parent_name) {
       setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
       return
@@ -902,12 +891,37 @@ function DialogCreateParent({
         field.full ? ' register-user-popup__field--full' : ''
       }`}
     >
-      <label
-        className="register-user-popup__label"
-        htmlFor={`parent-${field.name}`}
-      >
-        {field.label}
-      </label>
+      {field.name === 'parent_name' ? (
+        <div className="parent-create-popup__parent-name-header">
+          <label
+            className="register-user-popup__label"
+            htmlFor={`parent-${field.name}`}
+          >
+            {field.label}
+          </label>
+
+          <label className="parent-create-popup__save-parent">
+            <input
+              type="checkbox"
+              className="parent-create-popup__save-parent-input"
+              checked={isSaveParentChecked}
+              onChange={(event) => {
+                setErrorMessage('')
+                setIsSaveParentChecked(event.target.checked)
+              }}
+              disabled={isSubmitting}
+            />
+            <span>Save Parent</span>
+          </label>
+        </div>
+      ) : (
+        <label
+          className="register-user-popup__label"
+          htmlFor={`parent-${field.name}`}
+        >
+          {field.label}
+        </label>
+      )}
       {field.type === 'select' ? (
         <SearchableMasterSelect
           id={`parent-${field.name}`}
@@ -957,7 +971,6 @@ function DialogCreateParent({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
@@ -974,6 +987,16 @@ function DialogCreateParent({
               {title}
             </h2>
           </div>
+
+          <button
+            type="button"
+            className="dashboard-popup__close parent-create-popup__close"
+            aria-label="Tutup dialog"
+            onClick={handleClose}
+            disabled={isSubmitting}
+          >
+            <XClose size={22} />
+          </button>
         </div>
 
         <div className="dashboard-popup__body">
@@ -982,8 +1005,8 @@ function DialogCreateParent({
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
-                    {parentFormulaFields.map(renderField)}
                     {renderField(parentNameField)}
+                    {parentFormulaFields.map(renderField)}
                   </div>
                 </div>
 
@@ -1012,17 +1035,9 @@ function DialogCreateParent({
 
         <div className="dashboard-popup__actions">
           <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
-          <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isSaveParentChecked}
           >
             {isSubmitting ? 'Creating...' : 'Create'}
           </button>
