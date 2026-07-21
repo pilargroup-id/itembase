@@ -1,5 +1,24 @@
 import { Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
 
+function normalizeDetailItemText(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function buildDetailItemTitle(itemName, variant, index) {
+  const normalizedItemName = normalizeDetailItemText(itemName)
+  const normalizedVariant = normalizeDetailItemText(variant)
+
+  if (!normalizedItemName) {
+    return `Item Detail #${index + 1}`
+  }
+
+  return normalizedVariant
+    ? `${normalizedItemName} ${normalizedVariant}`
+    : `${normalizedItemName}...`
+}
+
 function createDetailItemId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
@@ -19,13 +38,16 @@ export function createInitialDetailItem() {
 }
 
 function CreateDetailItem({
+  itemName = '',
   items = [],
   uomOptions = [],
   loadingUoms = false,
+  SearchableSelect = null,
   disabled = false,
   onChange,
 }) {
   const detailItems = items.length ? items : [createInitialDetailItem()]
+  const UomSearchableSelect = SearchableSelect
 
   const handleAddItem = () => {
     onChange?.([...detailItems, createInitialDetailItem()])
@@ -70,7 +92,9 @@ function CreateDetailItem({
         {detailItems.map((item, index) => (
           <div key={item.id} className="parent-detail-item__row">
             <div className="parent-detail-item__row-header">
-              <p className="parent-detail-item__row-title">Item Detail #{index + 1}</p>
+              <p className="parent-detail-item__row-title">
+                {buildDetailItemTitle(itemName, item.item_variant, index)}
+              </p>
               <div className="parent-detail-item__row-actions">
                 {index === detailItems.length - 1 ? (
                   <button
@@ -100,13 +124,13 @@ function CreateDetailItem({
             <div className="parent-detail-item__grid">
               <div className="register-user-popup__field">
                 <label className="register-user-popup__label" htmlFor={`parent-detail-item-variant-${item.id}`}>
-                  Item Name (+ Variant)
+                  Variant
                 </label>
                 <input
                   id={`parent-detail-item-variant-${item.id}`}
                   className="register-user-popup__input"
                   value={item.item_variant}
-                  placeholder="BACKPACK KIDS BLUE"
+                  placeholder="BLUE"
                   onChange={(event) =>
                     handleFieldChange(item.id, 'item_variant', event.target.value)
                   }
@@ -118,24 +142,41 @@ function CreateDetailItem({
                 <label className="register-user-popup__label" htmlFor={`parent-detail-uom-${item.id}`}>
                   Uom
                 </label>
-                <select
-                  id={`parent-detail-uom-${item.id}`}
-                  className="register-user-popup__select"
-                  value={item.uom_id}
-                  onChange={(event) =>
-                    handleFieldChange(item.id, 'uom_id', event.target.value)
-                  }
-                  disabled={disabled || loadingUoms}
-                >
-                  <option value="">
-                    {loadingUoms ? 'Memuat UOM...' : 'Pilih UOM'}
-                  </option>
-                  {uomOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                {UomSearchableSelect ? (
+                  <UomSearchableSelect
+                    id={`parent-detail-uom-${item.id}`}
+                    label="Uom"
+                    value={item.uom_id}
+                    options={uomOptions}
+                    placeholder="Pilih UOM"
+                    searchPlaceholder="Cari UOM..."
+                    emptyMessage="UOM tidak ditemukan."
+                    loading={loadingUoms}
+                    disabled={disabled || loadingUoms}
+                    onChange={(nextValue) =>
+                      handleFieldChange(item.id, 'uom_id', nextValue)
+                    }
+                  />
+                ) : (
+                  <select
+                    id={`parent-detail-uom-${item.id}`}
+                    className="register-user-popup__select"
+                    value={item.uom_id}
+                    onChange={(event) =>
+                      handleFieldChange(item.id, 'uom_id', event.target.value)
+                    }
+                    disabled={disabled || loadingUoms}
+                  >
+                    <option value="">
+                      {loadingUoms ? 'Memuat UOM...' : 'Pilih UOM'}
                     </option>
-                  ))}
-                </select>
+                    {uomOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="register-user-popup__field">

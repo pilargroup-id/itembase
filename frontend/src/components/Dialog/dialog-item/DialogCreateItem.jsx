@@ -1031,13 +1031,6 @@ function DialogCreateItem({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
-                  <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Info Item</h3>
-                    <p className="parent-create-popup__section-description">
-                      Pilih parent terlebih dahulu agar item name dan category terisi otomatis.
-                    </p>
-                  </div>
-
                   <div className="register-user-popup__grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
                     {itemFields
                       .filter((field) =>

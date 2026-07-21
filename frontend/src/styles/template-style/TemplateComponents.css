@@ -4563,6 +4563,14 @@ select {
   align-items: center;
 }
 
+.parent-create-popup .dashboard-popup__header > div {
+  min-width: 0;
+}
+
+.parent-create-popup .dashboard-popup__title {
+  overflow-wrap: anywhere;
+}
+
 .parent-create-popup__section {
   display: grid;
   gap: 0.9rem;
@@ -4637,6 +4645,11 @@ select {
   cursor: pointer;
 }
 
+.parent-create-popup__save-parent-field {
+  align-content: end;
+  min-height: 100%;
+}
+
 .parent-create-popup__save-parent-input {
   width: 15px;
   height: 15px;
@@ -4649,6 +4662,28 @@ select {
 .parent-create-popup__save-parent-input:disabled + span {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.parent-create-popup__label-with-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.parent-create-popup__used-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(42, 157, 143, 0.1);
+  color: #1f7f73;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .parent-detail-item__top {
@@ -4702,6 +4737,9 @@ select {
   color: var(--primary-blue);
   font-size: 0.86rem;
   font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .parent-detail-item__row-actions {
@@ -4752,8 +4790,20 @@ select {
 
 .parent-detail-item__grid {
   display: grid;
-  grid-template-columns: minmax(180px, 1.25fr) minmax(120px, 0.8fr) minmax(130px, 0.8fr) minmax(140px, 0.8fr);
+  grid-template-columns: minmax(170px, 1.25fr) minmax(116px, 0.72fr) minmax(126px, 0.72fr) minmax(108px, 0.48fr);
   gap: 0.85rem;
+}
+
+.parent-detail-item .register-user-popup__input,
+.parent-detail-item .register-user-popup__select,
+.parent-detail-item .parent-master-select__trigger {
+  min-height: 44px;
+  padding: 0.68rem 0.85rem;
+  border-radius: 12px;
+}
+
+.parent-detail-item .register-user-popup__label {
+  white-space: nowrap;
 }
 
 .parent-create-popup .parent-create-popup__grid--formula {
@@ -5739,7 +5789,8 @@ select {
   }
 
   .parent-detail-item__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(150px, 1.2fr) minmax(104px, 0.7fr) minmax(112px, 0.7fr) minmax(104px, 0.48fr);
+    gap: 0.7rem;
   }
 
   .item-create-popup .register-user-popup__grid {

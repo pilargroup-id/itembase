@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { CheckSquare, ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
 
 const initialFormValues = {
@@ -15,14 +15,6 @@ const initialFormValues = {
   port_id: '',
   parent_name: '',
   status: 'active',
-}
-
-const parentNameField = {
-  name: 'parent_name',
-  label: 'Parent Name (Brand + Sub Brand + Item Name)',
-  placeholder: 'Akan terbentuk otomatis',
-  full: true,
-  readOnly: true,
 }
 
 const parentFormulaFields = [
@@ -734,6 +726,7 @@ function DialogCreateParent({
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaveParentChecked, setIsSaveParentChecked] = useState(false)
+  const [isCreateItemChecked, setIsCreateItemChecked] = useState(false)
   const [detailItems, setDetailItems] = useState(() => [createInitialDetailItem()])
 
   const resetDialogState = useCallback(() => {
@@ -741,6 +734,7 @@ function DialogCreateParent({
     setIsSubmitting(false)
     setErrorMessage('')
     setIsSaveParentChecked(false)
+    setIsCreateItemChecked(false)
     setDetailItems([createInitialDetailItem()])
   }, [])
 
@@ -816,6 +810,7 @@ function DialogCreateParent({
       }),
     [formValues.item_name, formValues.sub_brand, selectedBrandLabel],
   )
+  const dialogTitle = generatedParentName || title
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
@@ -842,6 +837,28 @@ function DialogCreateParent({
       subbrand_id: option?.subbrand_id || '',
       sub_brand: value,
     }))
+  }
+
+  const handleSaveParentChange = (event) => {
+    const isChecked = event.target.checked
+
+    setErrorMessage('')
+    setIsSaveParentChecked(isChecked)
+
+    if (!isChecked) {
+      setIsCreateItemChecked(false)
+    }
+  }
+
+  const handleCreateItemChange = (event) => {
+    const isChecked = event.target.checked
+
+    setErrorMessage('')
+    setIsCreateItemChecked(isChecked)
+
+    if (isChecked) {
+      setIsSaveParentChecked(true)
+    }
   }
 
   const buildPayload = () =>
@@ -899,37 +916,22 @@ function DialogCreateParent({
         field.full ? ' register-user-popup__field--full' : ''
       }`}
     >
-      {field.name === 'parent_name' ? (
-        <div className="parent-create-popup__parent-name-header">
-          <label
-            className="register-user-popup__label"
-            htmlFor={`parent-${field.name}`}
-          >
-            {field.label}
-          </label>
-
-          <label className="parent-create-popup__save-parent">
-            <input
-              type="checkbox"
-              className="parent-create-popup__save-parent-input"
-              checked={isSaveParentChecked}
-              onChange={(event) => {
-                setErrorMessage('')
-                setIsSaveParentChecked(event.target.checked)
-              }}
-              disabled={isSubmitting}
-            />
-            <span>Save Parent</span>
-          </label>
-        </div>
-      ) : (
-        <label
-          className="register-user-popup__label"
-          htmlFor={`parent-${field.name}`}
-        >
-          {field.label}
-        </label>
-      )}
+      <label
+        className={`register-user-popup__label${
+          field.name === 'item_name' && isCreateItemChecked
+            ? ' parent-create-popup__label-with-status'
+            : ''
+        }`}
+        htmlFor={`parent-${field.name}`}
+      >
+        <span>{field.label}</span>
+        {field.name === 'item_name' && isCreateItemChecked ? (
+          <span className="parent-create-popup__used-badge" title="Item name terpakai untuk create item">
+            <CheckSquare size={14} />
+            <span>Terpakai</span>
+          </span>
+        ) : null}
+      </label>
       {field.type === 'select' ? (
         <SearchableMasterSelect
           id={`parent-${field.name}`}
@@ -992,7 +994,7 @@ function DialogCreateParent({
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
             <h2 className="dashboard-popup__title" id="dialog-create-parent-title">
-              {title}
+              {dialogTitle}
             </h2>
           </div>
 
@@ -1013,7 +1015,6 @@ function DialogCreateParent({
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
-                    {renderField(parentNameField)}
                     {parentFormulaFields.map(renderField)}
                   </div>
                 </div>
@@ -1029,14 +1030,40 @@ function DialogCreateParent({
 
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
                     {parentDetailFields.map(renderField)}
+                    <div className="register-user-popup__field parent-create-popup__save-parent-field">
+                      <label className="parent-create-popup__save-parent">
+                        <input
+                          type="checkbox"
+                          className="parent-create-popup__save-parent-input"
+                          checked={isSaveParentChecked}
+                          onChange={handleSaveParentChange}
+                          disabled={isSubmitting}
+                        />
+                        <span>Save Parent</span>
+                      </label>
+                    </div>
+                    <div className="register-user-popup__field parent-create-popup__save-parent-field">
+                      <label className="parent-create-popup__save-parent">
+                        <input
+                          type="checkbox"
+                          className="parent-create-popup__save-parent-input"
+                          checked={isCreateItemChecked}
+                          onChange={handleCreateItemChange}
+                          disabled={isSubmitting}
+                        />
+                        <span>Create Item</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
-                {isSaveParentChecked ? (
+                {isCreateItemChecked ? (
                   <CreateDetailItem
+                    itemName={formValues.item_name}
                     items={detailItems}
                     uomOptions={masterOptions.uoms}
                     loadingUoms={isLoadingMasters}
+                    SearchableSelect={SearchableMasterSelect}
                     disabled={isSubmitting}
                     onChange={setDetailItems}
                   />
