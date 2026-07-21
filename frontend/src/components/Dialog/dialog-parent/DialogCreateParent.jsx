@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
 
 const initialFormValues = {
   subbrand_id: '',
@@ -18,11 +19,10 @@ const initialFormValues = {
 
 const parentNameField = {
   name: 'parent_name',
-  label: 'Parent Name',
+  label: 'Parent Name (Brand + Sub Brand + Item Name)',
   placeholder: 'Akan terbentuk otomatis',
   full: true,
   readOnly: true,
-  helperText: 'Otomatis dibuat dari Brand + Sub Brand + Item Name.',
 }
 
 const parentFormulaFields = [
@@ -102,6 +102,9 @@ const masterSelectDefaults = {
   ports: {
     labelKeys: ['name', 'port_name', 'code', 'port_code'],
   },
+  uoms: {
+    labelKeys: ['code', 'name', 'uom_code', 'uom_name'],
+  },
 }
 
 const emptyMasterOptions = {
@@ -109,6 +112,7 @@ const emptyMasterOptions = {
   categories: [],
   itemTypes: [],
   ports: [],
+  uoms: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -730,12 +734,14 @@ function DialogCreateParent({
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaveParentChecked, setIsSaveParentChecked] = useState(false)
+  const [detailItems, setDetailItems] = useState(() => [createInitialDetailItem()])
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setIsSubmitting(false)
     setErrorMessage('')
     setIsSaveParentChecked(false)
+    setDetailItems([createInitialDetailItem()])
   }, [])
 
   const handleClose = useCallback(() => {
@@ -755,11 +761,12 @@ function DialogCreateParent({
       setIsLoadingMasters(true)
 
       try {
-        const [brands, categories, itemTypes, ports] = await Promise.all([
+        const [brands, categories, itemTypes, ports, uoms] = await Promise.all([
           api.brands.list({ is_active: 1 }, { signal: controller.signal }),
           api.categories.list({ is_active: 1 }, { signal: controller.signal }),
           api.itemTypes.list({ is_active: 1 }, { signal: controller.signal }),
           api.ports.list({ is_active: 1 }, { signal: controller.signal }),
+          api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
         ])
 
         if (!isMounted) {
@@ -771,6 +778,7 @@ function DialogCreateParent({
           categories: normalizeMasterOptions(categories, 'categories'),
           itemTypes: normalizeMasterOptions(itemTypes, 'itemTypes'),
           ports: normalizeMasterOptions(ports, 'ports'),
+          uoms: normalizeMasterOptions(uoms, 'uoms'),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -1023,6 +1031,17 @@ function DialogCreateParent({
                     {parentDetailFields.map(renderField)}
                   </div>
                 </div>
+
+                {isSaveParentChecked ? (
+                  <CreateDetailItem
+                    items={detailItems}
+                    uomOptions={masterOptions.uoms}
+                    loadingUoms={isLoadingMasters}
+                    disabled={isSubmitting}
+                    onChange={setDetailItems}
+                  />
+                ) : null}
+
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">
                     {errorMessage}

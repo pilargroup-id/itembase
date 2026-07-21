@@ -235,6 +235,15 @@ export function Trash03(props) {
   )
 }
 
+export function Plus(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </IconBase>
+  )
+}
+
 export function Users01(props) {
   return (
     <IconBase {...props}>
