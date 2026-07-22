@@ -548,7 +548,10 @@ function DataTable({
           </div>
 
           <div
-            className="users-table-pagination__controls"
+            className={[
+              'users-table-pagination__controls',
+              pagination.circularButtons ? 'users-table-pagination__controls--circular' : '',
+            ].filter(Boolean).join(' ')}
             aria-label={pagination.ariaLabel ?? `${tableLabel} pagination`}
           >
             <CreateButton

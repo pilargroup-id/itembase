@@ -12,17 +12,12 @@ const initialFormValues = {
   category_label: '',
   parent_id: '',
   uom_id: '',
-  sku_status_id: '',
-  business_unit_id: '',
-  department_id: [],
   variant: '',
   qty_per_pack: '',
   height: '',
   width: '',
   depth: '',
   gross_weight_pack: '',
-  container_20ft_qty: '',
-  container_40hq_qty: '',
   production_time_days: '',
   is_active: '1',
 }
@@ -67,78 +62,50 @@ const itemFields = [
     placeholder: 'BLUE',
   },
   {
-    name: 'sku_status_id',
-    label: 'SKU Status',
-    placeholder: 'Pilih SKU status',
-    type: 'select',
-    optionsKey: 'skuStatuses',
-  },
-  {
-    name: 'business_unit_id',
-    label: 'Business Unit',
-    placeholder: 'Pilih business unit',
-    type: 'select',
-    optionsKey: 'businessUnits',
-    searchPlaceholder: 'Cari business unit...',
-    emptyMessage: 'Business unit tidak ditemukan.',
-    required: true,
-  },
-  {
-    name: 'department_id',
-    label: 'Channel',
-    placeholder: 'Pilih channel',
-    type: 'checkbox-list',
-    optionsKey: 'departments',
-    emptyMessage: 'Channel tidak ditemukan.',
-    required: true,
-  },
-  {
     name: 'qty_per_pack',
     label: 'Qty / Pack',
     placeholder: '1',
     type: 'number',
+    compactDimension: true,
   },
   {
     name: 'height',
-    label: 'Height',
+    label: 'H',
     placeholder: '25',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'width',
-    label: 'Width',
+    label: 'W',
     placeholder: '8',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'depth',
-    label: 'Depth',
+    label: 'D',
     placeholder: '8',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'gross_weight_pack',
     label: 'Gross Weight / Pack',
     placeholder: '0.30',
     type: 'number',
-  },
-  {
-    name: 'container_20ft_qty',
-    label: '20ft Qty',
-    placeholder: '2000',
-    type: 'number',
-  },
-  {
-    name: 'container_40hq_qty',
-    label: '40HQ Qty',
-    placeholder: '4500',
-    type: 'number',
+    compactDimension: true,
   },
   {
     name: 'production_time_days',
-    label: 'Production Days',
+    label: 'Lead Time',
     placeholder: '10',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'day',
   },
 ]
 
@@ -148,8 +115,6 @@ const numericFields = new Set([
   'width',
   'depth',
   'gross_weight_pack',
-  'container_20ft_qty',
-  'container_40hq_qty',
   'production_time_days',
   'is_active',
 ])
@@ -384,11 +349,11 @@ function buildPayload(formValues, masterOptions) {
 }
 
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.parent_id || !payload.business_unit_id || !payload.item_name) {
+  if (!payload.item_kind || !payload.parent_id || !payload.item_name) {
     return false
   }
 
-  return Array.isArray(payload.channels) && payload.channels.length > 0
+  return true
 }
 
 function ChannelCheckboxSelect({
@@ -635,24 +600,6 @@ function DialogCreateItem({
     onClose?.()
   }, [onClose, resetDialogState])
 
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        handleClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleClose, isOpen, isSubmitting])
-
   const handleParentSearchChange = useCallback(
     async (searchQuery) => {
       if (!isOpen) {
@@ -896,7 +843,7 @@ function DialogCreateItem({
     const payload = buildPayload(formValues, masterOptions)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage('Pilih parent, business unit, dan channel terlebih dahulu.')
+      setErrorMessage('Pilih parent terlebih dahulu.')
       return
     }
 
@@ -919,11 +866,15 @@ function DialogCreateItem({
     return null
   }
 
+  const headerTitle = formValues.item_name || title
+
   const renderField = (field) => (
     <div
       key={field.name}
       className={`register-user-popup__field${
         field.full ? ' register-user-popup__field--full' : ''
+      }${
+        field.compactDimension ? ' item-create-popup__field--compact-dimension' : ''
       }`}
     >
       <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
@@ -974,21 +925,28 @@ function DialogCreateItem({
           }
         />
       ) : (
-        <input
-          id={`item-${field.name}`}
-          name={field.name}
-          className={`register-user-popup__input${
-            field.readOnly ? ' register-user-popup__input--readonly' : ''
-          }`}
-          type={field.type === 'number' ? 'number' : 'text'}
-          step={field.type === 'number' ? 'any' : undefined}
-          value={formValues[field.name]}
-          placeholder={field.placeholder}
-          onChange={handleInputChange}
-          disabled={isSubmitting}
-          readOnly={field.readOnly}
-          aria-readonly={field.readOnly ? 'true' : undefined}
-        />
+        <div className={field.unitSuffix ? 'item-create-popup__input-with-unit' : undefined}>
+          <input
+            id={`item-${field.name}`}
+            name={field.name}
+            className={`register-user-popup__input${
+              field.readOnly ? ' register-user-popup__input--readonly' : ''
+            }${field.unitSuffix ? ' item-create-popup__input--with-unit' : ''}`}
+            type={field.type === 'number' ? 'number' : 'text'}
+            step={field.type === 'number' ? 'any' : undefined}
+            value={formValues[field.name]}
+            placeholder={field.placeholder}
+            onChange={handleInputChange}
+            disabled={isSubmitting}
+            readOnly={field.readOnly}
+            aria-readonly={field.readOnly ? 'true' : undefined}
+          />
+          {field.unitSuffix ? (
+            <span className="item-create-popup__unit" aria-hidden="true">
+              {field.unitSuffix}
+            </span>
+          ) : null}
+        </div>
       )}
     </div>
   )
@@ -997,7 +955,6 @@ function DialogCreateItem({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
@@ -1011,18 +968,18 @@ function DialogCreateItem({
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
             <h2 className="dashboard-popup__title" id="dialog-create-item-title">
-              {title}
+              {headerTitle}
             </h2>
           </div>
 
           <button
             type="button"
-            className="dashboard-popup__close"
+            className="dashboard-popup__close item-create-popup__close-button"
             aria-label="Tutup dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            <XClose size={18} />
+            <XClose size={22} />
           </button>
         </div>
 
@@ -1036,12 +993,8 @@ function DialogCreateItem({
                       .filter((field) =>
                         [
                           'parent_id',
-                          'item_name',
                           'category_label',
                           'variant',
-                          'business_unit_id',
-                          'department_id',
-                          'sku_status_id',
                         ].includes(field.name),
                       )
                       .map(renderField)}
@@ -1052,11 +1005,11 @@ function DialogCreateItem({
                   <div className="parent-create-popup__section-header">
                     <h3 className="parent-create-popup__section-title">Dimency Item</h3>
                     <p className="parent-create-popup__section-description">
-                      Lengkapi detail dimensi item mulai dari UOM sampai production days.
+                      Lengkapi detail dimensi item mulai dari UOM sampai lead time.
                     </p>
                   </div>
 
-                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                  <div className="register-user-popup__grid item-create-popup__dimension-grid" style={{ rowGap: '12px' }}>
                     {itemFields
                       .filter((f) =>
                         [
@@ -1066,8 +1019,6 @@ function DialogCreateItem({
                           'width',
                           'depth',
                           'gross_weight_pack',
-                          'container_20ft_qty',
-                          'container_40hq_qty',
                           'production_time_days',
                         ].includes(f.name)
                       )
@@ -1086,14 +1037,6 @@ function DialogCreateItem({
         </div>
 
         <div className="dashboard-popup__actions">
-          <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
