@@ -3420,6 +3420,14 @@ select {
   transition: background 0.2s ease;
 }
 
+.users-table__row--odd {
+  background: rgba(24, 43, 88, 0.025);
+}
+
+.users-table__row--even {
+  background: rgba(255, 255, 255, 0.96);
+}
+
 .users-table tbody tr:hover {
   background: rgba(24, 43, 88, 0.03);
 }
@@ -5331,6 +5339,38 @@ select {
 .parent-subbrand-search {
   position: relative;
   min-width: 0;
+}
+
+.parent-subbrand-search__control {
+  position: relative;
+  min-width: 0;
+}
+
+.parent-subbrand-search__icon {
+  position: absolute;
+  top: 50%;
+  left: 0.9rem;
+  color: #7f8da8;
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.parent-subbrand-search__input {
+  padding-left: 2.55rem;
+  padding-right: 0.95rem;
+}
+
+.parent-subbrand-search__control:focus-within .parent-subbrand-search__icon {
+  color: #2a9d8f;
+}
+
+.parent-subbrand-search__input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.parent-subbrand-search__control:has(.parent-subbrand-search__input:disabled) .parent-subbrand-search__icon {
+  opacity: 0.72;
 }
 
 .parent-subbrand-search__menu {

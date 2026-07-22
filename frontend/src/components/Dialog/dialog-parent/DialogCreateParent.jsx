@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { CheckSquare, ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
+import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 
 const initialFormValues = {
   subbrand_id: '',
@@ -12,7 +13,7 @@ const initialFormValues = {
   item_name: '',
   category_id: '',
   item_type_id: '',
-  port_id: '',
+  port_id: [],
   parent_name: '',
   status: 'active',
 }
@@ -30,15 +31,15 @@ const parentFormulaFields = [
   {
     name: 'sub_brand',
     label: 'Sub Brand',
-    placeholder: 'FRUCI',
+    placeholder: 'Search...',
     type: 'subBrandSearch',
-    searchPlaceholder: 'Cari sub brand...',
+    searchPlaceholder: 'Search',
     emptyMessage: 'Sub brand tidak ditemukan.',
   },
   {
     name: 'item_name',
     label: 'Item Name',
-    placeholder: 'BACKPACK KIDS',
+    placeholder: 'Enter Item Name..',
   },
 ]
 
@@ -65,7 +66,7 @@ const parentDetailFields = [
     name: 'port_id',
     label: 'Port',
     placeholder: 'Pilih port',
-    type: 'select',
+    type: 'checkbox-list',
     optionsKey: 'ports',
     searchPlaceholder: 'Cari port...',
     emptyMessage: 'Port tidak ditemukan.',
@@ -691,22 +692,26 @@ function SearchableSubBrandInput({
 
   return (
     <div ref={rootRef} className="parent-subbrand-search">
-      <input
-        ref={inputRef}
-        id={id}
-        name="sub_brand"
-        className="register-user-popup__input parent-subbrand-search__input"
-        value={value}
-        placeholder={placeholder}
-        onChange={handleInputChange}
-        onFocus={handleFocus}
-        autoComplete="off"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        disabled={disabled}
-      />
+      <div className="parent-subbrand-search__control">
+        <SearchMd size={16} className="parent-subbrand-search__icon" aria-hidden="true" />
+        <input
+          ref={inputRef}
+          id={id}
+          name="sub_brand"
+          type="search"
+          className="register-user-popup__input parent-subbrand-search__input"
+          value={value}
+          placeholder={placeholder}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          disabled={disabled}
+        />
+      </div>
 
       {menuNode}
     </div>
@@ -830,6 +835,26 @@ function DialogCreateParent({
     }))
   }
 
+  const handlePortToggle = (portId) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const normalizedPortId = String(portId ?? '')
+      const selectedPortIds = Array.isArray(currentValues.port_id)
+        ? currentValues.port_id.map((selectedPortId) => String(selectedPortId ?? '')).filter(Boolean)
+        : normalizeFieldValue(currentValues.port_id)
+          ? [normalizeFieldValue(currentValues.port_id)]
+          : []
+      const isSelected = selectedPortIds.includes(normalizedPortId)
+
+      return {
+        ...currentValues,
+        port_id: isSelected
+          ? selectedPortIds.filter((selectedPortId) => selectedPortId !== normalizedPortId)
+          : [...selectedPortIds, normalizedPortId],
+      }
+    })
+  }
+
   const handleSubBrandChange = (value, option) => {
     setErrorMessage('')
     setFormValues((currentValues) => ({
@@ -864,7 +889,12 @@ function DialogCreateParent({
   const buildPayload = () =>
     ({
       ...Object.fromEntries(
-        Object.entries(formValues).map(([key, value]) => [key, normalizeFieldValue(value)]),
+        Object.entries(formValues).map(([key, value]) => [
+          key,
+          Array.isArray(value)
+            ? value.map((item) => normalizeFieldValue(item)).filter(Boolean)
+            : normalizeFieldValue(value),
+        ]),
       ),
       parent_name: generatedParentName,
       status: 'active',
@@ -874,7 +904,11 @@ function DialogCreateParent({
     event.preventDefault()
 
     const payload = buildPayload()
-    const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => !payload[fieldName])
+    const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => {
+      const value = payload[fieldName]
+
+      return Array.isArray(value) ? value.length === 0 : !value
+    })
 
     if (!isSaveParentChecked) {
       setErrorMessage('Centang Save Parent terlebih dahulu sebelum membuat item parent.')
@@ -932,7 +966,19 @@ function DialogCreateParent({
           </span>
         ) : null}
       </label>
-      {field.type === 'select' ? (
+      {field.type === 'checkbox-list' ? (
+        <CheckboxSelect
+          id={`parent-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          emptyMessage={field.emptyMessage}
+          loading={isLoadingMasters}
+          disabled={isSubmitting || isLoadingMasters}
+          onToggle={handlePortToggle}
+        />
+      ) : field.type === 'select' ? (
         <SearchableMasterSelect
           id={`parent-${field.name}`}
           label={field.label}

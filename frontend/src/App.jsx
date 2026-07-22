@@ -16,6 +16,7 @@ import PicsPages from './pages/master/pics/PicsPages.jsx'
 import PicUsersPage from './pages/master/pic-users/PicUserPages.jsx'
 import SkuStatusesPage from './pages/master/sku-statuses/SkuStatusPages.jsx'
 import ActivityLogs from './pages/activity-logs/ActivityLogs.jsx'
+import DashboardPage from './pages/dashboard/DashboardPage.jsx'
 
 import api from './services/api.js'
 
@@ -171,6 +172,10 @@ function getAuthUserRole(user, isLoading, error) {
 }
 
 const pageDetails = {
+  '/dashboard': {
+    title: 'Dashboard',
+    eyebrow: 'Dashboard',
+  },
   '/parents': {
     title: 'Parent',
     eyebrow: 'Item Management',
