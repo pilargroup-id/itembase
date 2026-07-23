@@ -633,13 +633,19 @@ function DataTableItem({
                     {itemFilterConfig.map((filterConfig) => (
                         <FilterDropdownItem
                             key={filterConfig.key}
-                            className="parent-table-filter"
+                            className={[
+                                "parent-table-filter",
+                                filterConfig.searchable === false ? "parent-table-filter--quick-select" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
                             options={filterOptions[filterConfig.key]}
                             value={filters[filterConfig.key]}
                             label={filterConfig.label}
                             placeholder={filterConfig.placeholder}
                             searchPlaceholder={filterConfig.searchPlaceholder}
                             emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
+                            searchable={filterConfig.searchable ?? true}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
                     ))}

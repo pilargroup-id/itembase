@@ -8,9 +8,6 @@ import SearchableItemSelect from './SearchableItemSelect.jsx'
 const initialFormValues = {
   item_kind: 'regular',
   item_name: '',
-  category_id: '',
-  category_label: '',
-  parent_id: '',
   uom_id: '',
   variant: '',
   qty_per_pack: '',
@@ -24,28 +21,11 @@ const initialFormValues = {
 
 const itemFields = [
   {
-    name: 'parent_id',
-    label: 'Parent',
-    placeholder: 'Pilih parent',
-    type: 'select',
-    optionsKey: 'parents',
-    searchPlaceholder: 'Cari parent...',
-    emptyMessage: 'Parent tidak ditemukan.',
-    full: true,
-    required: true,
-  },
-  {
     name: 'item_name',
     label: 'Item Name + Variant',
     placeholder: 'TEST GOTO BOTTLE BLUE',
-    readOnly: true,
     required: true,
-  },
-  {
-    name: 'category_label',
-    label: 'Category',
-    placeholder: 'Pilih parent terlebih dahulu',
-    readOnly: true,
+    full: true,
   },
   {
     name: 'uom_id',
@@ -67,6 +47,7 @@ const itemFields = [
     placeholder: '1',
     type: 'number',
     compactDimension: true,
+    qtyField: true,
   },
   {
     name: 'height',
@@ -120,18 +101,9 @@ const numericFields = new Set([
 ])
 
 const emptyMasterOptions = {
-  parents: [],
   uoms: [],
-  skuStatuses: [],
   businessUnits: [],
   departments: [],
-}
-
-const parentListBaseParams = {
-  status: 'active',
-  page: 1,
-  limit: 25,
-  sort: 'date-desc',
 }
 
 function normalizeListResponse(responseData) {
@@ -176,13 +148,6 @@ function makeOption(value, labelParts) {
   }
 }
 
-function buildItemName(itemName, variant) {
-  return [itemName, variant]
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean)
-    .join(' ')
-}
-
 function getSelectedDepartmentIds(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item ?? '')).filter(Boolean)
@@ -191,35 +156,6 @@ function getSelectedDepartmentIds(value) {
   const normalizedValue = String(value ?? '').trim()
 
   return normalizedValue ? [normalizedValue] : []
-}
-
-function normalizeParentOptions(responseData) {
-  return normalizeListResponse(responseData)
-    .map((parent) => {
-      const parentName = parent.parent_name ?? ''
-      const option = makeOption(parent.id, [
-        parentName,
-        parent.parent_code,
-      ])
-      option.item_name = parentName
-      option.category_id = parent.category?.id ?? ''
-      option.category_label =
-        parent.category?.detail_category ??
-        parent.category?.sub_category ??
-        parent.category?.main_category ??
-        ''
-      return option
-    })
-    .filter((option) => option.value && option.label)
-}
-
-function createParentListParams(searchQuery = '') {
-  const normalizedSearchQuery = String(searchQuery ?? '').trim()
-
-  return {
-    ...parentListBaseParams,
-    ...(normalizedSearchQuery ? { search: normalizedSearchQuery } : {}),
-  }
 }
 
 function normalizeMasterOptions(responseData) {
@@ -336,7 +272,7 @@ function buildPayload(formValues, masterOptions) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
-      .filter(([key]) => key !== 'department_id' && key !== 'category_id' && key !== 'category_label')
+      .filter(([key]) => key !== 'department_id')
       .filter(([, value]) => value !== ''),
   )
   const channels = createChannelPayload(formValues, masterOptions.departments)
@@ -349,7 +285,7 @@ function buildPayload(formValues, masterOptions) {
 }
 
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.parent_id || !payload.item_name) {
+  if (!payload.item_kind || !payload.item_name) {
     return false
   }
 
@@ -573,75 +509,25 @@ function DialogCreateItem({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
-  const [isLoadingParents, setIsLoadingParents] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
-  const [allParentOptions, setAllParentOptions] = useState([])
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
-  const parentSearchControllerRef = useRef(null)
 
   const resetDialogState = useCallback(() => {
-    parentSearchControllerRef.current?.abort()
-    parentSearchControllerRef.current = null
     setFormValues(initialFormValues)
     setIsSubmitting(false)
-    setIsLoadingParents(false)
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
-      parents: allParentOptions,
       departments: [],
     }))
     setErrorMessage('')
-  }, [allParentOptions])
+  }, [])
 
   const handleClose = useCallback(() => {
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
-
-  const handleParentSearchChange = useCallback(
-    async (searchQuery) => {
-      if (!isOpen) {
-        return
-      }
-
-      parentSearchControllerRef.current?.abort()
-
-      const controller = new AbortController()
-      parentSearchControllerRef.current = controller
-
-      setIsLoadingParents(true)
-
-      try {
-        const parents = await api.itemParents.list(createParentListParams(searchQuery), {
-          signal: controller.signal,
-        })
-
-        if (controller.signal.aborted) {
-          return
-        }
-
-        const normalizedParents = normalizeParentOptions(parents)
-
-        setAllParentOptions(normalizedParents)
-        setMasterOptions((currentOptions) => ({
-          ...currentOptions,
-          parents: normalizedParents,
-        }))
-      } catch (error) {
-        if (error?.name !== 'AbortError') {
-          setErrorMessage(error?.message || 'Gagal mencari data parent.')
-        }
-      } finally {
-        if (parentSearchControllerRef.current === controller) {
-          parentSearchControllerRef.current = null
-          setIsLoadingParents(false)
-        }
-      }
-    },
-    [isOpen],
-  )
 
   useEffect(() => {
     if (!isOpen) {
@@ -655,10 +541,8 @@ function DialogCreateItem({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items] = await Promise.all([
-          api.itemParents.list(createParentListParams(), { signal: controller.signal }),
+        const [uoms, items] = await Promise.all([
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
-          api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
         ])
         let businessUnits = []
@@ -679,14 +563,10 @@ function DialogCreateItem({
         }
 
         const itemRows = normalizeListResponse(items)
-        const normalizedParents = normalizeParentOptions(parents)
 
         setItemOptionRows(itemRows)
-        setAllParentOptions(normalizedParents)
         setMasterOptions({
-          parents: normalizedParents,
           uoms: normalizeMasterOptions(uoms),
-          skuStatuses: normalizeMasterOptions(skuStatuses),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
         })
@@ -708,7 +588,6 @@ function DialogCreateItem({
 
     return () => {
       isMounted = false
-      parentSearchControllerRef.current?.abort()
       controller.abort()
     }
   }, [isOpen])
@@ -780,35 +659,10 @@ function DialogCreateItem({
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
-      const selectedParent =
-        name === 'parent_id'
-          ? allParentOptions.find((option) => option.value === String(value))
-          : null
       const nextValues = {
         ...currentValues,
         [name]: value,
         ...(name === 'business_unit_id' ? { department_id: [] } : {}),
-        ...(name === 'parent_id'
-          ? {
-              item_name: buildItemName(
-                selectedParent?.item_name ?? selectedParent?.label ?? '',
-                currentValues.variant,
-              ),
-              category_id: String(selectedParent?.category_id ?? ''),
-              category_label: selectedParent?.category_label ?? '',
-            }
-          : {}),
-      }
-
-      if (name === 'variant') {
-        const parentOption = allParentOptions.find(
-          (option) => option.value === String(currentValues.parent_id),
-        )
-
-        nextValues.item_name = buildItemName(
-          parentOption?.item_name ?? parentOption?.label ?? '',
-          value,
-        )
       }
 
       return nextValues
@@ -843,7 +697,7 @@ function DialogCreateItem({
     const payload = buildPayload(formValues, masterOptions)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage('Pilih parent terlebih dahulu.')
+      setErrorMessage('Lengkapi item name terlebih dahulu.')
       return
     }
 
@@ -875,6 +729,8 @@ function DialogCreateItem({
         field.full ? ' register-user-popup__field--full' : ''
       }${
         field.compactDimension ? ' item-create-popup__field--compact-dimension' : ''
+      }${
+        field.qtyField ? ' item-create-popup__field--qty' : ''
       }`}
     >
       <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
@@ -909,20 +765,14 @@ function DialogCreateItem({
           loading={
             field.name === 'department_id'
               ? isLoadingDepartments
-              : field.name === 'parent_id'
-                ? isLoadingMasters || isLoadingParents
-                : isLoadingMasters
+              : isLoadingMasters
           }
           disabled={
             isSubmitting ||
             isLoadingMasters ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
-          remoteSearch={field.name === 'parent_id'}
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-          onSearchChange={
-            field.name === 'parent_id' ? handleParentSearchChange : undefined
-          }
         />
       ) : (
         <div className={field.unitSuffix ? 'item-create-popup__input-with-unit' : undefined}>
@@ -992,8 +842,7 @@ function DialogCreateItem({
                     {itemFields
                       .filter((field) =>
                         [
-                          'parent_id',
-                          'category_label',
+                          'item_name',
                           'variant',
                         ].includes(field.name),
                       )
@@ -1001,7 +850,7 @@ function DialogCreateItem({
                   </div>
                 </div>
 
-                <div className="parent-create-popup__section">
+                <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
                   <div className="parent-create-popup__section-header">
                     <h3 className="parent-create-popup__section-title">Dimency Item</h3>
                     <p className="parent-create-popup__section-description">

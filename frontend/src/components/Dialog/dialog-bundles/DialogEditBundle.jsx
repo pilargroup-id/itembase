@@ -757,7 +757,7 @@ function DialogEditBundle({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
+      // onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
@@ -777,12 +777,12 @@ function DialogEditBundle({
 
           <button
             type="button"
-            className="dashboard-popup__close"
+            className="dashboard-popup__close parent-create-popup__close"
             aria-label="Tutup dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            <XClose size={18} />
+            <XClose size={23} />
           </button>
         </div>
 

@@ -2,32 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
+import { Minus, Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
 
 const BUNDLE_MIN_COMPONENTS = 2
 const BUNDLE_MAX_COMPONENTS = 5
 
 const initialFormValues = {
-  parent_id: '',
   uom_id: '',
-  sku_status_id: '',
   is_active: '1',
 }
 
 const initialComponent = () => ({ component_item_id: '', qty: '' })
 
 const bundleFields = [
-  {
-    name: 'parent_id',
-    label: 'Parent',
-    placeholder: 'Pilih parent',
-    type: 'select',
-    optionsKey: 'parents',
-    searchPlaceholder: 'Cari parent...',
-    emptyMessage: 'Parent tidak ditemukan.',
-    required: true,
-  },
   {
     name: 'uom_id',
     label: 'UOM',
@@ -38,25 +26,13 @@ const bundleFields = [
     emptyMessage: 'UOM tidak ditemukan.',
     required: true,
   },
-  {
-    name: 'sku_status_id',
-    label: 'SKU Status',
-    placeholder: 'Pilih SKU status',
-    type: 'select',
-    optionsKey: 'skuStatuses',
-    searchPlaceholder: 'Cari SKU status...',
-    emptyMessage: 'SKU status tidak ditemukan.',
-    required: true,
-  },
 ]
 
 const numericFields = new Set(['is_active'])
 const integerInputFields = new Set()
 
 const emptyMasterOptions = {
-  parents: [],
   uoms: [],
-  skuStatuses: [],
   regularItems: [],
 }
 
@@ -100,17 +76,6 @@ function makeOption(value, labelParts) {
     label: label || String(value ?? ''),
     searchText: [...labelParts, value].filter(Boolean).join(' '),
   }
-}
-
-function normalizeParentOptions(responseData) {
-  return normalizeListResponse(responseData)
-    .map((parent) =>
-      makeOption(parent.id, [
-        parent.parent_name || parent.item_name,
-        parent.parent_code,
-      ]),
-    )
-    .filter((option) => option.value && option.label)
 }
 
 function normalizeMasterOptions(responseData) {
@@ -209,12 +174,7 @@ function buildPayload(formValues, components) {
 }
 
 function hasRequiredValues(payload, components) {
-  if (
-    !payload.item_kind ||
-    !payload.parent_id ||
-    !payload.uom_id ||
-    !payload.sku_status_id
-  ) {
+  if (!payload.item_kind || !payload.uom_id) {
     return false
   }
 
@@ -255,29 +215,11 @@ function DialogCreateBundle({
     setMasterOptions(emptyMasterOptions)
     setErrorMessage('')
   }, [])
-
+  
   const handleClose = useCallback(() => {
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        handleClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleClose, isOpen, isSubmitting])
 
   useEffect(() => {
     if (!isOpen) {
@@ -291,10 +233,8 @@ function DialogCreateBundle({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items] = await Promise.all([
-          api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
+        const [uoms, items] = await Promise.all([
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
-          api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({ item_kind: 'regular' }, { signal: controller.signal }),
         ])
 
@@ -303,9 +243,7 @@ function DialogCreateBundle({
         }
 
         setMasterOptions({
-          parents: normalizeParentOptions(parents),
           uoms: normalizeMasterOptions(uoms),
-          skuStatuses: normalizeMasterOptions(skuStatuses),
           regularItems: normalizeRegularItemOptions(items),
         })
       } catch (error) {
@@ -372,6 +310,22 @@ function DialogCreateBundle({
     }
   }
 
+  const handleQtyStep = (index, direction) => {
+    setErrorMessage('')
+    setComponents((currentComponents) =>
+      currentComponents.map((component, currentIndex) => {
+        if (currentIndex !== index) {
+          return component
+        }
+
+        const currentQty = Number(component.qty) || 0
+        const nextQty = Math.max(1, currentQty + direction)
+
+        return { ...component, qty: String(nextQty) }
+      }),
+    )
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -379,7 +333,7 @@ function DialogCreateBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi parent, UOM, SKU status, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
+        `Lengkapi UOM dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
       )
       return
     }
@@ -448,7 +402,6 @@ function DialogCreateBundle({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
@@ -466,15 +419,25 @@ function DialogCreateBundle({
             </h2>
           </div>
 
-          <button
-            type="button"
-            className="dashboard-popup__close"
+          <XClose
+            className="bundle-create-popup__close-icon"
+            size={23}
+            role="button"
+            tabIndex={isSubmitting ? -1 : 0}
             aria-label="Tutup dialog"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            <XClose size={18} />
-          </button>
+            onClick={() => {
+              if (!isSubmitting) {
+                handleClose()
+              }
+            }}
+            onKeyDown={(event) => {
+              if (!isSubmitting && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault()
+                handleClose()
+              }
+            }}
+            aria-disabled={isSubmitting}
+          />
         </div>
 
         <div className="dashboard-popup__body">
@@ -482,19 +445,12 @@ function DialogCreateBundle({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
-                  <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Info Bundle</h3>
-                    <p className="parent-create-popup__section-description">
-                      Lengkapi data utama bundle sebelum memilih item regular yang akan digabungkan.
-                    </p>
-                  </div>
-
-                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                  <div className="register-user-popup__grid bundle-create-popup__meta-grid">
                     {bundleFields.map(renderField)}
                   </div>
                 </div>
 
-                <div className="parent-create-popup__section">
+                <div className="parent-create-popup__section bundle-create-popup__items-backdrop">
                   <div className="bundle-create-popup__section-top">
                     <div className="parent-create-popup__section-header">
                       <h3 className="parent-create-popup__section-title">Daftar Item Bundle</h3>
@@ -549,19 +505,41 @@ function DialogCreateBundle({
                               Qty
                               <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                             </label>
-                            <input
-                              id={`bundle-component-qty-${index}`}
-                              className="register-user-popup__input"
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={component.qty}
-                              placeholder="1"
-                              onChange={(event) =>
-                                handleComponentChange(index, 'qty', event.target.value)
-                              }
-                              disabled={isSubmitting}
-                            />
+                            <div className="bundle-create-popup__qty-control">
+                              <button
+                                type="button"
+                                className="bundle-create-popup__qty-button"
+                                onClick={() => handleQtyStep(index, -1)}
+                                disabled={isSubmitting || Number(component.qty) <= 1}
+                                title="Kurangi qty"
+                                aria-label={`Kurangi qty item bundle ${index + 1}`}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <input
+                                id={`bundle-component-qty-${index}`}
+                                className="register-user-popup__input bundle-create-popup__qty-input"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={component.qty}
+                                placeholder="0"
+                                onChange={(event) =>
+                                  handleComponentChange(index, 'qty', event.target.value)
+                                }
+                                disabled={isSubmitting}
+                              />
+                              <button
+                                type="button"
+                                className="bundle-create-popup__qty-button"
+                                onClick={() => handleQtyStep(index, 1)}
+                                disabled={isSubmitting}
+                                title="Tambah qty"
+                                aria-label={`Tambah qty item bundle ${index + 1}`}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
                           </div>
 
                           <div className="bundle-create-popup__component-actions">
@@ -618,14 +596,6 @@ function DialogCreateBundle({
         </div>
 
         <div className="dashboard-popup__actions">
-          <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"

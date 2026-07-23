@@ -241,7 +241,7 @@ const columns = [
     },
     {
         key: "itemType",
-        header: "Item Type",
+        header: "Item Source",
         headerStyle: { width: "7%" },
         cellStyle: { width: "7%" },
         render: (parent) => renderParentValue(parent.item_type?.name),

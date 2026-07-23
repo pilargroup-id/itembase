@@ -22,14 +22,14 @@ import api from './services/api.js'
 
 const AUTH_TOKEN_STORAGE_KEY = 'itembase.auth.token'
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
-const DEFAULT_PATH = '/parents'
+const DEFAULT_PATH = '/dashboard'
 
 function getCurrentPath() {
   if (typeof window === 'undefined') {
     return DEFAULT_PATH
   }
 
-  return ['/', '/dashboard', '/parent'].includes(window.location.pathname)
+  return ['/', '/parent'].includes(window.location.pathname)
     ? DEFAULT_PATH
     : window.location.pathname
 }
@@ -320,6 +320,7 @@ function App() {
 
   const currentPagePath = pageDetails[activePath] ? activePath : DEFAULT_PATH
   const activePage = pageDetails[currentPagePath]
+  const isDashboardPage = currentPagePath === '/dashboard'
   const isParentsPage = currentPagePath === '/parents'
   const isItemsPage = currentPagePath === '/items'
   const isBundlesPage = currentPagePath === '/bundles'
@@ -396,7 +397,9 @@ function App() {
           <div
             className={`dashboard-content${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
           >
-            {isParentsPage ? (
+            {isDashboardPage ? (
+              <DashboardPage activePage={activePage} searchQuery={searchQuery} />
+            ) : isParentsPage ? (
               <ParentsPage
                 activePage={activePage}
                 searchQuery={searchQuery}

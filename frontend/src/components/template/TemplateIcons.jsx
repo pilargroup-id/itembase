@@ -244,6 +244,14 @@ export function Plus(props) {
   )
 }
 
+export function Minus(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 12h14" />
+    </IconBase>
+  )
+}
+
 export function Users01(props) {
   return (
     <IconBase {...props}>

@@ -21,7 +21,7 @@ import {
 export const defaultNavigationPath = '/parents'
 
 export const implementedNavigationPaths = [
-  '/Dashboard',
+  '/dashboard',
   '/parents',
   '/items',
   '/bundles',

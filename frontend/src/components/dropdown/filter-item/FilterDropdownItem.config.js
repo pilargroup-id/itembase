@@ -31,33 +31,13 @@ function getBrandId(item) {
 
 export const itemFilterConfig = [
     {
-        key: "itemCode",
-        apiParam: "item_code",
-        label: "Item Code",
-        placeholder: "All Item Code",
-        searchPlaceholder: "Search item code...",
-        emptyMessage: "Item code not found.",
-        getValue: (item) => item.item_code,
-        getOption: (item) =>
-            createEntityOption(item.item_code, [item.item_code, item.item_name]),
-    },
-    {
-        key: "barcode",
-        apiParam: "barcode",
-        label: "Barcode",
-        placeholder: "All Barcode",
-        searchPlaceholder: "Search barcode...",
-        emptyMessage: "Barcode not found.",
-        getValue: (item) => item.barcode,
-        getOption: (item) => createEntityOption(item.barcode, [item.barcode, item.item_name]),
-    },
-    {
         key: "status",
         apiParam: "is_active",
         label: "Status",
         placeholder: "All Status",
         searchPlaceholder: "Search status...",
         emptyMessage: "Status not found.",
+        searchable: false,
         options: [
             { value: "1", label: "Active" },
             { value: "0", label: "Inactive" },
@@ -71,6 +51,7 @@ export const itemFilterConfig = [
         placeholder: "All Item Kind",
         searchPlaceholder: "Search item kind...",
         emptyMessage: "Item kind not found.",
+        searchable: false,
         options: [
             { value: "regular", label: "Regular" },
             { value: "bundle", label: "Bundle" },
@@ -112,6 +93,7 @@ export const itemFilterConfig = [
         placeholder: "All SKU Status",
         searchPlaceholder: "Search SKU status...",
         emptyMessage: "SKU status not found.",
+        searchable: false,
         getValue: (item) => getNestedId(item, "sku_status"),
         getOption: (item) =>
             createEntityOption(getNestedId(item, "sku_status"), [
@@ -126,6 +108,7 @@ export const itemFilterConfig = [
         placeholder: "All Business Unit",
         searchPlaceholder: "Search business unit...",
         emptyMessage: "Business unit not found.",
+        searchable: false,
         getValue: (item) => getNestedId(item, "business_unit"),
         getOption: (item) =>
             createEntityOption(getNestedId(item, "business_unit"), [
