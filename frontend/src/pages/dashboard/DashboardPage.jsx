@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { Barcode, Boxes01, Calendar01, LayoutDashboard } from '../../components/template/TemplateIcons.jsx'
+import { Barcode, Boxes01, Calendar01, CheckSquare, LayoutDashboard } from '../../components/template/TemplateIcons.jsx'
 import api from '../../services/api.js'
+import CardDashboard from './CardDashboard.jsx'
+import CanvasDashboard from './CanvasDashboard.jsx'
 
 const MONTH_FORMATTER = new Intl.DateTimeFormat('id-ID', {
   month: 'long',
   year: 'numeric',
 })
 
-const NUMBER_FORMATTER = new Intl.NumberFormat('id-ID')
 const MAX_PAGE_SIZE = 250
 
 function normalizeRows(responseData) {
@@ -93,6 +94,10 @@ function isInactiveItem(item) {
   return item?.is_active === 0 || item?.is_active === false || skuStatusText.includes('inactive')
 }
 
+function isActiveItem(item) {
+  return !isInactiveItem(item)
+}
+
 async function loadAllPages(resource, params, signal) {
   const firstResponse = await resource.list({ ...params, page: 1, limit: MAX_PAGE_SIZE }, { signal })
   const firstRows = normalizeRows(firstResponse)
@@ -116,38 +121,64 @@ async function loadAllPages(resource, params, signal) {
   }
 }
 
-function formatNumber(value) {
-  return NUMBER_FORMATTER.format(value ?? 0)
-}
-
-function DashboardMetricCard({ icon: Icon, label, value, detail, tone = 'blue', isLoading }) {
-  return (
-    <article className={`dashboard-metric dashboard-metric--${tone}`}>
-      <div className="dashboard-metric__top">
-        <span className="dashboard-metric__icon">
-          <Icon size={22} />
-        </span>
-        <span className="dashboard-metric__label">{label}</span>
-      </div>
-      <span className="dashboard-metric__value">
-        {isLoading ? '...' : formatNumber(value)}
-      </span>
-      <p className="dashboard-metric__detail">{detail}</p>
-    </article>
-  )
-}
-
 function DashboardPage({ activePage }) {
   const [summary, setSummary] = useState({
     totalParents: 0,
     totalSku: 0,
     newItemsThisMonth: 0,
     inactiveItems: 0,
+    activeItems: 0,
   })
+  const [activeMetricKey, setActiveMetricKey] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
   const monthLabel = useMemo(() => MONTH_FORMATTER.format(new Date()), [])
+  const metricCards = useMemo(
+    () => [
+      {
+        key: 'parents',
+        icon: Boxes01,
+        label: 'Total Parent',
+        value: summary.totalParents,
+        detail: 'Semua parent item terdaftar',
+        tone: 'blue',
+      },
+      {
+        key: 'sku',
+        icon: Barcode,
+        label: 'Total SKU',
+        value: summary.totalSku,
+        detail: 'Semua SKU item terdaftar',
+        tone: 'purple',
+      },
+      {
+        key: 'newItems',
+        icon: Calendar01,
+        label: 'New Item',
+        value: summary.newItemsThisMonth,
+        detail: `Dibuat pada ${monthLabel}`,
+        tone: 'gold',
+      },
+      {
+        key: 'inactiveItems',
+        icon: LayoutDashboard,
+        label: 'Inactive Item',
+        value: summary.inactiveItems,
+        detail: 'Item dengan status tidak aktif',
+        tone: 'coral',
+      },
+      {
+        key: 'activeItems',
+        icon: CheckSquare,
+        label: 'Active Item',
+        value: summary.activeItems,
+        detail: 'Item dengan status aktif',
+        tone: 'green',
+      },
+    ],
+    [monthLabel, summary],
+  )
 
   useEffect(() => {
     let isCurrent = true
@@ -170,13 +201,16 @@ function DashboardPage({ activePage }) {
           return
         }
 
+        const itemRows = itemResult.rows
+
         setSummary({
           totalParents: parentMeta.total,
           totalSku: itemResult.total,
-          newItemsThisMonth: itemResult.rows.filter((item) =>
+          newItemsThisMonth: itemRows.filter((item) =>
             isDateInCurrentMonth(item.created_at, now),
           ).length,
-          inactiveItems: itemResult.rows.filter(isInactiveItem).length,
+          inactiveItems: itemRows.filter(isInactiveItem).length,
+          activeItems: itemRows.filter(isActiveItem).length,
         })
       } catch (error) {
         if (!isCurrent || error?.name === 'AbortError') {
@@ -208,39 +242,22 @@ function DashboardPage({ activePage }) {
       ) : null}
 
       <div className="dashboard-home__grid">
-        <DashboardMetricCard
-          icon={Boxes01}
-          label="Total Parent"
-          value={summary.totalParents}
-          detail="Semua parent item terdaftar"
-          tone="blue"
-          isLoading={isLoading}
-        />
-        <DashboardMetricCard
-          icon={Barcode}
-          label="Total SKU"
-          value={summary.totalSku}
-          detail="Semua SKU item terdaftar"
-          tone="teal"
-          isLoading={isLoading}
-        />
-        <DashboardMetricCard
-          icon={Calendar01}
-          label="New Item"
-          value={summary.newItemsThisMonth}
-          detail={`Dibuat pada ${monthLabel}`}
-          tone="gold"
-          isLoading={isLoading}
-        />
-        <DashboardMetricCard
-          icon={LayoutDashboard}
-          label="Inactive Item"
-          value={summary.inactiveItems}
-          detail="Item dengan status tidak aktif"
-          tone="coral"
-          isLoading={isLoading}
-        />
+        {metricCards.map((card) => (
+          <CardDashboard
+            key={card.key}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            detail={card.detail}
+            tone={card.tone}
+            isLoading={isLoading}
+            isActive={activeMetricKey === card.key}
+            onSelect={() => setActiveMetricKey(card.key)}
+          />
+        ))}
       </div>
+
+      <CanvasDashboard selectedKey={activeMetricKey} />
     </section>
   )
 }

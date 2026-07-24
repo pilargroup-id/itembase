@@ -339,6 +339,17 @@ function App() {
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
+  const navigateToPage = (nextPath) => {
+    if (!nextPath || typeof window === 'undefined') {
+      return
+    }
+
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
+
   const shellClassName = [
     'dashboard-shell',
     sidebarCollapsed ? 'dashboard-shell--sidebar-collapsed' : '',
@@ -392,13 +403,17 @@ function App() {
         />
 
         <main
-          className={`dashboard-main${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
+          className={`dashboard-main${isDashboardPage ? ' dashboard-main--home' : ''}${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
         >
           <div
-            className={`dashboard-content${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
+            className={`dashboard-content${isDashboardPage ? ' dashboard-content--home' : ''}${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
           >
             {isDashboardPage ? (
-              <DashboardPage activePage={activePage} searchQuery={searchQuery} />
+              <DashboardPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onNavigate={navigateToPage}
+              />
             ) : isParentsPage ? (
               <ParentsPage
                 activePage={activePage}

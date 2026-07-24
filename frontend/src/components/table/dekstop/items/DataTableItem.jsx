@@ -621,7 +621,7 @@ function DataTableItem({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter item">
-                    <FilterDropdownItem
+                    {/* <FilterDropdownItem
                         className="parent-table-filter parent-table-filter--sort"
                         options={itemSortOptions}
                         value={sortValue}
@@ -648,7 +648,7 @@ function DataTableItem({
                             searchable={filterConfig.searchable ?? true}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
-                    ))}
+                    ))} */}
                 </div>
             </div>
 
