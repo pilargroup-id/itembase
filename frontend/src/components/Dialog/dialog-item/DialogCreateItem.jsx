@@ -12,6 +12,8 @@ const initialFormValues = {
   selling_name: '',
   uom_id: '',
   variant: '',
+  variant_attribute_id: '',
+  variant_value_id: '',
   qty_per_pack: '',
   height: '',
   width: '',
@@ -56,10 +58,24 @@ const itemFields = [
     emptyMessage: 'UOM tidak ditemukan.',
   },
   {
-    name: 'variant',
-    label: 'Variant',
-    placeholder: 'Masukan Variant',
-    full: true,
+    name: 'variant_attribute_id',
+    label: 'Variant Attribute',
+    placeholder: 'Pilih Attribute',
+    type: 'select',
+    optionsKey: 'variantAttributes',
+    searchPlaceholder: 'Cari Attribute...',
+    emptyMessage: 'Attribute tidak ditemukan.',
+    half: true,
+  },
+  {
+    name: 'variant_value_id',
+    label: 'Variant Value',
+    placeholder: 'Pilih Value',
+    type: 'select',
+    optionsKey: 'variantValues',
+    searchPlaceholder: 'Cari Value...',
+    emptyMessage: 'Value tidak ditemukan.',
+    half: true,
   },
   {
     name: 'qty_per_pack',
@@ -125,6 +141,8 @@ const emptyMasterOptions = {
   uoms: [],
   businessUnits: [],
   departments: [],
+  variantAttributes: [],
+  variantValues: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -321,12 +339,27 @@ function buildPayload(formValues, masterOptions) {
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
       .filter(([key]) => key !== 'department_id')
+      .filter(([key]) => key !== 'variant_attribute_id')
+      .filter(([key]) => key !== 'variant_value_id')
       .filter(([, value]) => value !== ''),
   )
   const channels = createChannelPayload(formValues, masterOptions.departments)
+  const selectedVariantValue = masterOptions.variantValues.find(
+    (option) => option.value === String(formValues.variant_value_id ?? ''),
+  )
 
   if (channels.length > 0) {
     payload.channels = channels
+  }
+
+  if (formValues.variant_attribute_id && formValues.variant_value_id) {
+    payload.variants = [
+      {
+        attribute_id: formValues.variant_attribute_id,
+        value_id: formValues.variant_value_id,
+      },
+    ]
+    payload.variant = selectedVariantValue?.label || payload.variant
   }
 
   return payload
@@ -338,6 +371,10 @@ function hasRequiredValues(payload) {
   }
 
   return true
+}
+
+function hasIncompleteVariantSelection(formValues) {
+  return Boolean(formValues.variant_attribute_id) !== Boolean(formValues.variant_value_id)
 }
 
 function ChannelCheckboxSelect({
@@ -558,6 +595,7 @@ function DialogCreateItem({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
+  const [isLoadingVariantValues, setIsLoadingVariantValues] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
@@ -568,6 +606,7 @@ function DialogCreateItem({
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
       departments: [],
+      variantValues: [],
     }))
     setErrorMessage('')
   }, [])
@@ -595,6 +634,7 @@ function DialogCreateItem({
         ])
         let parents = []
         let businessUnits = []
+        let variantAttributes = []
 
         try {
           parents = await api.itemParents.list(
@@ -620,6 +660,17 @@ function DialogCreateItem({
           }
         }
 
+        try {
+          variantAttributes = await api.variants.attributes(
+            { is_active: 1 },
+            { signal: controller.signal },
+          )
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            throw error
+          }
+        }
+
         if (!isMounted) {
           return
         }
@@ -632,6 +683,8 @@ function DialogCreateItem({
           uoms: normalizeMasterOptions(uoms),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
+          variantAttributes: normalizeMasterOptions(variantAttributes),
+          variantValues: [],
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -719,6 +772,65 @@ function DialogCreateItem({
     }
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
+  useEffect(() => {
+    if (!isOpen || !formValues.variant_attribute_id) {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        variantValues: [],
+      }))
+
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadVariantValueOptions = async () => {
+      setIsLoadingVariantValues(true)
+      setErrorMessage('')
+
+      try {
+        const variantValues = await api.variants.values(
+          {
+            attribute_id: formValues.variant_attribute_id,
+            is_active: 1,
+          },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          variantValues: normalizeMasterOptions(variantValues),
+        }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          variantValues: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat data variant value.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingVariantValues(false)
+        }
+      }
+    }
+
+    loadVariantValueOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [formValues.variant_attribute_id, isOpen])
+
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
@@ -742,6 +854,15 @@ function DialogCreateItem({
             : {}
         ),
         ...(name === 'business_unit_id' ? { department_id: [] } : {}),
+        ...(name === 'variant_attribute_id' ? { variant_value_id: '', variant: '' } : {}),
+        ...(name === 'variant_value_id'
+          ? {
+              variant:
+                masterOptions.variantValues.find(
+                  (option) => option.value === String(value ?? ''),
+                )?.label || '',
+            }
+          : {}),
       }
 
       return nextValues
@@ -772,6 +893,11 @@ function DialogCreateItem({
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+
+    if (hasIncompleteVariantSelection(formValues)) {
+      setErrorMessage('Lengkapi variant attribute dan variant value terlebih dahulu.')
+      return
+    }
 
     const payload = buildPayload(formValues, masterOptions)
 
@@ -848,13 +974,17 @@ function DialogCreateItem({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={
-            field.name === 'department_id'
+            field.name === 'variant_value_id'
+              ? isLoadingVariantValues
+              : field.name === 'department_id'
               ? isLoadingDepartments
               : isLoadingMasters
           }
           disabled={
             isSubmitting ||
             isLoadingMasters ||
+            (field.name === 'variant_value_id' &&
+              (!formValues.variant_attribute_id || isLoadingVariantValues)) ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
@@ -936,7 +1066,8 @@ function DialogCreateItem({
                           'parent_id',
                           'item_name',
                           'selling_name',
-                          'variant',
+                          'variant_attribute_id',
+                          'variant_value_id',
                         ].includes(field.name),
                       )
                       .map(renderField)}

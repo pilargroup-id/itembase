@@ -254,6 +254,12 @@ const api = {
   itemTypes: createResource('/master/item-types'),
   ports: createResource('/master/ports'),
   uoms: createResource('/master/uoms'),
+  variants: {
+    attributes: (params, options) =>
+      api.get('/master/variants/attributes', { ...options, params }),
+    values: (params, options) =>
+      api.get('/master/variants/values', { ...options, params }),
+  },
   skuStatuses: createResource('/master/sku-statuses'),
   businessUnits: {
     list: (params, options) =>
