@@ -27,6 +27,22 @@ function createDetailItemId() {
   return `detail-item-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+function getHwdParts(value) {
+  const parts = String(value ?? '')
+    .split(/\s*x\s*/i)
+    .map((part) => part.trim())
+
+  return [parts[0] ?? '', parts[1] ?? '', parts[2] ?? '']
+}
+
+function buildHwdValue(currentValue, partIndex, nextPartValue) {
+  const parts = getHwdParts(currentValue)
+
+  parts[partIndex] = nextPartValue
+
+  return parts.map((part) => part.trim()).join(' x ')
+}
+
 export function createInitialDetailItem() {
   return {
     id: createDetailItemId(),
@@ -180,19 +196,38 @@ function CreateDetailItem({
               </div>
 
               <div className="register-user-popup__field">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-hwd-${item.id}`}>
+                <label className="register-user-popup__label" htmlFor={`parent-detail-hwd-height-${item.id}`}>
                   HWD
                 </label>
-                <input
-                  id={`parent-detail-hwd-${item.id}`}
-                  className="register-user-popup__input"
-                  value={item.hwd}
-                  placeholder="25 x 8 x 8"
-                  onChange={(event) =>
-                    handleFieldChange(item.id, 'hwd', event.target.value)
-                  }
-                  disabled={disabled}
-                />
+                <div className="parent-detail-item__hwd-inputs">
+                  {getHwdParts(item.hwd).map((partValue, partIndex) => {
+                    const fieldLabels = ['Height', 'Width', 'Depth']
+                    const fieldPlaceholders = ['H', 'W', 'D']
+
+                    return (
+                      <input
+                        key={fieldLabels[partIndex]}
+                        id={
+                          partIndex === 0
+                            ? `parent-detail-hwd-height-${item.id}`
+                            : undefined
+                        }
+                        className="register-user-popup__input parent-detail-item__hwd-input"
+                        value={partValue}
+                        placeholder={fieldPlaceholders[partIndex]}
+                        aria-label={`${fieldLabels[partIndex]} HWD`}
+                        onChange={(event) =>
+                          handleFieldChange(
+                            item.id,
+                            'hwd',
+                            buildHwdValue(item.hwd, partIndex, event.target.value),
+                          )
+                        }
+                        disabled={disabled}
+                      />
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="register-user-popup__field">

@@ -46,16 +46,75 @@ function renderItemValue(value) {
     )
 }
 
-function formatItemChannels(item) {
-    if (!Array.isArray(item?.channels) || item.channels.length === 0) {
-        return "-"
+function getFirstDisplayValue(values) {
+    return values
+        .map((value) => formatDisplayValue(value))
+        .find((value) => value !== "-") || "-"
+}
+
+function getItemChannels(item) {
+    if (Array.isArray(item?.channels) && item.channels.length > 0) {
+        return item.channels
     }
 
-    return item.channels
+    if (Array.isArray(item?.parent?.brand?.channels) && item.parent.brand.channels.length > 0) {
+        return item.parent.brand.channels
+    }
+
+    return []
+}
+
+function formatBusinessUnit(item) {
+    const channels = getItemChannels(item)
+    const channelBusinessUnit = channels
+        .map((channel) =>
+            getFirstDisplayValue([
+                channel.business_unit?.code,
+                channel.business_unit?.name,
+                channel.business_unit_code,
+                channel.business_unit_name,
+                channel.business_unit_id,
+            ]),
+        )
+        .find((value) => value !== "-")
+
+    if (channelBusinessUnit) {
+        return channelBusinessUnit
+    }
+
+    return getFirstDisplayValue([
+        item?.business_unit?.code,
+        item?.business_unit?.name,
+        item?.business_unit_code,
+        item?.business_unit_name,
+        item?.businessUnit?.code,
+        item?.businessUnit?.name,
+        item?.businessUnit,
+    ])
+}
+
+function formatItemChannels(item) {
+    const channels = getItemChannels(item)
+
+    if (channels.length === 0) {
+        return getFirstDisplayValue([
+            item?.department?.code,
+            item?.department?.name,
+            item?.channel_code,
+            item?.channel_name,
+            item?.channel,
+        ])
+    }
+
+    return channels
         .map((channel) =>
             formatDisplayValue(
                 channel.channel_code ??
-                    channel.channel_name,
+                    channel.channel_name ??
+                    channel.department_code ??
+                    channel.department_name ??
+                    channel.department?.code ??
+                    channel.department?.name,
             ),
         )
         .filter((value) => value !== "-")
@@ -325,18 +384,11 @@ const columns = [
         ),
     },
     {
-        key: "skuStatus",
-        header: "SKU Status",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
-        render: (item) => renderItemValue(item.sku_status?.name),
-    },
-    {
         key: "businessUnit",
         header: "BU",
         headerStyle: { width: "6%" },
         cellStyle: { width: "6%" },
-        render: (item) => renderItemValue(item.business_unit?.code ?? item.business_unit?.name),
+        render: (item) => renderItemValue(formatBusinessUnit(item)),
     },
     {
         key: "channels",

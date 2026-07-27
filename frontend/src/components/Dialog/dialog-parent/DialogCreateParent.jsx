@@ -79,7 +79,6 @@ const requiredFieldNames = [
   'item_name',
   'category_id',
   'item_type_id',
-  'port_id',
 ]
 
 const masterSelectDefaults = {
@@ -151,6 +150,26 @@ function buildParentName({ brandLabel = '', subBrand = '', itemName = '' }) {
     .map(normalizeFieldValue)
     .filter(Boolean)
     .join(' ')
+}
+
+function buildParentPorts(portIds) {
+  const selectedPortIds = Array.isArray(portIds)
+    ? portIds.map((portId) => normalizeFieldValue(portId)).filter(Boolean)
+    : normalizeFieldValue(portIds)
+      ? [normalizeFieldValue(portIds)]
+      : []
+
+  return selectedPortIds.map((portId, index) => ({
+    port_id: portId,
+    is_primary: index === 0 ? 1 : 0,
+    sort_order: index + 1,
+  }))
+}
+
+function getResourceData(responseData) {
+  return responseData?.data && !Array.isArray(responseData.data)
+    ? responseData.data
+    : responseData
 }
 
 function normalizeMasterOptions(responseData, optionsKey) {
@@ -886,10 +905,12 @@ function DialogCreateParent({
     }
   }
 
-  const buildPayload = () =>
-    ({
+  const buildPayload = () => {
+    const { port_id: portIds, ...parentValues } = formValues
+
+    return {
       ...Object.fromEntries(
-        Object.entries(formValues).map(([key, value]) => [
+        Object.entries(parentValues).map(([key, value]) => [
           key,
           Array.isArray(value)
             ? value.map((item) => normalizeFieldValue(item)).filter(Boolean)
@@ -898,7 +919,9 @@ function DialogCreateParent({
       ),
       parent_name: generatedParentName,
       status: 'active',
-    })
+      ports: buildParentPorts(portIds),
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -926,7 +949,7 @@ function DialogCreateParent({
     try {
       const createdParent = await api.itemParents.create(payload)
 
-      onCreated?.(createdParent)
+      onCreated?.(getResourceData(createdParent))
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Gagal membuat item parent.')

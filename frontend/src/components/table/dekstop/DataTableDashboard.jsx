@@ -168,14 +168,36 @@ function formatDate(value) {
 }
 
 function formatItemChannels(item) {
-  if (!Array.isArray(item?.channels) || item.channels.length === 0) {
+  const channels = Array.isArray(item?.parent?.brand?.channels) && item.parent.brand.channels.length > 0
+    ? item.parent.brand.channels
+    : item?.channels
+
+  if (!Array.isArray(channels) || channels.length === 0) {
     return '-'
   }
 
-  return item.channels
+  return channels
     .map((channel) => formatDisplayValue(channel.channel_code ?? channel.channel_name))
     .filter((value) => value !== '-')
     .join(', ') || '-'
+}
+
+function formatParentPorts(parent) {
+  const ports = Array.isArray(parent?.ports) && parent.ports.length > 0
+    ? parent.ports
+    : parent?.port
+      ? [parent.port]
+      : []
+
+  const portLabels = ports
+    .slice()
+    .sort((firstPort, secondPort) =>
+      Number(firstPort?.sort_order ?? 0) - Number(secondPort?.sort_order ?? 0),
+    )
+    .map((port) => port?.code || port?.name || port?.port_code || port?.id)
+    .filter(Boolean)
+
+  return portLabels.join(', ')
 }
 
 async function loadAllPages(resource, params, signal) {
@@ -277,7 +299,7 @@ const parentColumns = [
     header: 'Port',
     headerStyle: { width: '10%' },
     cellStyle: { width: '10%' },
-    render: (parent) => renderValue(parent.port?.name),
+    render: (parent) => renderValue(formatParentPorts(parent)),
   },
 ]
 

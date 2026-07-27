@@ -46,6 +46,24 @@ function renderParentValue(value) {
     )
 }
 
+function formatParentPorts(parent) {
+    const ports = Array.isArray(parent?.ports) && parent.ports.length > 0
+        ? parent.ports
+        : parent?.port
+            ? [parent.port]
+            : []
+
+    const portLabels = ports
+        .slice()
+        .sort((firstPort, secondPort) =>
+            Number(firstPort?.sort_order ?? 0) - Number(secondPort?.sort_order ?? 0),
+        )
+        .map((port) => port?.code || port?.name || port?.port_code || port?.id)
+        .filter(Boolean)
+
+    return portLabels.join(", ")
+}
+
 function normalizeParentRows(responseData) {
     if (Array.isArray(responseData)) {
         return responseData
@@ -251,7 +269,7 @@ const columns = [
         header: "Port",
         headerStyle: { width: "6%" },
         cellStyle: { width: "6%" },
-        render: (parent) => renderParentValue(parent.port?.name),
+        render: (parent) => renderParentValue(formatParentPorts(parent)),
     },
 ]
 

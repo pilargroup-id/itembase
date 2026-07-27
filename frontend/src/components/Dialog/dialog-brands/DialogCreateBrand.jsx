@@ -2,26 +2,157 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
+import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import SearchableItemSelect from '../dialog-item/SearchableItemSelect.jsx'
 
 const initialFormValues = {
   code: '',
   name: '',
+  business_unit_id: '',
+  department_id: [],
   is_active: '1',
 }
 
 const brandFields = [
   {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'e.g., GOTO',
-  },
-  {
     name: 'name',
     label: 'Name',
     placeholder: 'Input Name Brand',
   },
+  {
+    name: 'code',
+    label: 'Code',
+    placeholder: 'Code otomatis dari name',
+    readOnly: true,
+  },
 ]
+
+const emptyMasterOptions = {
+  businessUnits: [],
+  departments: [],
+}
+
+function normalizeListResponse(responseData) {
+  if (Array.isArray(responseData)) {
+    return responseData
+  }
+
+  if (Array.isArray(responseData?.data)) {
+    return responseData.data
+  }
+
+  if (Array.isArray(responseData?.data?.data)) {
+    return responseData.data.data
+  }
+
+  if (Array.isArray(responseData?.data?.rows)) {
+    return responseData.data.rows
+  }
+
+  if (Array.isArray(responseData?.data?.results)) {
+    return responseData.data.results
+  }
+
+  if (Array.isArray(responseData?.rows)) {
+    return responseData.rows
+  }
+
+  if (Array.isArray(responseData?.results)) {
+    return responseData.results
+  }
+
+  return []
+}
+
+function makeOption(value, labelParts) {
+  const label = labelParts.find(Boolean)
+
+  return {
+    value: String(value ?? ''),
+    label: label || String(value ?? ''),
+    searchText: [...labelParts, value].filter(Boolean).join(' '),
+  }
+}
+
+function normalizeBusinessUnitOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .map((unit) => makeOption(unit.id ?? unit.value, [unit.name, unit.code]))
+    .filter((option) => option.value && option.label)
+    .sort((firstOption, secondOption) => firstOption.label.localeCompare(secondOption.label))
+}
+
+function normalizeDepartmentOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .map((department) => {
+      const option = makeOption(department.department_id ?? department.id ?? department.value, [
+        department.department_name ?? department.name,
+        department.department_code ?? department.code,
+      ])
+
+      option.code = department.department_code ?? department.code ?? ''
+
+      return option
+    })
+    .filter((option) => option.value && option.label)
+    .sort((firstOption, secondOption) => firstOption.label.localeCompare(secondOption.label))
+}
+
+function getSelectedDepartmentIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '')).filter(Boolean)
+  }
+
+  const normalizedValue = String(value ?? '').trim()
+
+  return normalizedValue ? [normalizedValue] : []
+}
+
+function generateBrandCode(name) {
+  return String(name ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_')
+}
+
+function createChannelPayload(formValues, departmentOptions) {
+  const selectedDepartmentIds = getSelectedDepartmentIds(formValues.department_id)
+
+  if (!formValues.business_unit_id || selectedDepartmentIds.length === 0) {
+    return []
+  }
+
+  return selectedDepartmentIds
+    .map((departmentId, index) => {
+      const departmentOption = departmentOptions.find(
+        (option) => option.value === String(departmentId),
+      )
+
+      if (!departmentOption) {
+        return null
+      }
+
+      const numericDepartmentId = Number(departmentId)
+
+      const numericBusinessUnitId = Number(formValues.business_unit_id)
+
+      return {
+        business_unit_id: Number.isNaN(numericBusinessUnitId)
+          ? formValues.business_unit_id
+          : numericBusinessUnitId,
+        department_id: Number.isNaN(numericDepartmentId)
+          ? departmentId
+          : numericDepartmentId,
+        channel_code: departmentOption.code || departmentOption.value,
+        channel_name: departmentOption.label,
+        is_primary: index === 0 ? 1 : 0,
+        is_active: 1,
+      }
+    })
+    .filter(Boolean)
+}
 
 function DialogCreateBrand({
   isOpen = false,
@@ -32,11 +163,18 @@ function DialogCreateBrand({
 }) {
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingMasters, setIsLoadingMasters] = useState(false)
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
+  const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setIsSubmitting(false)
+    setMasterOptions((currentOptions) => ({
+      ...currentOptions,
+      departments: [],
+    }))
     setErrorMessage('')
   }, [])
 
@@ -63,28 +201,177 @@ function DialogCreateBrand({
     }
   }, [handleClose, isOpen, isSubmitting])
 
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadMasterOptions = async () => {
+      setIsLoadingMasters(true)
+      setErrorMessage('')
+
+      try {
+        const businessUnits = await api.businessUnits.list(
+          { active: 1 },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions({
+          businessUnits: normalizeBusinessUnitOptions(businessUnits),
+          departments: [],
+        })
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions(emptyMasterOptions)
+        setErrorMessage(error?.message || 'Gagal memuat data business unit.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingMasters(false)
+        }
+      }
+    }
+
+    loadMasterOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !formValues.business_unit_id) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadDepartmentOptions = async () => {
+      setIsLoadingDepartments(true)
+      setErrorMessage('')
+
+      try {
+        const departments = await api.businessUnits.departments(
+          formValues.business_unit_id,
+          { active: 1 },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: normalizeDepartmentOptions(departments),
+        }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          departments: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat data channel.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingDepartments(false)
+        }
+      }
+    }
+
+    loadDepartmentOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [formValues.business_unit_id, isOpen])
+
+  const handleFieldChange = (name, value) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const nextValues = {
+        ...currentValues,
+        [name]: value,
+        ...(name === 'business_unit_id' ? { department_id: [] } : {}),
+      }
+
+      if (name === 'name') {
+        nextValues.code = generateBrandCode(value)
+      }
+
+      return nextValues
+    })
+  }
+
   const handleInputChange = (event) => {
     const { name, value } = event.target
 
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+    handleFieldChange(name, value)
   }
 
-  const buildPayload = () => ({
-    code: formValues.code.trim(),
-    name: formValues.name.trim(),
-    is_active: Number(formValues.is_active),
-  })
+  const handleDepartmentToggle = (departmentId) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const selectedDepartmentIds = getSelectedDepartmentIds(currentValues.department_id)
+      const normalizedDepartmentId = String(departmentId)
+      const isSelected = selectedDepartmentIds.includes(normalizedDepartmentId)
+
+      return {
+        ...currentValues,
+        department_id: isSelected
+          ? selectedDepartmentIds.filter((selectedId) => selectedId !== normalizedDepartmentId)
+          : [...selectedDepartmentIds, normalizedDepartmentId],
+      }
+    })
+  }
+
+  const buildPayload = () => {
+    const payload = {
+      code: generateBrandCode(formValues.name),
+      name: formValues.name.trim(),
+      is_active: Number(formValues.is_active),
+    }
+    const channels = createChannelPayload(formValues, masterOptions.departments)
+
+    if (channels.length > 0) {
+      payload.channels = channels
+    }
+
+    return payload
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name brand terlebih dahulu.')
+    if (!payload.name) {
+      setErrorMessage('Lengkapi name brand terlebih dahulu.')
+      return
+    }
+
+    if (!payload.code) {
+      setErrorMessage('Name brand belum menghasilkan code yang valid.')
+      return
+    }
+
+    if (!formValues.business_unit_id || !Array.isArray(payload.channels) || payload.channels.length === 0) {
+      setErrorMessage('Lengkapi business unit dan minimal satu channel terlebih dahulu.')
       return
     }
 
@@ -110,6 +397,12 @@ function DialogCreateBrand({
   if (typeof document === 'undefined') {
     return null
   }
+
+  const isChannelDisabled =
+    isSubmitting ||
+    isLoadingMasters ||
+    isLoadingDepartments ||
+    !formValues.business_unit_id
 
   const dialogNode = (
     <div
@@ -165,9 +458,50 @@ function DialogCreateBrand({
                         placeholder={field.placeholder}
                         onChange={handleInputChange}
                         disabled={isSubmitting}
+                        readOnly={field.readOnly}
+                        aria-readonly={field.readOnly ? 'true' : undefined}
                       />
                     </div>
                   ))}
+
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="brand-business-unit">
+                      Business Unit
+                    </label>
+                    <SearchableItemSelect
+                      id="brand-business-unit"
+                      label="Business Unit"
+                      value={formValues.business_unit_id}
+                      options={masterOptions.businessUnits}
+                      placeholder="Pilih business unit"
+                      searchPlaceholder="Cari business unit..."
+                      emptyMessage="Business unit tidak ditemukan."
+                      loading={isLoadingMasters}
+                      disabled={isSubmitting || isLoadingMasters}
+                      onChange={(nextValue) => handleFieldChange('business_unit_id', nextValue)}
+                    />
+                  </div>
+
+                  <div className="register-user-popup__field">
+                    <label className="register-user-popup__label" htmlFor="brand-channel">
+                      Channel
+                    </label>
+                    <CheckboxSelect
+                      id="brand-channel"
+                      label="Channel"
+                      value={formValues.department_id}
+                      options={masterOptions.departments}
+                      placeholder="Pilih channel"
+                      emptyMessage={
+                        formValues.business_unit_id
+                          ? 'Channel tidak ditemukan.'
+                          : 'Pilih business unit terlebih dahulu.'
+                      }
+                      loading={isLoadingDepartments}
+                      disabled={isChannelDisabled}
+                      onToggle={handleDepartmentToggle}
+                    />
+                  </div>
 
                   <div className="register-user-popup__field">
                     <label className="register-user-popup__label" htmlFor="brand-is-active">

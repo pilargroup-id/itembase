@@ -7,7 +7,9 @@ import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
   item_kind: 'regular',
+  parent_id: '',
   item_name: '',
+  selling_name: '',
   uom_id: '',
   variant: '',
   qty_per_pack: '',
@@ -21,11 +23,28 @@ const initialFormValues = {
 
 const itemFields = [
   {
+    name: 'parent_id',
+    label: 'Parent',
+    placeholder: 'Pilih Parent',
+    type: 'select',
+    optionsKey: 'parents',
+    searchPlaceholder: 'Cari Parent...',
+    emptyMessage: 'Parent tidak ditemukan.',
+    fullRow: true,
+  },
+  {
     name: 'item_name',
-    label: 'Item Name + Variant',
-    placeholder: 'TEST GOTO BOTTLE BLUE',
+    label: 'Item Name',
+    placeholder: 'Masukan Item Name',
     required: true,
-    full: true,
+    half: true,
+  },
+  {
+    name: 'selling_name',
+    label: 'Selling Name (Editable)',
+    placeholder: 'Masukan Selling Name',
+    required: true,
+    half: true,
   },
   {
     name: 'uom_id',
@@ -39,36 +58,37 @@ const itemFields = [
   {
     name: 'variant',
     label: 'Variant',
-    placeholder: 'BLUE',
+    placeholder: 'Masukan Variant',
+    full: true,
   },
   {
     name: 'qty_per_pack',
     label: 'Qty / Pack',
-    placeholder: '1',
+    placeholder: '0',
     type: 'number',
     compactDimension: true,
     qtyField: true,
   },
   {
     name: 'height',
-    label: 'H',
-    placeholder: '25',
+    label: 'Height',
+    placeholder: '0',
     type: 'number',
     compactDimension: true,
     unitSuffix: 'cm',
   },
   {
     name: 'width',
-    label: 'W',
-    placeholder: '8',
+    label: 'Width',
+    placeholder: '0',
     type: 'number',
     compactDimension: true,
     unitSuffix: 'cm',
   },
   {
     name: 'depth',
-    label: 'D',
-    placeholder: '8',
+    label: 'Depth',
+    placeholder: '0',
     type: 'number',
     compactDimension: true,
     unitSuffix: 'cm',
@@ -76,14 +96,14 @@ const itemFields = [
   {
     name: 'gross_weight_pack',
     label: 'Gross Weight / Pack',
-    placeholder: '0.30',
+    placeholder: '0.00',
     type: 'number',
     compactDimension: true,
   },
   {
     name: 'production_time_days',
     label: 'Lead Time',
-    placeholder: '10',
+    placeholder: '0',
     type: 'number',
     compactDimension: true,
     unitSuffix: 'day',
@@ -101,6 +121,7 @@ const numericFields = new Set([
 ])
 
 const emptyMasterOptions = {
+  parents: [],
   uoms: [],
   businessUnits: [],
   departments: [],
@@ -158,9 +179,36 @@ function getSelectedDepartmentIds(value) {
   return normalizedValue ? [normalizedValue] : []
 }
 
+function toTitleCase(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(
+      /(^|[\s/-])([a-z])/g,
+      (match, separator, letter) => `${separator}${letter.toUpperCase()}`,
+    )
+}
+
 function normalizeMasterOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((item) => makeOption(item.id ?? item.value, [item.name, item.code]))
+    .filter((option) => option.value && option.label)
+}
+
+function normalizeParentOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .map((parent) => {
+      const option = makeOption(parent.id, [
+        parent.parent_name || parent.item_name,
+        parent.parent_code,
+      ])
+
+      return {
+        ...option,
+        itemName: String(parent.item_name ?? ''),
+      }
+    })
     .filter((option) => option.value && option.label)
 }
 
@@ -285,7 +333,7 @@ function buildPayload(formValues, masterOptions) {
 }
 
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.item_name) {
+  if (!payload.item_kind || !payload.item_name || !payload.selling_name) {
     return false
   }
 
@@ -545,7 +593,21 @@ function DialogCreateItem({
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
         ])
+        let parents = []
         let businessUnits = []
+
+        try {
+          parents = await api.itemParents.list(
+            { status: 'active', limit: 250, sort: 'name-asc' },
+            { signal: controller.signal },
+          )
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            throw error
+          }
+
+          setErrorMessage(error?.message || 'Gagal memuat data parent.')
+        }
 
         try {
           businessUnits = await api.businessUnits.list(
@@ -566,6 +628,7 @@ function DialogCreateItem({
 
         setItemOptionRows(itemRows)
         setMasterOptions({
+          parents: normalizeParentOptions(parents),
           uoms: normalizeMasterOptions(uoms),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
@@ -659,9 +722,25 @@ function DialogCreateItem({
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
+      const selectedParent =
+        name === 'parent_id'
+          ? masterOptions.parents.find((option) => option.value === String(value ?? ''))
+          : null
+      const nextItemName =
+        name === 'parent_id'
+          ? selectedParent?.itemName || ''
+          : name === 'item_name'
+            ? value
+            : currentValues.item_name
       const nextValues = {
         ...currentValues,
         [name]: value,
+        ...(name === 'parent_id' ? { item_name: nextItemName } : {}),
+        ...(
+          name === 'parent_id' || name === 'item_name'
+            ? { selling_name: toTitleCase(nextItemName) }
+            : {}
+        ),
         ...(name === 'business_unit_id' ? { department_id: [] } : {}),
       }
 
@@ -697,7 +776,7 @@ function DialogCreateItem({
     const payload = buildPayload(formValues, masterOptions)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage('Lengkapi item name terlebih dahulu.')
+      setErrorMessage('Lengkapi item name dan selling name terlebih dahulu.')
       return
     }
 
@@ -728,9 +807,15 @@ function DialogCreateItem({
       className={`register-user-popup__field${
         field.full ? ' register-user-popup__field--full' : ''
       }${
+        field.fullRow ? ' item-create-popup__field--full-row' : ''
+      }${
+        field.half ? ' item-create-popup__field--half' : ''
+      }${
         field.compactDimension ? ' item-create-popup__field--compact-dimension' : ''
       }${
         field.qtyField ? ' item-create-popup__field--qty' : ''
+      }${
+        field.name ? ` item-create-popup__field--${field.name}` : ''
       }`}
     >
       <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
@@ -780,7 +865,9 @@ function DialogCreateItem({
             id={`item-${field.name}`}
             name={field.name}
             className={`register-user-popup__input${
-              field.readOnly ? ' register-user-popup__input--readonly' : ''
+              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
+                ? ' register-user-popup__input--readonly'
+                : ''
             }${field.unitSuffix ? ' item-create-popup__input--with-unit' : ''}`}
             type={field.type === 'number' ? 'number' : 'text'}
             step={field.type === 'number' ? 'any' : undefined}
@@ -788,8 +875,12 @@ function DialogCreateItem({
             placeholder={field.placeholder}
             onChange={handleInputChange}
             disabled={isSubmitting}
-            readOnly={field.readOnly}
-            aria-readonly={field.readOnly ? 'true' : undefined}
+            readOnly={field.readOnly || (field.name === 'item_name' && Boolean(formValues.parent_id))}
+            aria-readonly={
+              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
+                ? 'true'
+                : undefined
+            }
           />
           {field.unitSuffix ? (
             <span className="item-create-popup__unit" aria-hidden="true">
@@ -838,11 +929,13 @@ function DialogCreateItem({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
-                  <div className="register-user-popup__grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
+                  <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
                     {itemFields
                       .filter((field) =>
                         [
+                          'parent_id',
                           'item_name',
+                          'selling_name',
                           'variant',
                         ].includes(field.name),
                       )

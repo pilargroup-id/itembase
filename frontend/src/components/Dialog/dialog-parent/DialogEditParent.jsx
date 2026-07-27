@@ -78,7 +78,6 @@ const requiredFieldNames = [
   'item_name',
   'category_id',
   'item_type_id',
-  'port_id',
 ]
 
 const masterSelectDefaults = {
@@ -199,6 +198,26 @@ function buildParentName({ brandLabel = '', subBrand = '', itemName = '' }) {
     .map(normalizeFieldValue)
     .filter(Boolean)
     .join(' ')
+}
+
+function buildParentPorts(portIds) {
+  const selectedPortIds = Array.isArray(portIds)
+    ? portIds.map((portId) => normalizeFieldValue(portId)).filter(Boolean)
+    : normalizeFieldValue(portIds)
+      ? [normalizeFieldValue(portIds)]
+      : []
+
+  return selectedPortIds.map((portId, index) => ({
+    port_id: portId,
+    is_primary: index === 0 ? 1 : 0,
+    sort_order: index + 1,
+  }))
+}
+
+function getResourceData(responseData) {
+  return responseData?.data && !Array.isArray(responseData.data)
+    ? responseData.data
+    : responseData
 }
 
 function normalizeMasterOptions(responseData, optionsKey) {
@@ -908,10 +927,12 @@ function DialogEditParent({
     }))
   }
 
-  const buildPayload = () =>
-    ({
+  const buildPayload = () => {
+    const { port_id: portIds, ...parentValues } = formValues
+
+    return {
       ...Object.fromEntries(
-        Object.entries(formValues).map(([key, value]) => [
+        Object.entries(parentValues).map(([key, value]) => [
           key,
           Array.isArray(value)
             ? value.map((item) => normalizeFieldValue(item)).filter(Boolean)
@@ -919,7 +940,9 @@ function DialogEditParent({
         ]),
       ),
       parent_name: generatedParentName,
-    })
+      ports: buildParentPorts(portIds),
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -949,7 +972,7 @@ function DialogEditParent({
     try {
       const editedParent = await api.itemParents.update(parentId, payload)
 
-      onEdited?.(editedParent, payload)
+      onEdited?.(getResourceData(editedParent), payload)
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Gagal mengubah item parent.')
