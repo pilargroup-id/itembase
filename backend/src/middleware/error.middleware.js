@@ -19,28 +19,20 @@ function getDuplicateMessage(err) {
     };
   }
 
-  if (sqlMessage.includes('uq_pic_code')) {
-    return {
-      message: 'PIC code already exists',
-      field: 'code',
-      constraint: 'uq_pic_code',
-    };
+
+
+
+
+  if (sqlMessage.includes('uq_brand_channel')) {
+    return { message: 'Brand channel already exists', field: 'channels', constraint: 'uq_brand_channel' };
   }
 
-  if (sqlMessage.includes('uq_pic_name')) {
-    return {
-      message: 'PIC name already exists',
-      field: 'name',
-      constraint: 'uq_pic_name',
-    };
+  if (sqlMessage.includes('uq_category_user')) {
+    return { message: 'Category user already exists', field: 'users', constraint: 'uq_category_user' };
   }
 
-  if (sqlMessage.includes('uq_pic_user')) {
-    return {
-      message: 'PIC user already exists',
-      field: 'central_user_id',
-      constraint: 'uq_pic_user',
-    };
+  if (sqlMessage.includes('uq_item_parent_port')) {
+    return { message: 'Item parent port already exists', field: 'ports', constraint: 'uq_item_parent_port' };
   }
 
   if (sqlMessage.includes('uq_detail_category')) {
@@ -99,21 +91,7 @@ function getDuplicateMessage(err) {
     };
   }
 
-  if (sqlMessage.includes('uq_sku_status_code')) {
-    return {
-      message: 'SKU status code already exists',
-      field: 'code',
-      constraint: 'uq_sku_status_code',
-    };
-  }
 
-  if (sqlMessage.includes('uq_sku_status_name')) {
-    return {
-      message: 'SKU status name already exists',
-      field: 'name',
-      constraint: 'uq_sku_status_name',
-    };
-  }
 
   return {
     message: 'Duplicate data already exists',

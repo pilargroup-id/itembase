@@ -65,6 +65,45 @@ function validateNullableIdLength(errors, payload, field, maxLength, label) {
   }
 }
 
+function normalizePorts(payload = {}) {
+  const source = payload.ports ?? payload.port_ids;
+
+  if (source === undefined || source === null) return null;
+  if (!Array.isArray(source)) {
+    throw Object.assign(new Error('Ports must be an array'), {
+      statusCode: 422,
+      code: 'VALIDATION_ERROR',
+    });
+  }
+
+  const seen = new Set();
+  return source.map((entry, index) => {
+    const port = typeof entry === 'string' ? { port_id: entry } : entry;
+    const portId = trimOrNull(port?.port_id || port?.id);
+
+    if (!portId || portId.length > STRING_LIMITS.port_id) {
+      throw Object.assign(new Error(`Port is invalid at index ${index}`), {
+        statusCode: 422,
+        code: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (seen.has(portId)) {
+      throw Object.assign(new Error('Duplicate port in request'), {
+        statusCode: 422,
+        code: 'VALIDATION_ERROR',
+      });
+    }
+    seen.add(portId);
+
+    return {
+      port_id: portId,
+      is_primary: Number(port?.is_primary ?? (index === 0 ? 1 : 0)) ? 1 : 0,
+      sort_order: Number(port?.sort_order || index + 1),
+    };
+  });
+}
+
 function validatePayload(payload = {}, mode = 'create') {
   const errors = {};
 
@@ -92,7 +131,6 @@ function validatePayload(payload = {}, mode = 'create') {
   validateNullableIdLength(errors, payload, 'brand_id', STRING_LIMITS.brand_id, 'Brand');
   validateNullableIdLength(errors, payload, 'category_id', STRING_LIMITS.category_id, 'Category');
   validateNullableIdLength(errors, payload, 'item_type_id', STRING_LIMITS.item_type_id, 'Item type');
-  validateNullableIdLength(errors, payload, 'port_id', STRING_LIMITS.port_id, 'Port');
 
   validateMaxLength(errors, payload, 'sub_brand', STRING_LIMITS.sub_brand, 'Sub brand');
   validateMaxLength(errors, payload, 'item_name', STRING_LIMITS.item_name, 'Item name');
@@ -168,15 +206,15 @@ async function validateReferences(payload, connection) {
     }
   }
 
-  if (payload.port_id) {
+  for (const [index, port] of (payload.ports || []).entries()) {
     const portExists = await ItemParentModel.existsInTable(
       'master_ports',
-      payload.port_id,
+      port.port_id,
       connection
     );
 
     if (!portExists) {
-      errors.port_id = 'Port not found';
+      errors[`ports.${index}.port_id`] = 'Port not found';
     }
   }
 
@@ -424,7 +462,7 @@ async function create(payload, userId, req = null) {
     item_name: trimOrNull(payload.item_name),
     category_id: trimOrNull(payload.category_id),
     item_type_id: trimOrNull(payload.item_type_id),
-    port_id: trimOrNull(payload.port_id),
+    ports: normalizePorts(payload) || [],
     parent_name: trimOrNull(payload.parent_name),
     status: trimOrNull(payload.status) || 'active',
     parent_code: payload.parent_code,
@@ -473,14 +511,15 @@ async function create(payload, userId, req = null) {
       item_name: normalizedPayload.item_name,
       category_id: normalizedPayload.category_id,
       item_type_id: normalizedPayload.item_type_id,
-      port_id: normalizedPayload.port_id,
       parent_name: normalizedPayload.parent_name,
       status: normalizedPayload.status,
       created_by: userId,
       updated_by: userId,
     };
 
-    const created = await ItemParentModel.create(data, connection);
+    await ItemParentModel.create(data, connection);
+    await ItemParentModel.replacePorts(data.id, normalizedPayload.ports, connection);
+    const created = await ItemParentModel.findById(data.id, connection);
 
     await syncSubbrandItem(created, connection);
 
@@ -507,6 +546,7 @@ async function create(payload, userId, req = null) {
 
 async function update(id, payload, userId, req = null) {
   const existing = await ItemParentModel.findRawById(id);
+  const existingFull = existing ? await ItemParentModel.findById(id) : null;
 
   if (!existing) {
     return {
@@ -524,7 +564,9 @@ async function update(id, payload, userId, req = null) {
     item_name: hasOwn(payload, 'item_name') ? trimOrNull(payload.item_name) : existing.item_name,
     category_id: hasOwn(payload, 'category_id') ? trimOrNull(payload.category_id) : existing.category_id,
     item_type_id: hasOwn(payload, 'item_type_id') ? trimOrNull(payload.item_type_id) : existing.item_type_id,
-    port_id: hasOwn(payload, 'port_id') ? trimOrNull(payload.port_id) : existing.port_id,
+    ports: (hasOwn(payload, 'ports') || hasOwn(payload, 'port_ids'))
+      ? normalizePorts(payload)
+      : (existingFull?.ports || []).map((port) => ({ port_id: port.id, is_primary: port.is_primary, sort_order: port.sort_order })),
     parent_name: hasOwn(payload, 'parent_name') ? trimOrNull(payload.parent_name) : existing.parent_name,
     status: hasOwn(payload, 'status') ? trimOrNull(payload.status) : existing.status,
     parent_code: payload.parent_code,
@@ -561,7 +603,7 @@ async function update(id, payload, userId, req = null) {
       return resolvedSubbrand;
     }
 
-    const updated = await ItemParentModel.update(
+    await ItemParentModel.update(
       id,
       {
         ...mergedPayload,
@@ -571,6 +613,9 @@ async function update(id, payload, userId, req = null) {
       },
       connection
     );
+
+    await ItemParentModel.replacePorts(id, mergedPayload.ports, connection);
+    const updated = await ItemParentModel.findById(id, connection);
 
     await syncSubbrandItem(updated, connection);
 
