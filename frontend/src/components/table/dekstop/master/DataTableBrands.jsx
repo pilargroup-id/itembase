@@ -118,6 +118,53 @@ function renderBrandValue(value) {
     )
 }
 
+function getBrandChannels(brand) {
+    return Array.isArray(brand?.channels) ? brand.channels : []
+}
+
+function formatBrandBusinessUnits(brand) {
+    const businessUnits = getBrandChannels(brand)
+        .map((channel) =>
+            formatDisplayValue(
+                channel.business_unit?.name ??
+                    channel.business_unit?.code ??
+                    channel.business_unit_name ??
+                    channel.business_unit_code,
+            ),
+        )
+        .filter((value) => value !== "-")
+
+    if (businessUnits.length > 0) {
+        return Array.from(new Set(businessUnits)).join(", ")
+    }
+
+    return formatDisplayValue(
+        brand?.business_unit?.name ??
+            brand?.business_unit?.code ??
+            brand?.businessUnit ??
+            brand?.business_unit,
+    )
+}
+
+function formatBrandChannels(brand) {
+    const channels = getBrandChannels(brand)
+        .map((channel) =>
+            formatDisplayValue(
+                channel.channel_name ??
+                    channel.channel_code ??
+                    channel.department?.name ??
+                    channel.department?.code,
+            ),
+        )
+        .filter((value) => value !== "-")
+
+    if (channels.length > 0) {
+        return Array.from(new Set(channels)).join(", ")
+    }
+
+    return formatDisplayValue(brand?.channel_name ?? brand?.channel_code)
+}
+
 function matchesSearch(brand, searchQuery) {
     const normalizedQuery = String(searchQuery ?? "").trim().toLowerCase()
 
@@ -130,6 +177,8 @@ function matchesSearch(brand, searchQuery) {
         brand.brand_code,
         brand.name,
         brand.brand_name,
+        formatBrandBusinessUnits(brand),
+        formatBrandChannels(brand),
         getBrandStatusLabel(brand),
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
@@ -275,6 +324,20 @@ const columns = [
         headerStyle: { width: "22%" },
         cellStyle: { width: "22%" },
         render: (brand) => renderBrandValue(brand.code || brand.brand_code),
+    },
+    {
+        key: "businessUnit",
+        header: "Business Unit",
+        headerStyle: { width: "22%" },
+        cellStyle: { width: "22%" },
+        render: (brand) => renderBrandValue(formatBrandBusinessUnits(brand)),
+    },
+    {
+        key: "channelName",
+        header: "Channel Name",
+        headerStyle: { width: "22%" },
+        cellStyle: { width: "22%" },
+        render: (brand) => renderBrandValue(formatBrandChannels(brand)),
     },
 ]
 

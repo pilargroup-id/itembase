@@ -19,7 +19,7 @@ const brandFields = [
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'e.g., GOTO',
+    placeholder: 'Input Name Brand',
   },
 ]
 

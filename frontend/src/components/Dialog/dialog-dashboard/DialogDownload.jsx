@@ -119,11 +119,11 @@ function DialogDownloadSelect({
 
           <button
             type="button"
-            className="dashboard-popup__close"
+            className="dashboard-popup__close item-create-popup__close-button"
             aria-label="Tutup dialog"
             onClick={onClose}
           >
-            <XClose size={18} />
+            <XClose size={22} />
           </button>
         </div>
 
@@ -165,14 +165,6 @@ function DialogDownloadSelect({
         </div>
 
         <div className="dashboard-popup__actions">
-          <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={onClose}
-            disabled={isDownloading}
-          >
-            Batal
-          </button>
           <button
             type="button"
             className="dashboard-popup__button dashboard-popup__button--primary"
