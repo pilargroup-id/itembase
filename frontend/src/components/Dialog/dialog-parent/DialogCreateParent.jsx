@@ -2,7 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
+import { CheckSquare, ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
+import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 
 const initialFormValues = {
   subbrand_id: '',
@@ -11,7 +13,7 @@ const initialFormValues = {
   item_name: '',
   category_id: '',
   item_type_id: '',
-  port_id: '',
+  port_id: [],
   parent_name: '',
   status: 'active',
 }
@@ -29,26 +31,17 @@ const parentFormulaFields = [
   {
     name: 'sub_brand',
     label: 'Sub Brand',
-    placeholder: 'FRUCI',
+    placeholder: 'Search...',
     type: 'subBrandSearch',
-    searchPlaceholder: 'Cari sub brand...',
+    searchPlaceholder: 'Search',
     emptyMessage: 'Sub brand tidak ditemukan.',
   },
   {
     name: 'item_name',
     label: 'Item Name',
-    placeholder: 'BACKPACK KIDS',
+    placeholder: 'Enter Item Name..',
   },
 ]
-
-const parentNameField = {
-  name: 'parent_name',
-  label: 'Parent Name',
-  placeholder: 'Akan terbentuk otomatis',
-  full: true,
-  readOnly: true,
-  helperText: 'Otomatis dibuat dari Brand + Sub Brand + Item Name.',
-}
 
 const parentDetailFields = [
   {
@@ -62,8 +55,8 @@ const parentDetailFields = [
   },
   {
     name: 'item_type_id',
-    label: 'Item Type',
-    placeholder: 'Pilih item type',
+    label: 'Item Source',
+    placeholder: 'Pilih Source',
     type: 'select',
     optionsKey: 'itemTypes',
     searchPlaceholder: 'Cari item type...',
@@ -73,7 +66,7 @@ const parentDetailFields = [
     name: 'port_id',
     label: 'Port',
     placeholder: 'Pilih port',
-    type: 'select',
+    type: 'checkbox-list',
     optionsKey: 'ports',
     searchPlaceholder: 'Cari port...',
     emptyMessage: 'Port tidak ditemukan.',
@@ -102,6 +95,9 @@ const masterSelectDefaults = {
   ports: {
     labelKeys: ['name', 'port_name', 'code', 'port_code'],
   },
+  uoms: {
+    labelKeys: ['code', 'name', 'uom_code', 'uom_name'],
+  },
 }
 
 const emptyMasterOptions = {
@@ -109,6 +105,7 @@ const emptyMasterOptions = {
   categories: [],
   itemTypes: [],
   ports: [],
+  uoms: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -695,22 +692,26 @@ function SearchableSubBrandInput({
 
   return (
     <div ref={rootRef} className="parent-subbrand-search">
-      <input
-        ref={inputRef}
-        id={id}
-        name="sub_brand"
-        className="register-user-popup__input parent-subbrand-search__input"
-        value={value}
-        placeholder={placeholder}
-        onChange={handleInputChange}
-        onFocus={handleFocus}
-        autoComplete="off"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        disabled={disabled}
-      />
+      <div className="parent-subbrand-search__control">
+        <SearchMd size={16} className="parent-subbrand-search__icon" aria-hidden="true" />
+        <input
+          ref={inputRef}
+          id={id}
+          name="sub_brand"
+          type="search"
+          className="register-user-popup__input parent-subbrand-search__input"
+          value={value}
+          placeholder={placeholder}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          disabled={disabled}
+        />
+      </div>
 
       {menuNode}
     </div>
@@ -719,8 +720,8 @@ function SearchableSubBrandInput({
 
 function DialogCreateParent({
   isOpen = false,
-  eyebrow = 'Create Item Parent',
-  title = 'Create Parent',
+  eyebrow = 'Item Parent',
+  title = 'Create ...',
   onClose,
   onCreated,
 }) {
@@ -729,35 +730,23 @@ function DialogCreateParent({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isSaveParentChecked, setIsSaveParentChecked] = useState(false)
+  const [isCreateItemChecked, setIsCreateItemChecked] = useState(false)
+  const [detailItems, setDetailItems] = useState(() => [createInitialDetailItem()])
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setIsSubmitting(false)
     setErrorMessage('')
+    setIsSaveParentChecked(false)
+    setIsCreateItemChecked(false)
+    setDetailItems([createInitialDetailItem()])
   }, [])
 
   const handleClose = useCallback(() => {
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        handleClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleClose, isOpen, isSubmitting])
 
   useEffect(() => {
     if (!isOpen) {
@@ -771,11 +760,12 @@ function DialogCreateParent({
       setIsLoadingMasters(true)
 
       try {
-        const [brands, categories, itemTypes, ports] = await Promise.all([
+        const [brands, categories, itemTypes, ports, uoms] = await Promise.all([
           api.brands.list({ is_active: 1 }, { signal: controller.signal }),
           api.categories.list({ is_active: 1 }, { signal: controller.signal }),
           api.itemTypes.list({ is_active: 1 }, { signal: controller.signal }),
           api.ports.list({ is_active: 1 }, { signal: controller.signal }),
+          api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
         ])
 
         if (!isMounted) {
@@ -787,6 +777,7 @@ function DialogCreateParent({
           categories: normalizeMasterOptions(categories, 'categories'),
           itemTypes: normalizeMasterOptions(itemTypes, 'itemTypes'),
           ports: normalizeMasterOptions(ports, 'ports'),
+          uoms: normalizeMasterOptions(uoms, 'uoms'),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -824,6 +815,7 @@ function DialogCreateParent({
       }),
     [formValues.item_name, formValues.sub_brand, selectedBrandLabel],
   )
+  const dialogTitle = generatedParentName || title
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
@@ -843,6 +835,26 @@ function DialogCreateParent({
     }))
   }
 
+  const handlePortToggle = (portId) => {
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const normalizedPortId = String(portId ?? '')
+      const selectedPortIds = Array.isArray(currentValues.port_id)
+        ? currentValues.port_id.map((selectedPortId) => String(selectedPortId ?? '')).filter(Boolean)
+        : normalizeFieldValue(currentValues.port_id)
+          ? [normalizeFieldValue(currentValues.port_id)]
+          : []
+      const isSelected = selectedPortIds.includes(normalizedPortId)
+
+      return {
+        ...currentValues,
+        port_id: isSelected
+          ? selectedPortIds.filter((selectedPortId) => selectedPortId !== normalizedPortId)
+          : [...selectedPortIds, normalizedPortId],
+      }
+    })
+  }
+
   const handleSubBrandChange = (value, option) => {
     setErrorMessage('')
     setFormValues((currentValues) => ({
@@ -852,10 +864,37 @@ function DialogCreateParent({
     }))
   }
 
+  const handleSaveParentChange = (event) => {
+    const isChecked = event.target.checked
+
+    setErrorMessage('')
+    setIsSaveParentChecked(isChecked)
+
+    if (!isChecked) {
+      setIsCreateItemChecked(false)
+    }
+  }
+
+  const handleCreateItemChange = (event) => {
+    const isChecked = event.target.checked
+
+    setErrorMessage('')
+    setIsCreateItemChecked(isChecked)
+
+    if (isChecked) {
+      setIsSaveParentChecked(true)
+    }
+  }
+
   const buildPayload = () =>
     ({
       ...Object.fromEntries(
-        Object.entries(formValues).map(([key, value]) => [key, normalizeFieldValue(value)]),
+        Object.entries(formValues).map(([key, value]) => [
+          key,
+          Array.isArray(value)
+            ? value.map((item) => normalizeFieldValue(item)).filter(Boolean)
+            : normalizeFieldValue(value),
+        ]),
       ),
       parent_name: generatedParentName,
       status: 'active',
@@ -865,7 +904,16 @@ function DialogCreateParent({
     event.preventDefault()
 
     const payload = buildPayload()
-    const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => !payload[fieldName])
+    const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => {
+      const value = payload[fieldName]
+
+      return Array.isArray(value) ? value.length === 0 : !value
+    })
+
+    if (!isSaveParentChecked) {
+      setErrorMessage('Centang Save Parent terlebih dahulu sebelum membuat item parent.')
+      return
+    }
 
     if (hasEmptyRequiredValue || !payload.parent_name) {
       setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
@@ -903,12 +951,34 @@ function DialogCreateParent({
       }`}
     >
       <label
-        className="register-user-popup__label"
+        className={`register-user-popup__label${
+          field.name === 'item_name' && isCreateItemChecked
+            ? ' parent-create-popup__label-with-status'
+            : ''
+        }`}
         htmlFor={`parent-${field.name}`}
       >
-        {field.label}
+        <span>{field.label}</span>
+        {field.name === 'item_name' && isCreateItemChecked ? (
+          <span className="parent-create-popup__used-badge" title="Item name terpakai untuk create item">
+            <CheckSquare size={14} />
+            <span>Terpakai</span>
+          </span>
+        ) : null}
       </label>
-      {field.type === 'select' ? (
+      {field.type === 'checkbox-list' ? (
+        <CheckboxSelect
+          id={`parent-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          emptyMessage={field.emptyMessage}
+          loading={isLoadingMasters}
+          disabled={isSubmitting || isLoadingMasters}
+          onToggle={handlePortToggle}
+        />
+      ) : field.type === 'select' ? (
         <SearchableMasterSelect
           id={`parent-${field.name}`}
           label={field.label}
@@ -957,7 +1027,6 @@ function DialogCreateParent({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
@@ -971,9 +1040,19 @@ function DialogCreateParent({
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
             <h2 className="dashboard-popup__title" id="dialog-create-parent-title">
-              {title}
+              {dialogTitle}
             </h2>
           </div>
+
+          <button
+            type="button"
+            className="dashboard-popup__close parent-create-popup__close"
+            aria-label="Tutup dialog"
+            onClick={handleClose}
+            disabled={isSubmitting}
+          >
+            <XClose size={22} />
+          </button>
         </div>
 
         <div className="dashboard-popup__body">
@@ -983,7 +1062,6 @@ function DialogCreateParent({
                 <div className="parent-create-popup__section">
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
                     {parentFormulaFields.map(renderField)}
-                    {renderField(parentNameField)}
                   </div>
                 </div>
 
@@ -998,8 +1076,45 @@ function DialogCreateParent({
 
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
                     {parentDetailFields.map(renderField)}
+                    <div className="register-user-popup__field parent-create-popup__save-parent-field">
+                      <label className="parent-create-popup__save-parent">
+                        <input
+                          type="checkbox"
+                          className="parent-create-popup__save-parent-input"
+                          checked={isSaveParentChecked}
+                          onChange={handleSaveParentChange}
+                          disabled={isSubmitting}
+                        />
+                        <span>Save Parent</span>
+                      </label>
+                    </div>
+                    <div className="register-user-popup__field parent-create-popup__save-parent-field">
+                      <label className="parent-create-popup__save-parent">
+                        <input
+                          type="checkbox"
+                          className="parent-create-popup__save-parent-input"
+                          checked={isCreateItemChecked}
+                          onChange={handleCreateItemChange}
+                          disabled={isSubmitting}
+                        />
+                        <span>Create Item</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
+
+                {isCreateItemChecked ? (
+                  <CreateDetailItem
+                    itemName={formValues.item_name}
+                    items={detailItems}
+                    uomOptions={masterOptions.uoms}
+                    loadingUoms={isLoadingMasters}
+                    SearchableSelect={SearchableMasterSelect}
+                    disabled={isSubmitting}
+                    onChange={setDetailItems}
+                  />
+                ) : null}
+
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">
                     {errorMessage}
@@ -1012,17 +1127,9 @@ function DialogCreateParent({
 
         <div className="dashboard-popup__actions">
           <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
-          <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isSaveParentChecked}
           >
             {isSubmitting ? 'Creating...' : 'Create'}
           </button>

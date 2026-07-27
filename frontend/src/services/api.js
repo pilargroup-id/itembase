@@ -178,7 +178,9 @@ const request = async (
   let responseData = null;
 
   if (response.status !== 204) {
-    if (responseType === 'text') {
+    if (responseType === 'blob') {
+      responseData = await response.blob();
+    } else if (responseType === 'text') {
       responseData = await response.text();
     } else {
       const rawText = await response.text();
@@ -281,6 +283,10 @@ const api = {
     ...createResource('/item/items'),
     updateStatus: (id, is_active, options) =>
       api.put(`/item/items/${id}`, { is_active }, options),
+  },
+  itemDownloads: {
+    xlsx: (params, options) =>
+      api.get('/item/download', { ...options, params, responseType: 'blob' }),
   },
   activityLogs: createResource('/activity-logs'),
 };

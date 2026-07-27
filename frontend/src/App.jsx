@@ -16,19 +16,20 @@ import PicsPages from './pages/master/pics/PicsPages.jsx'
 import PicUsersPage from './pages/master/pic-users/PicUserPages.jsx'
 import SkuStatusesPage from './pages/master/sku-statuses/SkuStatusPages.jsx'
 import ActivityLogs from './pages/activity-logs/ActivityLogs.jsx'
+import DashboardPage from './pages/dashboard/DashboardPage.jsx'
 
 import api from './services/api.js'
 
 const AUTH_TOKEN_STORAGE_KEY = 'itembase.auth.token'
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
-const DEFAULT_PATH = '/parents'
+const DEFAULT_PATH = '/dashboard'
 
 function getCurrentPath() {
   if (typeof window === 'undefined') {
     return DEFAULT_PATH
   }
 
-  return ['/', '/dashboard', '/parent'].includes(window.location.pathname)
+  return ['/', '/parent'].includes(window.location.pathname)
     ? DEFAULT_PATH
     : window.location.pathname
 }
@@ -171,6 +172,10 @@ function getAuthUserRole(user, isLoading, error) {
 }
 
 const pageDetails = {
+  '/dashboard': {
+    title: 'Dashboard',
+    eyebrow: 'Dashboard',
+  },
   '/parents': {
     title: 'Parent',
     eyebrow: 'Item Management',
@@ -315,6 +320,7 @@ function App() {
 
   const currentPagePath = pageDetails[activePath] ? activePath : DEFAULT_PATH
   const activePage = pageDetails[currentPagePath]
+  const isDashboardPage = currentPagePath === '/dashboard'
   const isParentsPage = currentPagePath === '/parents'
   const isItemsPage = currentPagePath === '/items'
   const isBundlesPage = currentPagePath === '/bundles'
@@ -332,6 +338,17 @@ function App() {
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isSubBrandsPage || isTypePage || isPortsPage || isUomsPage
   const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
   const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
+
+  const navigateToPage = (nextPath) => {
+    if (!nextPath || typeof window === 'undefined') {
+      return
+    }
+
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
 
   const shellClassName = [
     'dashboard-shell',
@@ -386,12 +403,18 @@ function App() {
         />
 
         <main
-          className={`dashboard-main${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
+          className={`dashboard-main${isDashboardPage ? ' dashboard-main--home' : ''}${isItemManagementTablePage ? ' dashboard-main--parents' : ''}`}
         >
           <div
-            className={`dashboard-content${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
+            className={`dashboard-content${isDashboardPage ? ' dashboard-content--home' : ''}${isItemManagementTablePage ? ' dashboard-content--parents' : ''}`}
           >
-            {isParentsPage ? (
+            {isDashboardPage ? (
+              <DashboardPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onNavigate={navigateToPage}
+              />
+            ) : isParentsPage ? (
               <ParentsPage
                 activePage={activePage}
                 searchQuery={searchQuery}

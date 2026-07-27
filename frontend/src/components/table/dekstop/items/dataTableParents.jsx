@@ -241,7 +241,7 @@ const columns = [
     },
     {
         key: "itemType",
-        header: "Item Type",
+        header: "Item Source",
         headerStyle: { width: "7%" },
         cellStyle: { width: "7%" },
         render: (parent) => renderParentValue(parent.item_type?.name),
@@ -490,7 +490,9 @@ function DataTableParents({
         pageSizeLabel: "Tampilkan",
         pageSizeSuffix: "baris",
         previousLabel: "Sebelumnya",
-        nextLabel: "Berikutnya",
+        previousLabel: "<",
+        nextLabel: ">",
+        circularButtons: true,
         ariaLabel: "Item parents pagination",
         pageSizeAriaLabel: "Jumlah data item parent per halaman",
         onPrevious: () => setPaginationPage(Math.max(1, safeCurrentPage - 1)),
@@ -507,7 +509,7 @@ function DataTableParents({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter item parent">
-                    <FilterDropdownParent
+                    {/* <FilterDropdownParent
                         className="parent-table-filter parent-table-filter--sort"
                         options={parentSortOptions}
                         value={sortValue}
@@ -528,7 +530,7 @@ function DataTableParents({
                             emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
-                    ))}
+                    ))} */}
                 </div>
             </div>
 

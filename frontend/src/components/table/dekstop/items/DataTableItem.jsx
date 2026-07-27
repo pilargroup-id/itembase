@@ -602,8 +602,9 @@ function DataTableItem({
         pageSizeOptions: PAGE_SIZE_OPTIONS,
         pageSizeLabel: "Tampilkan",
         pageSizeSuffix: "baris",
-        previousLabel: "Sebelumnya",
-        nextLabel: "Berikutnya",
+        previousLabel: "<",
+        nextLabel: ">",
+        circularButtons: true,
         ariaLabel: "Items pagination",
         pageSizeAriaLabel: "Jumlah data item per halaman",
         onPrevious: () => setPaginationPage(Math.max(1, safeCurrentPage - 1)),
@@ -620,7 +621,7 @@ function DataTableItem({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter item">
-                    <FilterDropdownItem
+                    {/* <FilterDropdownItem
                         className="parent-table-filter parent-table-filter--sort"
                         options={itemSortOptions}
                         value={sortValue}
@@ -632,16 +633,22 @@ function DataTableItem({
                     {itemFilterConfig.map((filterConfig) => (
                         <FilterDropdownItem
                             key={filterConfig.key}
-                            className="parent-table-filter"
+                            className={[
+                                "parent-table-filter",
+                                filterConfig.searchable === false ? "parent-table-filter--quick-select" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
                             options={filterOptions[filterConfig.key]}
                             value={filters[filterConfig.key]}
                             label={filterConfig.label}
                             placeholder={filterConfig.placeholder}
                             searchPlaceholder={filterConfig.searchPlaceholder}
                             emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
+                            searchable={filterConfig.searchable ?? true}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
-                    ))}
+                    ))} */}
                 </div>
             </div>
 

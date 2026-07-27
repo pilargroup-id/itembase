@@ -1,3 +1,18 @@
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+
+import { ChevronDown } from '../../template/TemplateIcons.jsx'
+
+function getSelectedOptionIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '')).filter(Boolean)
+  }
+
+  const normalizedValue = String(value ?? '').trim()
+
+  return normalizedValue ? [normalizedValue] : []
+}
+
 function CheckboxSelect({
   id,
   label,
@@ -14,7 +29,7 @@ function CheckboxSelect({
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
-  const selectedIds = getSelectedDepartmentIds(value)
+  const selectedIds = getSelectedOptionIds(value)
   const selectedOptions = options.filter((option) => selectedIds.includes(option.value))
 
   useEffect(() => {

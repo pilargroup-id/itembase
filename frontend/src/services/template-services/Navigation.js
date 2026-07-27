@@ -15,11 +15,13 @@ import {
   Tag01,
   UserCheck,
   UserCog,
+  LayoutDashboard,
 } from '../../components/template/TemplateIcons.jsx'
 
 export const defaultNavigationPath = '/parents'
 
 export const implementedNavigationPaths = [
+  '/dashboard',
   '/parents',
   '/items',
   '/bundles',
@@ -36,6 +38,12 @@ export const implementedNavigationPaths = [
 ]
 
 export const primaryNavigationItems = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboard,
+  },
   {
     id: 'nav-item-management',
     label: 'Item Management',

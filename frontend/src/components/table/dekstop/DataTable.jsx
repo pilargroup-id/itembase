@@ -319,6 +319,7 @@ function DataTable({
                 const detailEyebrow = resolveTemplateValue(detail?.eyebrow, row, index)
                 const rowClassName = [
                   'users-table__row',
+                  index % 2 === 0 ? 'users-table__row--even' : 'users-table__row--odd',
                   isRowInteractive ? 'users-table__row--interactive' : '',
                   isExpanded ? 'users-table__row--expanded' : '',
                   getRowClassName?.(row, index),
@@ -548,7 +549,10 @@ function DataTable({
           </div>
 
           <div
-            className="users-table-pagination__controls"
+            className={[
+              'users-table-pagination__controls',
+              pagination.circularButtons ? 'users-table-pagination__controls--circular' : '',
+            ].filter(Boolean).join(' ')}
             aria-label={pagination.ariaLabel ?? `${tableLabel} pagination`}
           >
             <CreateButton

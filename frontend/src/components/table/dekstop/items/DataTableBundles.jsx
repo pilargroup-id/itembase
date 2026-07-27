@@ -556,8 +556,9 @@ function DataTableBundles({
         pageSizeOptions: PAGE_SIZE_OPTIONS,
         pageSizeLabel: "Tampilkan",
         pageSizeSuffix: "baris",
-        previousLabel: "Sebelumnya",
-        nextLabel: "Berikutnya",
+        previousLabel: "<",
+        nextLabel: ">",
+        circularButtons: true,
         ariaLabel: "Bundles pagination",
         pageSizeAriaLabel: "Jumlah data bundle per halaman",
         onPrevious: () => setPaginationPage(Math.max(1, safeCurrentPage - 1)),
@@ -574,7 +575,7 @@ function DataTableBundles({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter bundle">
-                    <FilterDropdownBundle
+                    {/* <FilterDropdownBundle
                         className="parent-table-filter parent-table-filter--sort"
                         options={itemSortOptions}
                         value={sortValue}
@@ -599,7 +600,7 @@ function DataTableBundles({
                                 }
                                 onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                             />
-                        ))}
+                        ))} */}
                 </div>
             </div>
 

@@ -157,7 +157,7 @@ function baseSelectSql() {
       ms.normalized_name AS subbrand_normalized_name,
       ms.is_active AS subbrand_is_active,
 
-      mb.code AS brand_code,
+    mb.code AS brand_code,
       mb.name AS brand_name,
 
       mc.detail_category AS category_detail_category,

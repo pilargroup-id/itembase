@@ -8,49 +8,24 @@ import SearchableItemSelect from './SearchableItemSelect.jsx'
 const initialFormValues = {
   item_kind: 'regular',
   item_name: '',
-  category_id: '',
-  category_label: '',
-  parent_id: '',
   uom_id: '',
-  sku_status_id: '',
-  business_unit_id: '',
-  department_id: [],
   variant: '',
   qty_per_pack: '',
   height: '',
   width: '',
   depth: '',
   gross_weight_pack: '',
-  container_20ft_qty: '',
-  container_40hq_qty: '',
   production_time_days: '',
   is_active: '1',
 }
 
 const itemFields = [
   {
-    name: 'parent_id',
-    label: 'Parent',
-    placeholder: 'Pilih parent',
-    type: 'select',
-    optionsKey: 'parents',
-    searchPlaceholder: 'Cari parent...',
-    emptyMessage: 'Parent tidak ditemukan.',
-    full: true,
-    required: true,
-  },
-  {
     name: 'item_name',
     label: 'Item Name + Variant',
     placeholder: 'TEST GOTO BOTTLE BLUE',
-    readOnly: true,
     required: true,
-  },
-  {
-    name: 'category_label',
-    label: 'Category',
-    placeholder: 'Pilih parent terlebih dahulu',
-    readOnly: true,
+    full: true,
   },
   {
     name: 'uom_id',
@@ -67,78 +42,51 @@ const itemFields = [
     placeholder: 'BLUE',
   },
   {
-    name: 'sku_status_id',
-    label: 'SKU Status',
-    placeholder: 'Pilih SKU status',
-    type: 'select',
-    optionsKey: 'skuStatuses',
-  },
-  {
-    name: 'business_unit_id',
-    label: 'Business Unit',
-    placeholder: 'Pilih business unit',
-    type: 'select',
-    optionsKey: 'businessUnits',
-    searchPlaceholder: 'Cari business unit...',
-    emptyMessage: 'Business unit tidak ditemukan.',
-    required: true,
-  },
-  {
-    name: 'department_id',
-    label: 'Channel',
-    placeholder: 'Pilih channel',
-    type: 'checkbox-list',
-    optionsKey: 'departments',
-    emptyMessage: 'Channel tidak ditemukan.',
-    required: true,
-  },
-  {
     name: 'qty_per_pack',
     label: 'Qty / Pack',
     placeholder: '1',
     type: 'number',
+    compactDimension: true,
+    qtyField: true,
   },
   {
     name: 'height',
-    label: 'Height',
+    label: 'H',
     placeholder: '25',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'width',
-    label: 'Width',
+    label: 'W',
     placeholder: '8',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'depth',
-    label: 'Depth',
+    label: 'D',
     placeholder: '8',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'gross_weight_pack',
     label: 'Gross Weight / Pack',
     placeholder: '0.30',
     type: 'number',
-  },
-  {
-    name: 'container_20ft_qty',
-    label: '20ft Qty',
-    placeholder: '2000',
-    type: 'number',
-  },
-  {
-    name: 'container_40hq_qty',
-    label: '40HQ Qty',
-    placeholder: '4500',
-    type: 'number',
+    compactDimension: true,
   },
   {
     name: 'production_time_days',
-    label: 'Production Days',
+    label: 'Lead Time',
     placeholder: '10',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'day',
   },
 ]
 
@@ -148,25 +96,14 @@ const numericFields = new Set([
   'width',
   'depth',
   'gross_weight_pack',
-  'container_20ft_qty',
-  'container_40hq_qty',
   'production_time_days',
   'is_active',
 ])
 
 const emptyMasterOptions = {
-  parents: [],
   uoms: [],
-  skuStatuses: [],
   businessUnits: [],
   departments: [],
-}
-
-const parentListBaseParams = {
-  status: 'active',
-  page: 1,
-  limit: 25,
-  sort: 'date-desc',
 }
 
 function normalizeListResponse(responseData) {
@@ -211,13 +148,6 @@ function makeOption(value, labelParts) {
   }
 }
 
-function buildItemName(itemName, variant) {
-  return [itemName, variant]
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean)
-    .join(' ')
-}
-
 function getSelectedDepartmentIds(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item ?? '')).filter(Boolean)
@@ -226,35 +156,6 @@ function getSelectedDepartmentIds(value) {
   const normalizedValue = String(value ?? '').trim()
 
   return normalizedValue ? [normalizedValue] : []
-}
-
-function normalizeParentOptions(responseData) {
-  return normalizeListResponse(responseData)
-    .map((parent) => {
-      const parentName = parent.parent_name ?? ''
-      const option = makeOption(parent.id, [
-        parentName,
-        parent.parent_code,
-      ])
-      option.item_name = parentName
-      option.category_id = parent.category?.id ?? ''
-      option.category_label =
-        parent.category?.detail_category ??
-        parent.category?.sub_category ??
-        parent.category?.main_category ??
-        ''
-      return option
-    })
-    .filter((option) => option.value && option.label)
-}
-
-function createParentListParams(searchQuery = '') {
-  const normalizedSearchQuery = String(searchQuery ?? '').trim()
-
-  return {
-    ...parentListBaseParams,
-    ...(normalizedSearchQuery ? { search: normalizedSearchQuery } : {}),
-  }
 }
 
 function normalizeMasterOptions(responseData) {
@@ -371,7 +272,7 @@ function buildPayload(formValues, masterOptions) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
-      .filter(([key]) => key !== 'department_id' && key !== 'category_id' && key !== 'category_label')
+      .filter(([key]) => key !== 'department_id')
       .filter(([, value]) => value !== ''),
   )
   const channels = createChannelPayload(formValues, masterOptions.departments)
@@ -384,11 +285,11 @@ function buildPayload(formValues, masterOptions) {
 }
 
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.parent_id || !payload.business_unit_id || !payload.item_name) {
+  if (!payload.item_kind || !payload.item_name) {
     return false
   }
 
-  return Array.isArray(payload.channels) && payload.channels.length > 0
+  return true
 }
 
 function ChannelCheckboxSelect({
@@ -608,93 +509,25 @@ function DialogCreateItem({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
-  const [isLoadingParents, setIsLoadingParents] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
-  const [allParentOptions, setAllParentOptions] = useState([])
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
-  const parentSearchControllerRef = useRef(null)
 
   const resetDialogState = useCallback(() => {
-    parentSearchControllerRef.current?.abort()
-    parentSearchControllerRef.current = null
     setFormValues(initialFormValues)
     setIsSubmitting(false)
-    setIsLoadingParents(false)
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
-      parents: allParentOptions,
       departments: [],
     }))
     setErrorMessage('')
-  }, [allParentOptions])
+  }, [])
 
   const handleClose = useCallback(() => {
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        handleClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleClose, isOpen, isSubmitting])
-
-  const handleParentSearchChange = useCallback(
-    async (searchQuery) => {
-      if (!isOpen) {
-        return
-      }
-
-      parentSearchControllerRef.current?.abort()
-
-      const controller = new AbortController()
-      parentSearchControllerRef.current = controller
-
-      setIsLoadingParents(true)
-
-      try {
-        const parents = await api.itemParents.list(createParentListParams(searchQuery), {
-          signal: controller.signal,
-        })
-
-        if (controller.signal.aborted) {
-          return
-        }
-
-        const normalizedParents = normalizeParentOptions(parents)
-
-        setAllParentOptions(normalizedParents)
-        setMasterOptions((currentOptions) => ({
-          ...currentOptions,
-          parents: normalizedParents,
-        }))
-      } catch (error) {
-        if (error?.name !== 'AbortError') {
-          setErrorMessage(error?.message || 'Gagal mencari data parent.')
-        }
-      } finally {
-        if (parentSearchControllerRef.current === controller) {
-          parentSearchControllerRef.current = null
-          setIsLoadingParents(false)
-        }
-      }
-    },
-    [isOpen],
-  )
 
   useEffect(() => {
     if (!isOpen) {
@@ -708,10 +541,8 @@ function DialogCreateItem({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items] = await Promise.all([
-          api.itemParents.list(createParentListParams(), { signal: controller.signal }),
+        const [uoms, items] = await Promise.all([
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
-          api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
         ])
         let businessUnits = []
@@ -732,14 +563,10 @@ function DialogCreateItem({
         }
 
         const itemRows = normalizeListResponse(items)
-        const normalizedParents = normalizeParentOptions(parents)
 
         setItemOptionRows(itemRows)
-        setAllParentOptions(normalizedParents)
         setMasterOptions({
-          parents: normalizedParents,
           uoms: normalizeMasterOptions(uoms),
-          skuStatuses: normalizeMasterOptions(skuStatuses),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
         })
@@ -761,7 +588,6 @@ function DialogCreateItem({
 
     return () => {
       isMounted = false
-      parentSearchControllerRef.current?.abort()
       controller.abort()
     }
   }, [isOpen])
@@ -833,35 +659,10 @@ function DialogCreateItem({
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
-      const selectedParent =
-        name === 'parent_id'
-          ? allParentOptions.find((option) => option.value === String(value))
-          : null
       const nextValues = {
         ...currentValues,
         [name]: value,
         ...(name === 'business_unit_id' ? { department_id: [] } : {}),
-        ...(name === 'parent_id'
-          ? {
-              item_name: buildItemName(
-                selectedParent?.item_name ?? selectedParent?.label ?? '',
-                currentValues.variant,
-              ),
-              category_id: String(selectedParent?.category_id ?? ''),
-              category_label: selectedParent?.category_label ?? '',
-            }
-          : {}),
-      }
-
-      if (name === 'variant') {
-        const parentOption = allParentOptions.find(
-          (option) => option.value === String(currentValues.parent_id),
-        )
-
-        nextValues.item_name = buildItemName(
-          parentOption?.item_name ?? parentOption?.label ?? '',
-          value,
-        )
       }
 
       return nextValues
@@ -896,7 +697,7 @@ function DialogCreateItem({
     const payload = buildPayload(formValues, masterOptions)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage('Pilih parent, business unit, dan channel terlebih dahulu.')
+      setErrorMessage('Lengkapi item name terlebih dahulu.')
       return
     }
 
@@ -919,11 +720,17 @@ function DialogCreateItem({
     return null
   }
 
+  const headerTitle = formValues.item_name || title
+
   const renderField = (field) => (
     <div
       key={field.name}
       className={`register-user-popup__field${
         field.full ? ' register-user-popup__field--full' : ''
+      }${
+        field.compactDimension ? ' item-create-popup__field--compact-dimension' : ''
+      }${
+        field.qtyField ? ' item-create-popup__field--qty' : ''
       }`}
     >
       <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
@@ -958,37 +765,38 @@ function DialogCreateItem({
           loading={
             field.name === 'department_id'
               ? isLoadingDepartments
-              : field.name === 'parent_id'
-                ? isLoadingMasters || isLoadingParents
-                : isLoadingMasters
+              : isLoadingMasters
           }
           disabled={
             isSubmitting ||
             isLoadingMasters ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
-          remoteSearch={field.name === 'parent_id'}
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-          onSearchChange={
-            field.name === 'parent_id' ? handleParentSearchChange : undefined
-          }
         />
       ) : (
-        <input
-          id={`item-${field.name}`}
-          name={field.name}
-          className={`register-user-popup__input${
-            field.readOnly ? ' register-user-popup__input--readonly' : ''
-          }`}
-          type={field.type === 'number' ? 'number' : 'text'}
-          step={field.type === 'number' ? 'any' : undefined}
-          value={formValues[field.name]}
-          placeholder={field.placeholder}
-          onChange={handleInputChange}
-          disabled={isSubmitting}
-          readOnly={field.readOnly}
-          aria-readonly={field.readOnly ? 'true' : undefined}
-        />
+        <div className={field.unitSuffix ? 'item-create-popup__input-with-unit' : undefined}>
+          <input
+            id={`item-${field.name}`}
+            name={field.name}
+            className={`register-user-popup__input${
+              field.readOnly ? ' register-user-popup__input--readonly' : ''
+            }${field.unitSuffix ? ' item-create-popup__input--with-unit' : ''}`}
+            type={field.type === 'number' ? 'number' : 'text'}
+            step={field.type === 'number' ? 'any' : undefined}
+            value={formValues[field.name]}
+            placeholder={field.placeholder}
+            onChange={handleInputChange}
+            disabled={isSubmitting}
+            readOnly={field.readOnly}
+            aria-readonly={field.readOnly ? 'true' : undefined}
+          />
+          {field.unitSuffix ? (
+            <span className="item-create-popup__unit" aria-hidden="true">
+              {field.unitSuffix}
+            </span>
+          ) : null}
+        </div>
       )}
     </div>
   )
@@ -997,7 +805,6 @@ function DialogCreateItem({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
@@ -1011,18 +818,18 @@ function DialogCreateItem({
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
             <h2 className="dashboard-popup__title" id="dialog-create-item-title">
-              {title}
+              {headerTitle}
             </h2>
           </div>
 
           <button
             type="button"
-            className="dashboard-popup__close"
+            className="dashboard-popup__close item-create-popup__close-button"
             aria-label="Tutup dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            <XClose size={18} />
+            <XClose size={22} />
           </button>
         </div>
 
@@ -1031,39 +838,27 @@ function DialogCreateItem({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
-                  <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Info Item</h3>
-                    <p className="parent-create-popup__section-description">
-                      Pilih parent terlebih dahulu agar item name dan category terisi otomatis.
-                    </p>
-                  </div>
-
                   <div className="register-user-popup__grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
                     {itemFields
                       .filter((field) =>
                         [
-                          'parent_id',
                           'item_name',
-                          'category_label',
                           'variant',
-                          'business_unit_id',
-                          'department_id',
-                          'sku_status_id',
                         ].includes(field.name),
                       )
                       .map(renderField)}
                   </div>
                 </div>
 
-                <div className="parent-create-popup__section">
+                <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
                   <div className="parent-create-popup__section-header">
                     <h3 className="parent-create-popup__section-title">Dimency Item</h3>
                     <p className="parent-create-popup__section-description">
-                      Lengkapi detail dimensi item mulai dari UOM sampai production days.
+                      Lengkapi detail dimensi item mulai dari UOM sampai lead time.
                     </p>
                   </div>
 
-                  <div className="register-user-popup__grid" style={{ rowGap: '12px' }}>
+                  <div className="register-user-popup__grid item-create-popup__dimension-grid" style={{ rowGap: '12px' }}>
                     {itemFields
                       .filter((f) =>
                         [
@@ -1073,8 +868,6 @@ function DialogCreateItem({
                           'width',
                           'depth',
                           'gross_weight_pack',
-                          'container_20ft_qty',
-                          'container_40hq_qty',
                           'production_time_days',
                         ].includes(f.name)
                       )
@@ -1093,14 +886,6 @@ function DialogCreateItem({
         </div>
 
         <div className="dashboard-popup__actions">
-          <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"

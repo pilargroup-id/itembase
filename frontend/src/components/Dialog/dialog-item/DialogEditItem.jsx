@@ -485,7 +485,7 @@ function DialogEditItem({
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      onClick={isSubmitting ? undefined : handleClose}
+      // onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
@@ -505,12 +505,12 @@ function DialogEditItem({
 
           <button
             type="button"
-            className="dashboard-popup__close"
+            className="dashboard-popup__close parent-create-popup__close"
             aria-label="Tutup dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            <XClose size={18} />
+            <XClose size={22} />
           </button>
         </div>
 
@@ -601,19 +601,11 @@ function DialogEditItem({
 
         <div className="dashboard-popup__actions">
           <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
-          <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Saving...' : 'Edit'}
+            {isSubmitting ? 'Saving...' : 'Save'}
           </button>
         </div>
       </form>
