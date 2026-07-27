@@ -75,6 +75,12 @@ function getDuplicateMessage(err) {
     };
   }
 
+  if (sqlMessage.includes('uq_variant_attribute_code')) return { message: 'Variant attribute code already exists', field: 'code', constraint: 'uq_variant_attribute_code' };
+  if (sqlMessage.includes('uq_variant_attribute_name')) return { message: 'Variant attribute name already exists', field: 'name', constraint: 'uq_variant_attribute_name' };
+  if (sqlMessage.includes('uq_variant_value_code')) return { message: 'Variant value code already exists for this attribute', field: 'code', constraint: 'uq_variant_value_code' };
+  if (sqlMessage.includes('uq_variant_value_name')) return { message: 'Variant value name already exists for this attribute', field: 'name', constraint: 'uq_variant_value_name' };
+  if (sqlMessage.includes('uq_item_variant_attribute')) return { message: 'Item already has a value for this variant attribute', field: 'variants', constraint: 'uq_item_variant_attribute' };
+
   if (sqlMessage.includes('uq_uom_code')) {
     return {
       message: 'UOM code already exists',

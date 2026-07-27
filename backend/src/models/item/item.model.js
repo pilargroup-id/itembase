@@ -38,6 +38,7 @@ function buildWhereClause(query = {}) {
       OR mb.code LIKE ? OR mb.name LIKE ? OR mc.detail_category LIKE ?
       OR mc.sub_category LIKE ? OR mc.main_category LIKE ? OR mc.brand_category LIKE ?
       OR mu.code LIKE ? OR mu.name LIKE ?
+      OR EXISTS (SELECT 1 FROM item_variant_values ivv_s INNER JOIN master_variant_values mvv_s ON mvv_s.id=ivv_s.variant_value_id INNER JOIN master_variant_attributes mva_s ON mva_s.id=ivv_s.attribute_id WHERE ivv_s.item_id=i.id AND (mvv_s.code LIKE ? OR mvv_s.name LIKE ? OR mva_s.code LIKE ? OR mva_s.name LIKE ?))
       OR EXISTS (
         SELECT 1 FROM master_brand_channels mbc_search
         WHERE mbc_search.brand_id = ip.brand_id
@@ -50,7 +51,7 @@ function buildWhereClause(query = {}) {
           AND (mp_search.code LIKE ? OR mp_search.name LIKE ?)
       )
     )`);
-    params.push(...Array(19).fill(search));
+    params.push(...Array(23).fill(search));
   }
 
   const directFilters = [
@@ -86,6 +87,9 @@ function buildWhereClause(query = {}) {
     conditions.push('i.is_active = ?');
     params.push(isActive);
   }
+
+  if (query.variant_attribute_id) { conditions.push('EXISTS (SELECT 1 FROM item_variant_values ivf WHERE ivf.item_id=i.id AND ivf.attribute_id=?)'); params.push(query.variant_attribute_id); }
+  if (query.variant_value_id) { conditions.push('EXISTS (SELECT 1 FROM item_variant_values ivf WHERE ivf.item_id=i.id AND ivf.variant_value_id=?)'); params.push(query.variant_value_id); }
 
   if (query.port_id) {
     conditions.push(`EXISTS (
@@ -190,9 +194,12 @@ function mapBaseRow(row) {
       } : null,
       item_type: row.item_type_id ? { id: row.item_type_id, code: row.item_type_code, name: row.item_type_name } : null,
       ports: [],
+      variant_attributes: [],
     } : null,
     uom: row.uom_id ? { id: row.uom_id, code: row.uom_code, name: row.uom_name } : null,
     components: [],
+    variants: [],
+    variant_summary: null,
   };
 }
 
@@ -202,15 +209,21 @@ async function hydrateRelations(items, connection = db) {
   const brandIds = [...new Set(items.map((item) => item.parent?.brand?.id).filter(Boolean))];
   const categoryIds = [...new Set(items.map((item) => item.parent?.category?.id).filter(Boolean))];
 
-  const [portsByParent, channelsByBrand, usersByCategory] = await Promise.all([
+  const itemIds = items.map((item)=>item.id);
+  const [portsByParent, channelsByBrand, usersByCategory, variantsByItem, parentVariantAttributes] = await Promise.all([
     findPortsByParentIds(parentIds, connection),
     findChannelsByBrandIds(brandIds, connection),
     findCategoryUsersByCategoryIds(categoryIds, connection),
+    findVariantsByItemIds(itemIds, connection),
+    findParentVariantAttributesByParentIds(parentIds, connection),
   ]);
 
   items.forEach((item) => {
+    item.variants = variantsByItem[item.id] || [];
+    item.variant_summary = item.variants.map((v)=>v.value.name).join(' / ') || null;
     if (!item.parent) return;
     item.parent.ports = portsByParent[item.parent.id] || [];
+    item.parent.variant_attributes = parentVariantAttributes[item.parent.id] || [];
     if (item.parent.brand) item.parent.brand.channels = channelsByBrand[item.parent.brand.id] || [];
     if (item.parent.category) item.parent.category.users = usersByCategory[item.parent.category.id] || [];
   });
@@ -381,6 +394,14 @@ async function findCategoryUsersByCategoryIds(categoryIds = [], connection = db)
   }, {});
 }
 
+
+async function findVariantsByItemIds(itemIds=[],connection=db){if(!itemIds.length)return{};const ph=itemIds.map(()=>'?').join(',');const[rows]=await connection.query(`SELECT ivv.id relation_id,ivv.item_id,ivv.attribute_id,ivv.variant_value_id,ma.code attribute_code,ma.name attribute_name,mv.code value_code,mv.name value_name,mv.sort_order FROM item_variant_values ivv INNER JOIN master_variant_attributes ma ON ma.id=ivv.attribute_id INNER JOIN master_variant_values mv ON mv.id=ivv.variant_value_id WHERE ivv.item_id IN (${ph}) ORDER BY ivv.item_id,ma.name,mv.sort_order,mv.name`,itemIds);return rows.reduce((g,r)=>{(g[r.item_id]??=[]).push({relation_id:r.relation_id,attribute:{id:r.attribute_id,code:r.attribute_code,name:r.attribute_name},value:{id:r.variant_value_id,code:r.value_code,name:r.value_name,sort_order:r.sort_order}});return g;},{});}
+async function findParentVariantAttributesByParentIds(parentIds=[],connection=db){if(!parentIds.length)return{};const ph=parentIds.map(()=>'?').join(',');const[rows]=await connection.query(`SELECT ipva.item_parent_id,ipva.attribute_id,ma.code,ma.name,ma.is_active,ipva.sort_order FROM item_parent_variant_attributes ipva INNER JOIN master_variant_attributes ma ON ma.id=ipva.attribute_id WHERE ipva.item_parent_id IN (${ph}) ORDER BY ipva.item_parent_id,ipva.sort_order`,parentIds);return rows.reduce((g,r)=>{(g[r.item_parent_id]??=[]).push({id:r.attribute_id,code:r.code,name:r.name,is_active:r.is_active,sort_order:r.sort_order});return g;},{});}
+async function findParentVariantAttributes(parentId,connection=db){const grouped=await findParentVariantAttributesByParentIds([parentId],connection);return (grouped[parentId]||[]).map(a=>({attribute_id:a.id,...a}));}
+async function findVariantValuesByIds(ids=[],connection=db){if(!ids.length)return[];const ph=ids.map(()=>'?').join(',');const[rows]=await connection.query(`SELECT mv.id,mv.attribute_id,mv.code,mv.name,mv.is_active,ma.code attribute_code,ma.name attribute_name FROM master_variant_values mv INNER JOIN master_variant_attributes ma ON ma.id=mv.attribute_id WHERE mv.id IN (${ph})`,ids);return rows;}
+async function replaceVariants(itemId,variants=[],connection=db){await connection.query('DELETE FROM item_variant_values WHERE item_id=?',[itemId]);if(!variants.length)return[];const crypto=require('crypto');const values=variants.map(v=>[crypto.randomUUID(),itemId,v.attribute_id,v.value_id]);await connection.query('INSERT INTO item_variant_values (id,item_id,attribute_id,variant_value_id) VALUES ?',[values]);const g=await findVariantsByItemIds([itemId],connection);return g[itemId]||[];}
+async function findDuplicateVariantCombination(parentId,variants=[],excludeItemId=null,connection=db){if(!variants.length)return null;const clauses=variants.map(()=>'(ivv.attribute_id=? AND ivv.variant_value_id=?)').join(' OR ');const params=[];variants.forEach(v=>params.push(v.attribute_id,v.value_id));let sql=`SELECT i.id,i.item_code,i.item_name FROM items i WHERE i.parent_id=? ${excludeItemId?'AND i.id<>?':''} AND (SELECT COUNT(*) FROM item_variant_values x WHERE x.item_id=i.id)=? AND (SELECT COUNT(*) FROM item_variant_values ivv WHERE ivv.item_id=i.id AND (${clauses}))=? LIMIT 1`;const args=[parentId,...(excludeItemId?[excludeItemId]:[]),variants.length,...params,variants.length];const[r]=await connection.query(sql,args);return r[0]||null;}
+
 async function findComponentsByBundleItemIds(bundleItemIds = [], connection = db) {
   if (!bundleItemIds.length) return {};
   const placeholders = bundleItemIds.map(() => '?').join(', ');
@@ -419,5 +440,5 @@ async function transaction(callback) {
 module.exports = {
   findAll, findById, findRawById, findParentById, findUomById,
   findItemsByIds, findLastBarcodeByYear, create, update,
-  replaceComponents, deleteComponents, transaction,
+  replaceComponents, deleteComponents, findVariantsByItemIds, findParentVariantAttributesByParentIds, findParentVariantAttributes, findVariantValuesByIds, replaceVariants, findDuplicateVariantCombination, transaction,
 };
