@@ -11,6 +11,9 @@ router.get(
   ItemController.index
 );
 
+router.post('/matrix/preview', authenticate, requireApp('itembase'), ItemController.previewMatrix);
+router.post('/matrix', authenticate, requireApp('itembase'), ItemController.createMatrix);
+
 router.get(
   '/:id',
   authenticate,

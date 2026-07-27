@@ -68,6 +68,7 @@ function mapRow(row) {
     category: { id: row.category_id, detail_category: row.category_detail_category, sub_category: row.category_sub_category, main_category: row.category_main_category, brand_category: row.category_brand_category },
     item_type: row.item_type_id ? { id: row.item_type_id, code: row.item_type_code, name: row.item_type_name } : null,
     ports: [],
+    variant_attributes: [],
   };
 }
 
@@ -96,8 +97,9 @@ async function findAll(query = {}) {
   const [rows] = await db.query(`${baseSelectSql()} ${whereSql} ${buildOrderByClause(query.sort)} LIMIT ? OFFSET ?`, [...params,limit,offset]);
   const [countRows] = await db.query(`SELECT COUNT(*) AS total FROM item_parents ip LEFT JOIN master_subbrands ms ON ms.id=ip.subbrand_id LEFT JOIN master_brands mb ON mb.id=ip.brand_id INNER JOIN master_categories mc ON mc.id=ip.category_id LEFT JOIN master_item_types mit ON mit.id=ip.item_type_id ${whereSql}`, params);
   const data = rows.map(mapRow);
-  const ports = await findPortsByParentIds(data.map((row) => row.id));
-  data.forEach((row) => { row.ports = ports[row.id] || []; });
+  const ids=data.map((row)=>row.id);
+  const [ports,variantAttributes]=await Promise.all([findPortsByParentIds(ids),findVariantAttributesByParentIds(ids)]);
+  data.forEach((row) => { row.ports = ports[row.id] || []; row.variant_attributes=variantAttributes[row.id]||[]; });
   const total = countRows[0]?.total || 0;
   return { data, meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total/limit)), total_page: Math.ceil(total/limit) } };
 }
@@ -106,8 +108,9 @@ async function findById(id, connection = db) {
   const [rows] = await connection.query(`${baseSelectSql()} WHERE ip.id = ? LIMIT 1`, [id]);
   const row = mapRow(rows[0]);
   if (!row) return null;
-  const ports = await findPortsByParentIds([id], connection);
+  const [ports, variantAttributes] = await Promise.all([findPortsByParentIds([id], connection), findVariantAttributesByParentIds([id], connection)]);
   row.ports = ports[id] || [];
+  row.variant_attributes = variantAttributes[id] || [];
   return row;
 }
 
@@ -133,6 +136,24 @@ async function replacePorts(parentId, ports = [], connection = db) {
   return grouped[parentId]||[];
 }
 
+
+async function findVariantAttributesByParentIds(ids = [], connection = db) {
+  if (!ids.length) return {};
+  const placeholders = ids.map(() => '?').join(',');
+  const [rows] = await connection.query(`SELECT ipva.id relation_id,ipva.item_parent_id,ipva.attribute_id,ipva.sort_order,ma.code,ma.name,ma.is_active FROM item_parent_variant_attributes ipva INNER JOIN master_variant_attributes ma ON ma.id=ipva.attribute_id WHERE ipva.item_parent_id IN (${placeholders}) ORDER BY ipva.item_parent_id,ipva.sort_order,ma.name`, ids);
+  return rows.reduce((g,r)=>{(g[r.item_parent_id]??=[]).push({id:r.attribute_id,relation_id:r.relation_id,code:r.code,name:r.name,sort_order:r.sort_order,is_active:r.is_active});return g;},{});
+}
+async function replaceVariantAttributes(parentId, attributes = [], connection = db) {
+  await connection.query('DELETE FROM item_parent_variant_attributes WHERE item_parent_id=?',[parentId]);
+  if(!attributes.length)return[];
+  const values=attributes.map((a,i)=>[crypto.randomUUID(),parentId,a.attribute_id||a.id,a.sort_order||i+1]);
+  await connection.query('INSERT INTO item_parent_variant_attributes (id,item_parent_id,attribute_id,sort_order) VALUES ?',[values]);
+  const grouped=await findVariantAttributesByParentIds([parentId],connection);return grouped[parentId]||[];
+}
+async function findVariantAttributesByIds(ids=[],connection=db){if(!ids.length)return[];const ph=ids.map(()=>'?').join(',');const[r]=await connection.query(`SELECT id,code,name,is_active FROM master_variant_attributes WHERE id IN (${ph})`,ids);return r;}
+
+async function countChildItems(parentId,connection=db){const[r]=await connection.query('SELECT COUNT(*) total FROM items WHERE parent_id=?',[parentId]);return Number(r[0]?.total||0);}
+
 async function deactivateChildItems(parentId, connection=db) { await connection.query('UPDATE items SET is_active=0 WHERE parent_id=?',[parentId]); }
 async function existsInTable(tableName,id,connection=db) { const allowed=['master_subbrands','master_brands','master_categories','master_item_types','master_ports']; if(!allowed.includes(tableName)) throw new Error('Invalid reference table'); const [rows]=await connection.query(`SELECT id FROM ${tableName} WHERE id=? LIMIT 1`,[id]); return rows.length>0; }
 async function findSubbrandById(id,connection=db){const [rows]=await connection.query('SELECT id,name,normalized_name,is_active,created_at,updated_at FROM master_subbrands WHERE id=? LIMIT 1',[id]);return rows[0]||null;}
@@ -142,4 +163,4 @@ async function upsertSubbrandItem(data,connection=db){await connection.query(`IN
 async function findSubbrandSuggestionCandidates(connection=db){const [rows]=await connection.query(`SELECT ms.id AS subbrand_id,ms.name AS sub_brand,msi.item_name AS parent_name FROM master_subbrand_items msi INNER JOIN master_subbrands ms ON ms.id=msi.subbrand_id WHERE ms.is_active=1 AND msi.is_active=1 ORDER BY ms.name,msi.item_name`);return rows;}
 async function transaction(callback){const connection=await db.getConnection();try{await connection.beginTransaction();const result=await callback(connection);await connection.commit();return result;}catch(error){await connection.rollback();throw error;}finally{connection.release();}}
 
-module.exports={findAll,findById,findRawById,findLastParentCode,create,update,replacePorts,deactivateChildItems,existsInTable,findSubbrandById,findSubbrandByName,createSubbrand,upsertSubbrandItem,findSubbrandSuggestionCandidates,transaction};
+module.exports={findAll,findById,findRawById,findLastParentCode,create,update,replacePorts,findVariantAttributesByParentIds,replaceVariantAttributes,findVariantAttributesByIds,countChildItems,deactivateChildItems,existsInTable,findSubbrandById,findSubbrandByName,createSubbrand,upsertSubbrandItem,findSubbrandSuggestionCandidates,transaction};

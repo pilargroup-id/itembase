@@ -104,6 +104,15 @@ function normalizePorts(payload = {}) {
   });
 }
 
+
+function normalizeVariantAttributes(payload = {}) {
+  const source = payload.variant_attributes ?? payload.variant_attribute_ids;
+  if (source === undefined || source === null) return null;
+  if (!Array.isArray(source)) throw Object.assign(new Error('Variant attributes must be an array'), { statusCode: 422, code: 'VALIDATION_ERROR' });
+  const seen = new Set();
+  return source.map((entry,index)=>{const attributeId=trimOrNull(typeof entry==='string'?entry:(entry?.attribute_id||entry?.id));if(!attributeId||attributeId.length>36)throw Object.assign(new Error(`Variant attribute is invalid at index ${index}`),{statusCode:422,code:'VALIDATION_ERROR'});if(seen.has(attributeId))throw Object.assign(new Error('Duplicate variant attribute in request'),{statusCode:422,code:'VALIDATION_ERROR'});seen.add(attributeId);return{attribute_id:attributeId,sort_order:Number(entry?.sort_order||index+1)};});
+}
+
 function validatePayload(payload = {}, mode = 'create') {
   const errors = {};
 
@@ -204,6 +213,11 @@ async function validateReferences(payload, connection) {
     if (!itemTypeExists) {
       errors.item_type_id = 'Item type not found';
     }
+  }
+
+  for (const [index, attribute] of (payload.variant_attributes || []).entries()) {
+    const rows = await ItemParentModel.findVariantAttributesByIds([attribute.attribute_id], connection);
+    if (!rows.length || !Number(rows[0].is_active)) errors[`variant_attributes.${index}.attribute_id`] = 'Active variant attribute not found';
   }
 
   for (const [index, port] of (payload.ports || []).entries()) {
@@ -466,6 +480,7 @@ async function create(payload, userId, req = null) {
     parent_name: trimOrNull(payload.parent_name),
     status: trimOrNull(payload.status) || 'active',
     parent_code: payload.parent_code,
+    variant_attributes: normalizeVariantAttributes(payload) || [],
   };
 
   const payloadErrors = validatePayload(normalizedPayload, 'create');
@@ -519,6 +534,7 @@ async function create(payload, userId, req = null) {
 
     await ItemParentModel.create(data, connection);
     await ItemParentModel.replacePorts(data.id, normalizedPayload.ports, connection);
+    await ItemParentModel.replaceVariantAttributes(data.id, normalizedPayload.variant_attributes, connection);
     const created = await ItemParentModel.findById(data.id, connection);
 
     await syncSubbrandItem(created, connection);
@@ -570,6 +586,9 @@ async function update(id, payload, userId, req = null) {
     parent_name: hasOwn(payload, 'parent_name') ? trimOrNull(payload.parent_name) : existing.parent_name,
     status: hasOwn(payload, 'status') ? trimOrNull(payload.status) : existing.status,
     parent_code: payload.parent_code,
+    variant_attributes: (hasOwn(payload, 'variant_attributes') || hasOwn(payload, 'variant_attribute_ids'))
+      ? (normalizeVariantAttributes(payload) || [])
+      : (existingFull?.variant_attributes || []).map((attribute)=>({attribute_id:attribute.id,sort_order:attribute.sort_order})),
   };
 
   const payloadErrors = validatePayload(mergedPayload, 'update');
@@ -585,6 +604,14 @@ async function update(id, payload, userId, req = null) {
   }
 
   return ItemParentModel.transaction(async (connection) => {
+    const variantFieldsProvided=hasOwn(payload,'variant_attributes')||hasOwn(payload,'variant_attribute_ids');
+    if(variantFieldsProvided){
+      const beforeIds=(existingFull?.variant_attributes||[]).map(a=>a.id).sort().join(',');
+      const afterIds=(mergedPayload.variant_attributes||[]).map(a=>a.attribute_id).sort().join(',');
+      if(beforeIds!==afterIds && await ItemParentModel.countChildItems(id,connection)){
+        return { error: { type: 'validation', message: 'Variant attributes cannot be changed because this parent already has items', errors: { variant_attributes: 'Move or update the existing items before changing parent variant attributes' } } };
+      }
+    }
     const referenceErrors = await validateReferences(mergedPayload, connection);
 
     if (hasErrors(referenceErrors)) {
@@ -615,6 +642,7 @@ async function update(id, payload, userId, req = null) {
     );
 
     await ItemParentModel.replacePorts(id, mergedPayload.ports, connection);
+    await ItemParentModel.replaceVariantAttributes(id, mergedPayload.variant_attributes || [], connection);
     const updated = await ItemParentModel.findById(id, connection);
 
     await syncSubbrandItem(updated, connection);

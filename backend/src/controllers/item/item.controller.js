@@ -14,6 +14,10 @@ function handleError(res, error) {
     return response.forbidden(res, error.message);
   }
 
+  if (error.statusCode === 409) {
+    return response.error(res, error.message, 409, error.errors || null);
+  }
+
   if (error.statusCode === 422) {
     return response.badRequest(res, error.message, error.errors || null);
   }
@@ -83,7 +87,12 @@ async function update(req, res) {
   }
 }
 
+async function previewMatrix(req,res){try{return response.ok(res,await ItemService.previewMatrix(req.body),'Item matrix preview generated successfully');}catch(error){return handleError(res,error);}}
+async function createMatrix(req,res){try{return response.created(res,await ItemService.createMatrix(req.body,req.user.id,req),'Item matrix created successfully');}catch(error){return handleError(res,error);}}
+
 module.exports = {
+  previewMatrix,
+  createMatrix,
   index,
   show,
   store,
