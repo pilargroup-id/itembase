@@ -1,5 +1,14 @@
 const NUMBER_FORMATTER = new Intl.NumberFormat('id-ID')
 
+const TONE_COLORS = {
+  blue: '#007bff',
+  teal: '#2a9d8f',
+  gold: '#ffc107',
+  coral: '#dc3545',
+  green: '#28a745',
+  purple: '#6610f2',
+}
+
 function formatNumber(value) {
   return NUMBER_FORMATTER.format(value ?? 0)
 }
@@ -17,11 +26,12 @@ function CardDashboard({
   isActive = false,
 }) {
   const isInteractive = Boolean(href || onSelect)
+  const accentColor = TONE_COLORS[tone] ?? '#6c757d'
   const className = [
-    'dashboard-metric',
-    `dashboard-metric--${tone}`,
-    isInteractive ? 'dashboard-metric--clickable' : '',
-    isActive ? 'dashboard-metric--active' : '',
+    'dashboard-card',
+    isInteractive ? 'clickable' : '',
+    'mtickets-status-card',
+    isActive ? 'active' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -47,16 +57,20 @@ function CardDashboard({
 
   const content = (
     <>
-      <div className="dashboard-metric__top">
-        <span className="dashboard-metric__icon">
-          <Icon size={22} />
-        </span>
-        <span className="dashboard-metric__label">{label}</span>
+      <div className="card-accent-bar" style={{ backgroundColor: accentColor }} />
+
+      <div className="dashboard-card__badge-row">
+        <div className="status-badge">
+          <Icon size={16} aria-hidden="true" style={{ color: accentColor }} />
+          <span className="dashboard-card__label">{label}</span>
+        </div>
       </div>
-      <span className="dashboard-metric__value">
+
+      <strong className="dashboard-card__value mtickets-status-card__value">
         {isLoading ? '...' : formatNumber(value)}
-      </span>
-      <p className="dashboard-metric__detail">{detail}</p>
+      </strong>
+
+      <div className="dashboard-card__footer-text">{detail}</div>
     </>
   )
 
@@ -66,6 +80,7 @@ function CardDashboard({
         className={className}
         href={href}
         onClick={handleClick}
+        style={isActive ? { borderColor: accentColor } : undefined}
         aria-label={`Buka ${label}`}
       >
         {content}
@@ -79,6 +94,7 @@ function CardDashboard({
         className={className}
         type="button"
         onClick={handleClick}
+        style={isActive ? { borderColor: accentColor } : undefined}
         aria-label={`Buka ${label}`}
         aria-pressed={isActive}
       >
@@ -88,7 +104,10 @@ function CardDashboard({
   }
 
   return (
-    <article className={className}>
+    <article
+      className={className}
+      style={isActive ? { borderColor: accentColor } : undefined}
+    >
       {content}
     </article>
   )

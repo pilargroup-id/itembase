@@ -1304,6 +1304,13 @@ select {
   font-weight: 600;
 }
 
+.dashboard-canvas__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
 .dashboard-canvas__table {
   flex: 1 1 auto;
   min-height: 0;
@@ -1489,6 +1496,10 @@ select {
   padding: 18px 18px;
   gap: 12px;
   min-height: 126px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
@@ -1875,6 +1886,82 @@ select {
 
 .dashboard-popup__spinner {
   animation: dashboard-popup-spin 0.8s linear infinite;
+}
+
+.download-select {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.download-select__options {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.download-select__option {
+  display: grid;
+  grid-template-columns: auto 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(26, 42, 87, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--primary-blue);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.download-select__option:hover,
+.download-select__option--selected {
+  border-color: rgba(42, 157, 143, 0.5);
+  background: rgba(42, 157, 143, 0.06);
+  box-shadow: 0 10px 24px rgba(26, 42, 87, 0.08);
+}
+
+.download-select__radio {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent-teal);
+}
+
+.download-select__icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(26, 42, 87, 0.06);
+  color: var(--accent-teal-dark);
+}
+
+.download-select__content {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.download-select__label {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.download-select__description {
+  color: rgba(26, 42, 87, 0.68);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.download-select__error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .dashboard-grid {
@@ -3048,6 +3135,104 @@ select {
 
 .users-table-card__action svg {
   flex-shrink: 0;
+}
+
+.dashboard-export-group {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  isolation: isolate;
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(42, 157, 143, 0.24);
+}
+
+.dashboard-export-group .users-table-card__action {
+  box-shadow: none;
+}
+
+.dashboard-export-group .users-table-card__action:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.dashboard-export-group:hover {
+  box-shadow: 0 16px 32px rgba(42, 157, 143, 0.3);
+}
+
+.dashboard-export-group__main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dashboard-export-group__toggle {
+  width: 46px;
+  min-width: 46px;
+  padding-inline: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.dashboard-export-group__chevron {
+  transition: transform 0.2s ease;
+}
+
+.dashboard-export-group__chevron--open {
+  transform: rotate(180deg);
+}
+
+.dashboard-export-group__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid rgba(125, 143, 174, 0.2);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+}
+
+.dashboard-export-group__option {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #26364f;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-export-group__option:hover,
+.dashboard-export-group__option:focus-visible {
+  outline: none;
+  background: rgba(42, 157, 143, 0.1);
+  color: #18786e;
+}
+
+.dashboard-export-group__option:disabled {
+  color: #98a2b3;
+  cursor: not-allowed;
+}
+
+.dashboard-export-group__option-icon {
+  display: inline-flex;
+  color: #18786e;
+}
+
+.dashboard-export-group__option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .range-date-button {
@@ -6738,6 +6923,20 @@ select {
   }
 
   .year-dropdown-tp__menu {
+    left: 0;
+    right: 0;
+    min-width: 0;
+  }
+
+  .dashboard-export-group {
+    width: 100%;
+  }
+
+  .dashboard-export-group__main {
+    flex: 1 1 auto;
+  }
+
+  .dashboard-export-group__menu {
     left: 0;
     right: 0;
     min-width: 0;

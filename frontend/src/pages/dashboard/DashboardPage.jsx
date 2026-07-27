@@ -141,7 +141,7 @@ function DashboardPage({ activePage }) {
         icon: Boxes01,
         label: 'Total Parent',
         value: summary.totalParents,
-        detail: 'Semua parent item terdaftar',
+        // detail: 'Semua parent item terdaftar',
         tone: 'blue',
       },
       {
@@ -149,7 +149,7 @@ function DashboardPage({ activePage }) {
         icon: Barcode,
         label: 'Total SKU',
         value: summary.totalSku,
-        detail: 'Semua SKU item terdaftar',
+        // detail: 'Semua SKU item terdaftar',
         tone: 'purple',
       },
       {
@@ -165,7 +165,7 @@ function DashboardPage({ activePage }) {
         icon: LayoutDashboard,
         label: 'Inactive Item',
         value: summary.inactiveItems,
-        detail: 'Item dengan status tidak aktif',
+        // detail: 'Item dengan status tidak aktif',
         tone: 'coral',
       },
       {
@@ -173,7 +173,7 @@ function DashboardPage({ activePage }) {
         icon: CheckSquare,
         label: 'Active Item',
         value: summary.activeItems,
-        detail: 'Item dengan status aktif',
+        // detail: 'Item dengan status aktif',
         tone: 'green',
       },
     ],

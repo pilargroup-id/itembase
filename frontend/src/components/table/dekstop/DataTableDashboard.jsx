@@ -22,33 +22,33 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
 const TABLE_CONFIG = {
   parents: {
     title: 'Total Parent',
-    description: 'Daftar semua parent item terdaftar.',
+    // description: 'Daftar semua parent item terdaftar.',
     resourceKey: 'itemParents',
     kind: 'parents',
   },
   sku: {
     title: 'Total SKU',
-    description: 'Daftar semua SKU item terdaftar.',
+    // description: 'Daftar semua SKU item terdaftar.',
     resourceKey: 'items',
     kind: 'items',
   },
   newItems: {
     title: 'New Item',
-    description: 'Daftar item yang dibuat pada bulan berjalan.',
+    // description: 'Daftar item yang dibuat pada bulan berjalan.',
     resourceKey: 'items',
     kind: 'items',
     filter: (item) => isDateInCurrentMonth(item?.created_at ?? item?.createdAt),
   },
   inactiveItems: {
     title: 'Inactive Item',
-    description: 'Daftar item dengan status tidak aktif.',
+    // description: 'Daftar item dengan status tidak aktif.',
     resourceKey: 'items',
     kind: 'items',
     filter: isInactiveItem,
   },
   activeItems: {
     title: 'Active Item',
-    description: 'Daftar item dengan status aktif.',
+    // description: 'Daftar item dengan status aktif.',
     resourceKey: 'items',
     kind: 'items',
     filter: (item) => !isInactiveItem(item),
