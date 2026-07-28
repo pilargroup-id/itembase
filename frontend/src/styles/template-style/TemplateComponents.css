@@ -5329,7 +5329,7 @@ select {
 .parent-detail-item__items {
   display: grid;
   gap: 0.85rem;
-  max-height: 178px;
+  max-height: 250px;
   overflow-y: auto;
   padding-right: 0.25rem;
   scrollbar-gutter: stable;
@@ -5409,8 +5409,28 @@ select {
 
 .parent-detail-item__grid {
   display: grid;
-  grid-template-columns: minmax(170px, 1.25fr) minmax(116px, 0.72fr) minmax(210px, 0.9fr) minmax(108px, 0.48fr);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.parent-detail-item__field--variant-attribute {
+  grid-column: span 3;
+}
+
+.parent-detail-item__field--variant-value {
+  grid-column: span 3;
+}
+
+.parent-detail-item__field--uom {
+  grid-column: span 2;
+}
+
+.parent-detail-item__field--hwd {
+  grid-column: span 3;
+}
+
+.parent-detail-item__field--lead-time {
+  grid-column: span 1;
 }
 
 .parent-detail-item .register-user-popup__input,
@@ -6709,8 +6729,19 @@ select {
   }
 
   .parent-detail-item__grid {
-    grid-template-columns: minmax(150px, 1.2fr) minmax(104px, 0.7fr) minmax(112px, 0.7fr) minmax(104px, 0.48fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.7rem;
+  }
+
+  .parent-detail-item__field--variant-attribute,
+  .parent-detail-item__field--variant-value,
+  .parent-detail-item__field--hwd {
+    grid-column: span 3;
+  }
+
+  .parent-detail-item__field--uom,
+  .parent-detail-item__field--lead-time {
+    grid-column: span 3;
   }
 
   .item-create-popup .register-user-popup__grid {
@@ -6886,6 +6917,14 @@ select {
 
   .parent-detail-item__grid {
     grid-template-columns: 1fr;
+  }
+
+  .parent-detail-item__field--variant-attribute,
+  .parent-detail-item__field--variant-value,
+  .parent-detail-item__field--uom,
+  .parent-detail-item__field--hwd,
+  .parent-detail-item__field--lead-time {
+    grid-column: 1 / -1;
   }
 
   .item-create-popup .register-user-popup__grid {

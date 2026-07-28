@@ -90,14 +90,15 @@ function normalizeVariants(source) {
   const attributes=new Set(), values=new Set();
   return source.map((entry,index)=>{const attribute_id=String(entry?.attribute_id||entry?.attribute?.id||'').trim();const value_id=String(entry?.value_id||entry?.variant_value_id||entry?.value?.id||'').trim();if(!attribute_id||!value_id)throw makeError(`Variant is invalid at index ${index}`,422,'VALIDATION_ERROR');if(attributes.has(attribute_id))throw makeError('Each variant attribute can only be used once',422,'VALIDATION_ERROR');if(values.has(value_id))throw makeError('Duplicate variant value in request',422,'VALIDATION_ERROR');attributes.add(attribute_id);values.add(value_id);return{attribute_id,value_id};});
 }
-async function validateVariants(parentId, variants, connection, excludeItemId=null) {
+async function validateVariants(parentId, variants, connection, excludeItemId=null, options = {}) {
+  const { requireAllParentAttributes = false } = options;
   const parentAttrs=await ItemModel.findParentVariantAttributes(parentId,connection);
   const normalized=variants||[];
-  if(parentAttrs.some(a=>!Number(a.is_active)))throw makeError('One or more parent variant attributes are inactive',422,'VALIDATION_ERROR');
-  if(parentAttrs.length!==normalized.length)throw makeError('Variants must match all variant attributes configured on the parent',422,'VALIDATION_ERROR',{variants:`Expected ${parentAttrs.length} variant values`});
+  if(requireAllParentAttributes&&parentAttrs.some(a=>!Number(a.is_active)))throw makeError('One or more parent variant attributes are inactive',422,'VALIDATION_ERROR');
+  if(requireAllParentAttributes&&parentAttrs.length!==normalized.length)throw makeError('Variants must match all variant attributes configured on the parent',422,'VALIDATION_ERROR',{variants:`Expected ${parentAttrs.length} variant values`});
   if(!normalized.length)return[];
   const values=await ItemModel.findVariantValuesByIds(normalized.map(v=>v.value_id),connection);const valueMap=new Map(values.map(v=>[v.id,v]));const allowed=new Set(parentAttrs.map(a=>a.attribute_id));
-  for(const v of normalized){const row=valueMap.get(v.value_id);if(!allowed.has(v.attribute_id))throw makeError('Variant attribute is not configured on this parent',422,'VALIDATION_ERROR');if(!row||row.attribute_id!==v.attribute_id||!Number(row.is_active))throw makeError('Variant value does not belong to the selected active attribute',422,'VALIDATION_ERROR');}
+  for(const v of normalized){const row=valueMap.get(v.value_id);if(requireAllParentAttributes&&!allowed.has(v.attribute_id))throw makeError('Variant attribute is not configured on this parent',422,'VALIDATION_ERROR');if(!row||row.attribute_id!==v.attribute_id||!Number(row.is_active))throw makeError('Variant value does not belong to the selected active attribute',422,'VALIDATION_ERROR');}
   const duplicate=await ItemModel.findDuplicateVariantCombination(parentId,normalized,excludeItemId,connection);if(duplicate)throw makeError(`Variant combination already exists on item ${duplicate.item_code}`,409,'DUPLICATE_VARIANT_COMBINATION');
   return normalized;
 }
@@ -270,7 +271,7 @@ async function previewMatrix(payload={}){
 async function createMatrix(payload,userId,req=null){
   const parentId=String(payload.item_parent_id||payload.parent_id||'').trim();if(!parentId)throw makeError('Item parent is required',422,'VALIDATION_ERROR');if(!Array.isArray(payload.items)||!payload.items.length)throw makeError('Items must be a non-empty array',422,'VALIDATION_ERROR');if(payload.items.length>250)throw makeError('Maximum 250 items per matrix request',422,'VALIDATION_ERROR');
   return ItemModel.transaction(async connection=>{const parent=await ItemModel.findParentById(parentId,connection);if(!parent)throw makeError('Parent item not found',404,'PARENT_NOT_FOUND');let last=await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2),connection);const created=[];
-    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=normalizeVariants(row.variants)||[];await validateReferences(merged,connection);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);created.push(await ItemModel.findById(data.id,connection));}
+    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=normalizeVariants(row.variants)||[];await validateReferences(merged,connection);await validateVariants(parentId,variants,connection,null,{requireAllParentAttributes:true});const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);created.push(await ItemModel.findById(data.id,connection));}
     await enrichItems(created);await ActivityLogService.log({user_id:userId,action:'CREATE',entity_type:'items',entity_id:null,description:`Created ${created.length} items from variant matrix`,after_data:created,metadata:{item_parent_id:parentId,total_items:created.length},req,connection});return{total_created:created.length,items:created};});
 }
 

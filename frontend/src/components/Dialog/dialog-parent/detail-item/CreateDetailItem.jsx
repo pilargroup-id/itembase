@@ -47,6 +47,8 @@ export function createInitialDetailItem() {
   return {
     id: createDetailItemId(),
     item_variant: '',
+    variant_attribute_id: '',
+    variant_value_id: '',
     uom_id: '',
     hwd: '',
     lead_time_days: '',
@@ -57,13 +59,16 @@ function CreateDetailItem({
   itemName = '',
   items = [],
   uomOptions = [],
+  variantAttributeOptions = [],
+  getVariantValueOptions = () => [],
+  getLoadingVariantValues = () => false,
   loadingUoms = false,
   SearchableSelect = null,
   disabled = false,
   onChange,
 }) {
   const detailItems = items.length ? items : [createInitialDetailItem()]
-  const UomSearchableSelect = SearchableSelect
+  const DetailSearchableSelect = SearchableSelect
 
   const handleAddItem = () => {
     onChange?.([...detailItems, createInitialDetailItem()])
@@ -84,6 +89,37 @@ function CreateDetailItem({
           ? {
               ...item,
               [fieldName]: value,
+            }
+          : item,
+      ),
+    )
+  }
+
+  const handleVariantAttributeChange = (id, value) => {
+    onChange?.(
+      detailItems.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              variant_attribute_id: value,
+              variant_value_id: '',
+              item_variant: '',
+            }
+          : item,
+      ),
+    )
+  }
+
+  const handleVariantValueChange = (id, value, options) => {
+    const selectedValue = options.find((option) => option.value === String(value ?? ''))
+
+    onChange?.(
+      detailItems.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              variant_value_id: value,
+              item_variant: selectedValue?.label || '',
             }
           : item,
       ),
@@ -138,28 +174,108 @@ function CreateDetailItem({
             </div>
 
             <div className="parent-detail-item__grid">
-              <div className="register-user-popup__field">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-item-variant-${item.id}`}>
-                  Variant
+              <div className="register-user-popup__field parent-detail-item__field--variant-attribute">
+                <label className="register-user-popup__label" htmlFor={`parent-detail-variant-attribute-${item.id}`}>
+                  Variant Attribute
                 </label>
-                <input
-                  id={`parent-detail-item-variant-${item.id}`}
-                  className="register-user-popup__input"
-                  value={item.item_variant}
-                  placeholder="BLUE"
-                  onChange={(event) =>
-                    handleFieldChange(item.id, 'item_variant', event.target.value)
-                  }
-                  disabled={disabled}
-                />
+                {DetailSearchableSelect ? (
+                  <DetailSearchableSelect
+                    id={`parent-detail-variant-attribute-${item.id}`}
+                    label="Variant Attribute"
+                    value={item.variant_attribute_id}
+                    options={variantAttributeOptions}
+                    placeholder="Pilih Attribute"
+                    searchPlaceholder="Cari Attribute..."
+                    emptyMessage="Attribute tidak ditemukan."
+                    disabled={disabled}
+                    onChange={(nextValue) =>
+                      handleVariantAttributeChange(item.id, nextValue)
+                    }
+                  />
+                ) : (
+                  <select
+                    id={`parent-detail-variant-attribute-${item.id}`}
+                    className="register-user-popup__select"
+                    value={item.variant_attribute_id}
+                    onChange={(event) =>
+                      handleVariantAttributeChange(item.id, event.target.value)
+                    }
+                    disabled={disabled}
+                  >
+                    <option value="">Pilih Attribute</option>
+                    {variantAttributeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              <div className="register-user-popup__field">
+              <div className="register-user-popup__field parent-detail-item__field--variant-value">
+                <label className="register-user-popup__label" htmlFor={`parent-detail-variant-value-${item.id}`}>
+                  Variant Value
+                </label>
+                {(() => {
+                  const variantValueOptions = getVariantValueOptions(item.variant_attribute_id)
+                  const loadingVariantValues = getLoadingVariantValues(item.variant_attribute_id)
+
+                  return DetailSearchableSelect ? (
+                    <DetailSearchableSelect
+                      id={`parent-detail-variant-value-${item.id}`}
+                      label="Variant Value"
+                      value={item.variant_value_id}
+                      options={variantValueOptions}
+                      placeholder="Pilih Value"
+                      searchPlaceholder="Cari Value..."
+                      emptyMessage="Value tidak ditemukan."
+                      loading={loadingVariantValues}
+                      disabled={
+                        disabled ||
+                        !item.variant_attribute_id ||
+                        loadingVariantValues
+                      }
+                      onChange={(nextValue) =>
+                        handleVariantValueChange(item.id, nextValue, variantValueOptions)
+                      }
+                    />
+                  ) : (
+                    <select
+                      id={`parent-detail-variant-value-${item.id}`}
+                      className="register-user-popup__select"
+                      value={item.variant_value_id}
+                      onChange={(event) =>
+                        handleVariantValueChange(
+                          item.id,
+                          event.target.value,
+                          variantValueOptions,
+                        )
+                      }
+                      disabled={
+                        disabled ||
+                        !item.variant_attribute_id ||
+                        loadingVariantValues
+                      }
+                    >
+                      <option value="">
+                        {loadingVariantValues ? 'Memuat value...' : 'Pilih Value'}
+                      </option>
+                      {variantValueOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  )
+                })()}
+              </div>
+
+              <div className="register-user-popup__field parent-detail-item__field--uom">
                 <label className="register-user-popup__label" htmlFor={`parent-detail-uom-${item.id}`}>
                   Uom
                 </label>
-                {UomSearchableSelect ? (
-                  <UomSearchableSelect
+                {DetailSearchableSelect ? (
+                  <DetailSearchableSelect
                     id={`parent-detail-uom-${item.id}`}
                     label="Uom"
                     value={item.uom_id}
@@ -195,7 +311,7 @@ function CreateDetailItem({
                 )}
               </div>
 
-              <div className="register-user-popup__field">
+              <div className="register-user-popup__field parent-detail-item__field--hwd">
                 <label className="register-user-popup__label" htmlFor={`parent-detail-hwd-height-${item.id}`}>
                   HWD
                 </label>
@@ -230,7 +346,7 @@ function CreateDetailItem({
                 </div>
               </div>
 
-              <div className="register-user-popup__field">
+              <div className="register-user-popup__field parent-detail-item__field--lead-time">
                 <label className="register-user-popup__label" htmlFor={`parent-detail-lead-time-${item.id}`}>
                   Lead Time (Day)
                 </label>

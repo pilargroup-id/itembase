@@ -97,6 +97,12 @@ const masterSelectDefaults = {
   uoms: {
     labelKeys: ['code', 'name', 'uom_code', 'uom_name'],
   },
+  variantAttributes: {
+    labelKeys: ['name', 'code'],
+  },
+  variantValues: {
+    labelKeys: ['name', 'code'],
+  },
 }
 
 const emptyMasterOptions = {
@@ -105,6 +111,7 @@ const emptyMasterOptions = {
   itemTypes: [],
   ports: [],
   uoms: [],
+  variantAttributes: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -164,6 +171,24 @@ function buildParentPorts(portIds) {
     is_primary: index === 0 ? 1 : 0,
     sort_order: index + 1,
   }))
+}
+
+function getDetailVariantAttributeIds(detailItems) {
+  return Array.from(
+    new Set(
+      detailItems
+        .map((item) => normalizeFieldValue(item.variant_attribute_id))
+        .filter(Boolean),
+    ),
+  )
+}
+
+function hasIncompleteDetailVariantSelection(detailItems) {
+  return detailItems.some(
+    (item) =>
+      Boolean(normalizeFieldValue(item.variant_attribute_id)) !==
+      Boolean(normalizeFieldValue(item.variant_value_id)),
+  )
 }
 
 function getResourceData(responseData) {
@@ -752,6 +777,8 @@ function DialogCreateParent({
   const [isSaveParentChecked, setIsSaveParentChecked] = useState(false)
   const [isCreateItemChecked, setIsCreateItemChecked] = useState(false)
   const [detailItems, setDetailItems] = useState(() => [createInitialDetailItem()])
+  const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
+  const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -760,6 +787,8 @@ function DialogCreateParent({
     setIsSaveParentChecked(false)
     setIsCreateItemChecked(false)
     setDetailItems([createInitialDetailItem()])
+    setVariantValueOptionsByAttributeId({})
+    setLoadingVariantValuesByAttributeId({})
   }, [])
 
   const handleClose = useCallback(() => {
@@ -779,12 +808,13 @@ function DialogCreateParent({
       setIsLoadingMasters(true)
 
       try {
-        const [brands, categories, itemTypes, ports, uoms] = await Promise.all([
+        const [brands, categories, itemTypes, ports, uoms, variantAttributes] = await Promise.all([
           api.brands.list({ is_active: 1 }, { signal: controller.signal }),
           api.categories.list({ is_active: 1 }, { signal: controller.signal }),
           api.itemTypes.list({ is_active: 1 }, { signal: controller.signal }),
           api.ports.list({ is_active: 1 }, { signal: controller.signal }),
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
+          api.variants.attributes({ is_active: 1 }, { signal: controller.signal }),
         ])
 
         if (!isMounted) {
@@ -797,6 +827,7 @@ function DialogCreateParent({
           itemTypes: normalizeMasterOptions(itemTypes, 'itemTypes'),
           ports: normalizeMasterOptions(ports, 'ports'),
           uoms: normalizeMasterOptions(uoms, 'uoms'),
+          variantAttributes: normalizeMasterOptions(variantAttributes, 'variantAttributes'),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -819,6 +850,88 @@ function DialogCreateParent({
       controller.abort()
     }
   }, [isOpen])
+
+  const selectedDetailVariantAttributeIds = useMemo(
+    () => getDetailVariantAttributeIds(detailItems),
+    [detailItems],
+  )
+  const selectedDetailVariantAttributeKey = selectedDetailVariantAttributeIds.join('|')
+
+  useEffect(() => {
+    const selectedAttributeIds = selectedDetailVariantAttributeKey
+      ? selectedDetailVariantAttributeKey.split('|')
+      : []
+
+    if (!isOpen || selectedAttributeIds.length === 0) {
+      return undefined
+    }
+
+    const missingAttributeIds = selectedAttributeIds.filter(
+      (attributeId) => !variantValueOptionsByAttributeId[attributeId],
+    )
+
+    if (missingAttributeIds.length === 0) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    setLoadingVariantValuesByAttributeId((currentValues) => ({
+      ...currentValues,
+      ...Object.fromEntries(missingAttributeIds.map((attributeId) => [attributeId, true])),
+    }))
+
+    Promise.all(
+      missingAttributeIds.map(async (attributeId) => {
+        const response = await api.variants.values(
+          { attribute_id: attributeId, is_active: 1 },
+          { signal: controller.signal },
+        )
+
+        return [
+          attributeId,
+          normalizeMasterOptions(response, 'variantValues'),
+        ]
+      }),
+    )
+      .then((entries) => {
+        if (!isMounted) {
+          return
+        }
+
+        setVariantValueOptionsByAttributeId((currentOptions) => ({
+          ...currentOptions,
+          ...Object.fromEntries(entries),
+        }))
+      })
+      .catch((error) => {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setErrorMessage(error?.message || 'Gagal memuat data variant value.')
+      })
+      .finally(() => {
+        if (!isMounted) {
+          return
+        }
+
+        setLoadingVariantValuesByAttributeId((currentValues) => ({
+          ...currentValues,
+          ...Object.fromEntries(missingAttributeIds.map((attributeId) => [attributeId, false])),
+        }))
+      })
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [
+    isOpen,
+    selectedDetailVariantAttributeKey,
+    variantValueOptionsByAttributeId,
+  ])
 
   const selectedBrandLabel = useMemo(
     () => getOptionLabel(masterOptions.brands, formValues.brand_id),
@@ -905,8 +1018,16 @@ function DialogCreateParent({
     }
   }
 
+  const handleDetailItemsChange = (nextDetailItems) => {
+    setErrorMessage('')
+    setDetailItems(nextDetailItems)
+  }
+
   const buildPayload = () => {
     const { port_id: portIds, ...parentValues } = formValues
+    const variantAttributeIds = isCreateItemChecked
+      ? getDetailVariantAttributeIds(detailItems)
+      : []
 
     return {
       ...Object.fromEntries(
@@ -920,6 +1041,14 @@ function DialogCreateParent({
       parent_name: generatedParentName,
       status: 'active',
       ports: buildParentPorts(portIds),
+      ...(variantAttributeIds.length > 0
+        ? {
+            variant_attributes: variantAttributeIds.map((attributeId, index) => ({
+              attribute_id: attributeId,
+              sort_order: index + 1,
+            })),
+          }
+        : {}),
     }
   }
 
@@ -940,6 +1069,11 @@ function DialogCreateParent({
 
     if (hasEmptyRequiredValue || !payload.parent_name) {
       setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
+      return
+    }
+
+    if (isCreateItemChecked && hasIncompleteDetailVariantSelection(detailItems)) {
+      setErrorMessage('Lengkapi variant attribute dan variant value pada item detail terlebih dahulu.')
       return
     }
 
@@ -1131,10 +1265,17 @@ function DialogCreateParent({
                     itemName={formValues.item_name}
                     items={detailItems}
                     uomOptions={masterOptions.uoms}
+                    variantAttributeOptions={masterOptions.variantAttributes}
+                    getVariantValueOptions={(attributeId) =>
+                      variantValueOptionsByAttributeId[String(attributeId ?? '')] || []
+                    }
+                    getLoadingVariantValues={(attributeId) =>
+                      Boolean(loadingVariantValuesByAttributeId[String(attributeId ?? '')])
+                    }
                     loadingUoms={isLoadingMasters}
                     SearchableSelect={SearchableMasterSelect}
                     disabled={isSubmitting}
-                    onChange={setDetailItems}
+                    onChange={handleDetailItemsChange}
                   />
                 ) : null}
 

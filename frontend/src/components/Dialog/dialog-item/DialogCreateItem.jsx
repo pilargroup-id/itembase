@@ -177,6 +177,70 @@ function normalizeListResponse(responseData) {
   return []
 }
 
+function getPaginationMeta(responseData, rows) {
+  const meta = responseData?.meta ?? responseData?.data?.meta ?? {}
+  const page = Number(meta.page ?? meta.current_page ?? 1)
+  const limit = Number(meta.limit ?? meta.per_page ?? rows.length)
+  const total = Number(meta.total ?? meta.total_data ?? rows.length)
+  const totalPages = Number(
+    meta.totalPages ?? meta.total_page ?? meta.totalPage ?? meta.total_pages ?? meta.last_page,
+  )
+  const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : rows.length || 1
+  const safeTotal = Number.isInteger(total) && total >= 0 ? total : rows.length
+
+  return {
+    page: Number.isInteger(page) && page > 0 ? page : 1,
+    limit: safeLimit,
+    total: safeTotal,
+    totalPages: Number.isInteger(totalPages) && totalPages > 0
+      ? totalPages
+      : Math.max(1, Math.ceil(safeTotal / safeLimit)),
+  }
+}
+
+function hasPaginationMeta(responseData) {
+  return Boolean(responseData?.meta || responseData?.data?.meta)
+}
+
+async function fetchAllActiveParents(options) {
+  const limit = 250
+  const parentMap = new Map()
+  let currentPage = 1
+  let totalPages = 1
+
+  do {
+    const previousParentCount = parentMap.size
+    const response = await api.itemParents.list(
+      { status: 'active', page: currentPage, limit, sort: 'name-asc' },
+      options,
+    )
+    const rows = normalizeListResponse(response)
+    const meta = getPaginationMeta(response, rows)
+
+    rows.forEach((parent) => {
+      const parentId = parent?.id
+
+      if (parentId !== undefined && parentId !== null && parentId !== '') {
+        parentMap.set(String(parentId), parent)
+      }
+    })
+
+    totalPages = hasPaginationMeta(response)
+      ? meta.totalPages
+      : rows.length === limit
+        ? currentPage + 1
+        : currentPage
+
+    if (rows.length === 0 || parentMap.size === previousParentCount) {
+      break
+    }
+
+    currentPage += 1
+  } while (currentPage <= totalPages)
+
+  return Array.from(parentMap.values())
+}
+
 function makeOption(value, labelParts) {
   const label = labelParts.find(Boolean)
 
@@ -637,10 +701,7 @@ function DialogCreateItem({
         let variantAttributes = []
 
         try {
-          parents = await api.itemParents.list(
-            { status: 'active', limit: 250, sort: 'name-asc' },
-            { signal: controller.signal },
-          )
+          parents = await fetchAllActiveParents({ signal: controller.signal })
         } catch (error) {
           if (error?.name === 'AbortError') {
             throw error
