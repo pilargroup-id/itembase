@@ -95,3 +95,9 @@ backend/public/uploads/
 # =========================
 *.pem
 *.key
+
+# =========================
+# Keep
+# =========================
+backend/src/storage/import-previews/*
+!backend/src/storage/import-previews/.gitkeep

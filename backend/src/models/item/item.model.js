@@ -34,7 +34,7 @@ function buildWhereClause(query = {}) {
     const search = `%${query.search}%`;
     conditions.push(`(
       i.item_code LIKE ? OR i.barcode LIKE ? OR i.item_name LIKE ? OR i.selling_name LIKE ?
-      OR i.variant LIKE ? OR ip.parent_code LIKE ? OR ip.parent_name LIKE ?
+      OR ip.parent_code LIKE ? OR ip.parent_name LIKE ?
       OR mb.code LIKE ? OR mb.name LIKE ? OR mc.detail_category LIKE ?
       OR mc.sub_category LIKE ? OR mc.main_category LIKE ? OR mc.brand_category LIKE ?
       OR mu.code LIKE ? OR mu.name LIKE ?
@@ -51,13 +51,14 @@ function buildWhereClause(query = {}) {
           AND (mp_search.code LIKE ? OR mp_search.name LIKE ?)
       )
     )`);
-    params.push(...Array(23).fill(search));
+    params.push(...Array(22).fill(search));
   }
 
   const directFilters = [
     ['item_kind', 'i.item_kind'], ['parent_id', 'i.parent_id'], ['uom_id', 'i.uom_id'],
     ['status', 'ip.status'], ['brand_id', 'ip.brand_id'], ['category_id', 'ip.category_id'],
     ['item_type_id', 'ip.item_type_id'], ['item_code', 'i.item_code'], ['barcode', 'i.barcode'],
+    ['created_by', 'i.created_by'],
   ];
   directFilters.forEach(([key, column]) => {
     if (query[key] !== undefined && query[key] !== null && query[key] !== '') {
@@ -66,7 +67,7 @@ function buildWhereClause(query = {}) {
     }
   });
 
-  const likeFilters = [['item_name', 'i.item_name'], ['selling_name', 'i.selling_name'], ['variant', 'i.variant']];
+  const likeFilters = [['item_name', 'i.item_name'], ['selling_name', 'i.selling_name']];
   likeFilters.forEach(([key, column]) => {
     if (query[key]) {
       conditions.push(`${column} LIKE ?`);
@@ -138,7 +139,7 @@ function baseSelectSql() {
   return `
     SELECT
       i.id, i.item_code, i.barcode, i.item_name, i.selling_name, i.item_kind,
-      i.parent_id, i.uom_id, i.variant, i.qty_per_pack, i.height, i.width,
+      i.parent_id, i.uom_id, i.qty_per_pack, i.height, i.width,
       i.depth, i.gross_weight_pack, i.production_time_days, i.is_active,
       i.created_by, i.updated_by, i.created_at, i.updated_at,
       ip.parent_code, ip.parent_name, ip.status AS parent_status,
@@ -166,7 +167,6 @@ function mapBaseRow(row) {
     item_name: row.item_name,
     selling_name: row.selling_name,
     item_kind: row.item_kind,
-    variant: row.variant,
     qty_per_pack: row.qty_per_pack,
     height: row.height,
     width: row.width,
@@ -298,12 +298,12 @@ async function create(data, connection = db) {
   await connection.query(`
     INSERT INTO items (
       id, item_code, barcode, item_name, selling_name, item_kind, parent_id, uom_id,
-      variant, qty_per_pack, height, width, depth, gross_weight_pack,
+      qty_per_pack, height, width, depth, gross_weight_pack,
       production_time_days, is_active, created_by, updated_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     data.id, data.item_code, data.barcode, data.item_name, data.selling_name,
-    data.item_kind, data.parent_id, data.uom_id || null, data.variant || null,
+    data.item_kind, data.parent_id, data.uom_id || null,
     data.qty_per_pack ?? null, data.height ?? null, data.width ?? null,
     data.depth ?? null, data.gross_weight_pack ?? null,
     data.production_time_days ?? null, data.is_active ?? 1,
@@ -316,12 +316,12 @@ async function update(id, data, connection = db) {
   await connection.query(`
     UPDATE items SET
       item_name = ?, selling_name = ?, item_kind = ?, parent_id = ?, uom_id = ?,
-      variant = ?, qty_per_pack = ?, height = ?, width = ?, depth = ?,
+      qty_per_pack = ?, height = ?, width = ?, depth = ?,
       gross_weight_pack = ?, production_time_days = ?, is_active = ?, updated_by = ?
     WHERE id = ?
   `, [
     data.item_name, data.selling_name, data.item_kind, data.parent_id,
-    data.uom_id || null, data.variant || null, data.qty_per_pack ?? null,
+    data.uom_id || null, data.qty_per_pack ?? null,
     data.height ?? null, data.width ?? null, data.depth ?? null,
     data.gross_weight_pack ?? null, data.production_time_days ?? null,
     data.is_active, data.updated_by || null, id,

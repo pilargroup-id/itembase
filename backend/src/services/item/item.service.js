@@ -4,7 +4,7 @@ const ActivityLogService = require('../activity-log.service');
 const DirectoryService = require('../pilargroup-directory.service');
 
 const ALLOWED_ITEM_KIND = ['regular', 'bundle'];
-const STRING_LIMITS = { item_name: 255, selling_name: 255, parent_id: 36, uom_id: 36, variant: 150, component_item_id: 36 };
+const STRING_LIMITS = { item_name: 255, selling_name: 255, parent_id: 36, uom_id: 36, component_item_id: 36 };
 const DECIMAL_FIELDS = ['qty_per_pack', 'height', 'width', 'depth', 'gross_weight_pack'];
 const INTEGER_FIELDS = ['production_time_days'];
 
@@ -50,11 +50,10 @@ function validatePayload(payload = {}) {
   if (!validateRequired(payload.item_kind)) errors.item_kind = 'Item kind is required';
   else if (!ALLOWED_ITEM_KIND.includes(payload.item_kind)) errors.item_kind = 'Item kind must be regular or bundle';
   if (!validateRequired(payload.parent_id)) errors.parent_id = 'Parent item is required';
-  if (!validateRequired(payload.selling_name)) errors.selling_name = 'Selling name is required';
   if (payload.item_kind === 'regular' && !validateRequired(payload.item_name)) errors.item_name = 'Item name is required for regular item';
   if (hasValue(payload.is_active) && !isValidBoolean(payload.is_active)) errors.is_active = 'Is active must be 0 or 1';
 
-  [['item_name', 255], ['selling_name', 255], ['variant', 150], ['parent_id', 36], ['uom_id', 36]].forEach(([field, max]) => {
+  [['item_name', 255], ['selling_name', 255], ['parent_id', 36], ['uom_id', 36]].forEach(([field, max]) => {
     if (hasValue(payload[field]) && String(payload[field]).length > max) errors[field] = `${field} cannot be longer than ${max} characters`;
   });
   DECIMAL_FIELDS.forEach((field) => { if (!isValidDecimal(payload[field])) errors[field] = `${field} must be a positive decimal with maximum 2 decimal places`; });
@@ -69,7 +68,7 @@ function validateComponents(components = [], itemKind, isProvided = false) {
     if (isProvided && components.length) throw makeError('Components are only allowed for bundle items', 422, 'VALIDATION_ERROR');
     return [];
   }
-  if (components.length < 2) throw makeError('Bundle must have at least 2 components', 422, 'VALIDATION_ERROR');
+  if (components.length < 1) throw makeError('Bundle must have at least 1 component', 422, 'VALIDATION_ERROR');
   if (components.length > 5) throw makeError('Bundle can only have maximum 5 components', 422, 'VALIDATION_ERROR');
   const unique = new Set();
   return components.map((component, index) => {
@@ -78,6 +77,7 @@ function validateComponents(components = [], itemKind, isProvided = false) {
     if (unique.has(component.component_item_id)) throw makeError('Duplicate component item in request', 422, 'VALIDATION_ERROR');
     unique.add(component.component_item_id);
     if (!isValidPositiveDecimal(component.qty)) throw makeError(`Component qty must be greater than 0 at index ${index}`, 422, 'VALIDATION_ERROR');
+    if (components.length === 1 && Number(component.qty) <= 1) throw makeError('A bundle with 1 component must have component qty greater than 1', 422, 'VALIDATION_ERROR');
     if (hasValue(component.sort_order) && (!isValidInteger(component.sort_order) || Number(component.sort_order) <= 0)) throw makeError(`Component sort order is invalid at index ${index}`, 422, 'VALIDATION_ERROR');
     return { component_item_id: component.component_item_id, qty: Number(component.qty), sort_order: hasValue(component.sort_order) ? Number(component.sort_order) : index + 1 };
   });
@@ -90,14 +90,15 @@ function normalizeVariants(source) {
   const attributes=new Set(), values=new Set();
   return source.map((entry,index)=>{const attribute_id=String(entry?.attribute_id||entry?.attribute?.id||'').trim();const value_id=String(entry?.value_id||entry?.variant_value_id||entry?.value?.id||'').trim();if(!attribute_id||!value_id)throw makeError(`Variant is invalid at index ${index}`,422,'VALIDATION_ERROR');if(attributes.has(attribute_id))throw makeError('Each variant attribute can only be used once',422,'VALIDATION_ERROR');if(values.has(value_id))throw makeError('Duplicate variant value in request',422,'VALIDATION_ERROR');attributes.add(attribute_id);values.add(value_id);return{attribute_id,value_id};});
 }
-async function validateVariants(parentId, variants, connection, excludeItemId=null) {
+async function validateVariants(parentId, variants, connection, excludeItemId=null, options = {}) {
+  const { requireAllParentAttributes = false } = options;
   const parentAttrs=await ItemModel.findParentVariantAttributes(parentId,connection);
   const normalized=variants||[];
-  if(parentAttrs.some(a=>!Number(a.is_active)))throw makeError('One or more parent variant attributes are inactive',422,'VALIDATION_ERROR');
-  if(parentAttrs.length!==normalized.length)throw makeError('Variants must match all variant attributes configured on the parent',422,'VALIDATION_ERROR',{variants:`Expected ${parentAttrs.length} variant values`});
+  if(requireAllParentAttributes&&parentAttrs.some(a=>!Number(a.is_active)))throw makeError('One or more parent variant attributes are inactive',422,'VALIDATION_ERROR');
+  if(requireAllParentAttributes&&parentAttrs.length!==normalized.length)throw makeError('Variants must match all variant attributes configured on the parent',422,'VALIDATION_ERROR',{variants:`Expected ${parentAttrs.length} variant values`});
   if(!normalized.length)return[];
   const values=await ItemModel.findVariantValuesByIds(normalized.map(v=>v.value_id),connection);const valueMap=new Map(values.map(v=>[v.id,v]));const allowed=new Set(parentAttrs.map(a=>a.attribute_id));
-  for(const v of normalized){const row=valueMap.get(v.value_id);if(!allowed.has(v.attribute_id))throw makeError('Variant attribute is not configured on this parent',422,'VALIDATION_ERROR');if(!row||row.attribute_id!==v.attribute_id||!Number(row.is_active))throw makeError('Variant value does not belong to the selected active attribute',422,'VALIDATION_ERROR');}
+  for(const v of normalized){const row=valueMap.get(v.value_id);if(requireAllParentAttributes&&!allowed.has(v.attribute_id))throw makeError('Variant attribute is not configured on this parent',422,'VALIDATION_ERROR');if(!row||row.attribute_id!==v.attribute_id||!Number(row.is_active))throw makeError('Variant value does not belong to the selected active attribute',422,'VALIDATION_ERROR');}
   const duplicate=await ItemModel.findDuplicateVariantCombination(parentId,normalized,excludeItemId,connection);if(duplicate)throw makeError(`Variant combination already exists on item ${duplicate.item_code}`,409,'DUPLICATE_VARIANT_COMBINATION');
   return normalized;
 }
@@ -132,8 +133,8 @@ function normalizeItemData(payload, userId, generatedCode = null, existing = nul
   return {
     id: existing?.id || crypto.randomUUID(), item_code: existing?.item_code || generatedCode,
     barcode: existing?.barcode || generatedCode, item_name: String(payload.item_name || '').trim(),
-    selling_name: String(payload.selling_name || '').trim(), item_kind: payload.item_kind,
-    parent_id: payload.parent_id, uom_id: payload.uom_id || null, variant: payload.variant || null,
+    selling_name: String(payload.selling_name || payload.item_name || '').trim(), item_kind: payload.item_kind,
+    parent_id: payload.parent_id, uom_id: payload.uom_id || null,
     qty_per_pack: normalizeNumber(payload.qty_per_pack), height: normalizeNumber(payload.height),
     width: normalizeNumber(payload.width), depth: normalizeNumber(payload.depth),
     gross_weight_pack: normalizeNumber(payload.gross_weight_pack),
@@ -223,7 +224,7 @@ async function update(id, payload, userId, req = null) {
   const merged = {
     item_kind: payload.item_kind ?? existing.item_kind, parent_id: payload.parent_id ?? existing.parent_id,
     uom_id: payload.uom_id ?? existing.uom_id, item_name: payload.item_name ?? existing.item_name,
-    selling_name: payload.selling_name ?? existing.selling_name, variant: payload.variant ?? existing.variant,
+    selling_name: payload.selling_name ?? existing.selling_name,
     qty_per_pack: payload.qty_per_pack ?? existing.qty_per_pack, height: payload.height ?? existing.height,
     width: payload.width ?? existing.width, depth: payload.depth ?? existing.depth,
     gross_weight_pack: payload.gross_weight_pack ?? existing.gross_weight_pack,
@@ -261,9 +262,8 @@ async function update(id, payload, userId, req = null) {
 async function previewMatrix(payload={}){
   const parentId=String(payload.item_parent_id||payload.parent_id||'').trim();if(!parentId)throw makeError('Item parent is required',422,'VALIDATION_ERROR');
   const parent=await ItemModel.findParentById(parentId);if(!parent)throw makeError('Parent item not found',404,'PARENT_NOT_FOUND');
-  const attrs=await ItemModel.findParentVariantAttributes(parentId);if(!attrs.length)throw makeError('Parent does not have variant attributes',422,'VALIDATION_ERROR');
-  const groups=payload.attributes;if(!Array.isArray(groups)||groups.length!==attrs.length)throw makeError('Attributes must contain every parent variant attribute',422,'VALIDATION_ERROR');
-  const allowedAttrs=new Set(attrs.map(a=>a.attribute_id));const seenAttrs=new Set();const normalized=[];for(const group of groups){const attribute_id=String(group.attribute_id||'');if(!allowedAttrs.has(attribute_id))throw makeError('Variant attribute is not configured on this parent',422,'VALIDATION_ERROR');if(seenAttrs.has(attribute_id))throw makeError('Duplicate variant attribute in matrix request',422,'VALIDATION_ERROR');seenAttrs.add(attribute_id);const valueIds=[...new Set((group.value_ids||[]).map(String))];if(!valueIds.length)throw makeError('Each attribute must have at least one value',422,'VALIDATION_ERROR');const rows=await ItemModel.findVariantValuesByIds(valueIds);if(rows.length!==valueIds.length||rows.some(v=>v.attribute_id!==attribute_id||!Number(v.is_active)))throw makeError('One or more variant values are invalid',422,'VALIDATION_ERROR');normalized.push(rows.map(v=>({attribute_id,value_id:v.id,attribute_code:v.attribute_code,attribute_name:v.attribute_name,value_code:v.code,value_name:v.name})));}
+  const groups=payload.attributes;if(!Array.isArray(groups)||!groups.length)throw makeError('Attributes must be a non-empty array',422,'VALIDATION_ERROR');
+  const seenAttrs=new Set();const normalized=[];for(const group of groups){const attribute_id=String(group.attribute_id||'');if(!attribute_id)throw makeError('Variant attribute is required',422,'VALIDATION_ERROR');if(seenAttrs.has(attribute_id))throw makeError('Duplicate variant attribute in matrix request',422,'VALIDATION_ERROR');seenAttrs.add(attribute_id);const valueIds=[...new Set((group.value_ids||[]).map(String))];if(!valueIds.length)throw makeError('Each attribute must have at least one value',422,'VALIDATION_ERROR');const rows=await ItemModel.findVariantValuesByIds(valueIds);if(rows.length!==valueIds.length||rows.some(v=>v.attribute_id!==attribute_id||!Number(v.is_active)))throw makeError('One or more variant values are invalid',422,'VALIDATION_ERROR');normalized.push(rows.map(v=>({attribute_id,value_id:v.id,attribute_code:v.attribute_code,attribute_name:v.attribute_name,value_code:v.code,value_name:v.name})));}
   const combinations=cartesian(normalized).map((variants,index)=>({row_no:index+1,variant_summary:variants.map(v=>v.value_name).join(' / '),suggested_item_name:`${parent.parent_name} ${variants.map(v=>v.value_name).join(' ')}`.trim().toUpperCase(),suggested_selling_name:`${parent.parent_name} ${variants.map(v=>v.value_name).join(' ')}`.trim(),variants:variants.map(v=>({attribute_id:v.attribute_id,value_id:v.value_id,attribute_code:v.attribute_code,attribute_name:v.attribute_name,value_code:v.value_code,value_name:v.value_name}))}));
   return{item_parent_id:parentId,total_combinations:combinations.length,combinations};
 }
