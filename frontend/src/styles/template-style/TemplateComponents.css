@@ -2094,18 +2094,53 @@ select {
   min-height: 0;
 }
 
+.parent-table-backdrop,
 .parent-table-toolbar {
   position: relative;
   z-index: 4;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   flex-shrink: 0;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.parent-table-backdrop {
+  padding: 1rem;
+  border: 1px solid rgba(26, 42, 87, 0.1);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.parent-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.parent-table-tool-button {
+  min-height: 38px;
+  color: #ffffff;
+  padding-inline: 0.8rem;
+}
+
+.parent-table-tool-button svg,
+.parent-table-tool-button span {
+  color: #ffffff;
+}
+
+.parent-table-import-input {
+  display: none;
 }
 
 .parent-table-filters {
   min-width: 0;
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   gap: 0.5rem;
   flex: 1 1 auto;
   flex-wrap: wrap;
@@ -2119,6 +2154,84 @@ select {
 .parent-table-filter--sort {
   flex-basis: 116px;
   min-width: 112px;
+}
+
+.parent-table-filter-group {
+  min-width: 168px;
+  flex: 1 1 190px;
+  margin: 0;
+  display: grid;
+}
+
+.parent-table-filter--grouped {
+  min-width: 0;
+}
+
+.parent-hierarchical-filter__menu {
+  min-width: 260px;
+}
+
+.parent-hierarchical-filter__options {
+  gap: 0.34rem;
+}
+
+.parent-hierarchical-filter__reset {
+  border-bottom: 1px solid rgba(120, 138, 168, 0.16);
+}
+
+.parent-hierarchical-filter__section {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.parent-hierarchical-filter__section-label {
+  padding: 0.42rem 0.64rem 0.24rem;
+  color: rgba(42, 157, 143, 0.88);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.parent-hierarchical-filter__section-options {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.parent-hierarchical-filter__option {
+  padding-left: 1rem;
+}
+
+.parent-simple-filter {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.parent-simple-filter__label {
+  color: rgba(81, 98, 127, 0.84);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.parent-simple-filter__select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(120, 138, 168, 0.34);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--primary-blue);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0 0.55rem;
+}
+
+.parent-simple-filter__select:focus-visible {
+  border-color: rgba(42, 157, 143, 0.42);
+  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.12);
+  outline: none;
 }
 
 .parent-table-filter .year-dropdown-tp__trigger {
@@ -7225,8 +7338,10 @@ select {
     inset: auto;
   }
 
+  .parent-table-backdrop,
   .parent-table-toolbar {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .parent-table-filters {
@@ -7235,6 +7350,15 @@ select {
 
   .parent-table-filter {
     min-width: min(100%, 220px);
+  }
+
+  .parent-table-filter-group {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .parent-table-filter--grouped {
+    min-width: 0;
   }
 
   .users-table-card__header,

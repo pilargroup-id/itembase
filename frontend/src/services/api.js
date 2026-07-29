@@ -300,6 +300,12 @@ const api = {
     xlsx: (params, options) =>
       api.get('/item/download', { ...options, params, responseType: 'blob' }),
   },
+  itemData: {
+    templates: {
+      parents: (options) =>
+        api.get('/item-data/templates/parents', { ...options, responseType: 'blob' }),
+    },
+  },
   activityLogs: createResource('/activity-logs'),
 };
 

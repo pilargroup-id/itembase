@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent.jsx"
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
+import ButtonDownloadParent from "../../../button/parents-buttons/ButtonDownloadParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
-import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdownParent.jsx"
+import ButtonImportParent from "../../../button/parents-buttons/ButtonImportParent.jsx"
+import { ChevronDown } from "../../../template/TemplateIcons.jsx"
 import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -21,6 +23,17 @@ const parentSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
 ]
+const parentFilterGroups = [
+    {
+        label: "Category",
+        keys: ["mainCategory", "subCategory", "detailCategory", "brandCategory"],
+    },
+    {
+        label: "Brand",
+        keys: ["brand", "subBrand"],
+    },
+]
+const groupedParentFilterKeys = parentFilterGroups.flatMap((filterGroup) => filterGroup.keys)
 
 const defaultParentFilters = parentFilterConfig.reduce(
     (filters, filterConfig) => ({
@@ -201,6 +214,363 @@ function useDebouncedValue(value, delay = 350) {
     return debouncedValue
 }
 
+function SimpleParentFilter({
+    className = "",
+    label,
+    options = [],
+    value,
+    onChange,
+}) {
+    return (
+        <label className={["parent-simple-filter", className].filter(Boolean).join(" ")}>
+            <span className="parent-simple-filter__label">{label}</span>
+            <select
+                className="parent-simple-filter__select"
+                value={value}
+                onChange={(event) => onChange?.(event.target.value)}
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </label>
+    )
+}
+
+function createHierarchicalOptionValue(filterKey, optionValue) {
+    return JSON.stringify([filterKey, String(optionValue ?? "")])
+}
+
+function parseHierarchicalOptionValue(optionValue) {
+    try {
+        const [filterKey, selectedValue] = JSON.parse(optionValue)
+
+        return { filterKey, selectedValue }
+    } catch {
+        return { filterKey: null, selectedValue: ALL_FILTER_VALUE }
+    }
+}
+
+function HierarchicalParentFilter({
+    className = "",
+    filterGroup,
+    filterOptions = {},
+    filters = {},
+    filtersByKey = {},
+    onChange,
+}) {
+    const selectedFilterKey = filterGroup.keys.find((filterKey) => {
+        const selectedValue = String(filters[filterKey] ?? "")
+
+        return selectedValue && selectedValue.toLowerCase() !== ALL_FILTER_VALUE
+    })
+    const selectedValue = selectedFilterKey
+        ? createHierarchicalOptionValue(selectedFilterKey, filters[selectedFilterKey])
+        : ALL_FILTER_VALUE
+
+    const handleChange = (nextValue) => {
+        if (nextValue === ALL_FILTER_VALUE) {
+            onChange?.(filterGroup.keys, null, ALL_FILTER_VALUE)
+            return
+        }
+
+        const { filterKey, selectedValue } = parseHierarchicalOptionValue(nextValue)
+
+        if (!filterKey) {
+            onChange?.(filterGroup.keys, null, ALL_FILTER_VALUE)
+            return
+        }
+
+        onChange?.(filterGroup.keys, filterKey, selectedValue)
+    }
+
+    return (
+        <label className={["parent-simple-filter", className].filter(Boolean).join(" ")}>
+            <span className="parent-simple-filter__label">{filterGroup.label}</span>
+            <select
+                className="parent-simple-filter__select"
+                value={selectedValue}
+                onChange={(event) => handleChange(event.target.value)}
+            >
+                <option value={ALL_FILTER_VALUE}>{`All ${filterGroup.label}`}</option>
+                {filterGroup.keys.map((filterKey) => {
+                    const filterConfig = filtersByKey[filterKey]
+
+                    if (!filterConfig) {
+                        return null
+                    }
+
+                    const options = (filterOptions[filterKey] ?? []).filter(
+                        (option) => String(option.value).toLowerCase() !== ALL_FILTER_VALUE,
+                    )
+
+                    if (options.length === 0) {
+                        return null
+                    }
+
+                    return (
+                        <optgroup key={filterConfig.key} label={filterConfig.label}>
+                            {options.map((option) => (
+                                <option
+                                    key={`${filterConfig.key}-${option.value}`}
+                                    value={createHierarchicalOptionValue(filterConfig.key, option.value)}
+                                >
+                                    {option.label}
+                                </option>
+                            ))}
+                        </optgroup>
+                    )
+                })}
+            </select>
+        </label>
+    )
+}
+
+function HierarchicalParentFilterDropdown({
+    className = "",
+    emptyMessage = "Filter tidak ditemukan.",
+    filterGroup,
+    filterOptions = {},
+    filters = {},
+    filtersByKey = {},
+    onChange,
+}) {
+    const [isOpen, setIsOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
+    const rootRef = useRef(null)
+    const searchInputRef = useRef(null)
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+    const selectedFilterKey = filterGroup.keys.find((filterKey) => {
+        const selectedValue = String(filters[filterKey] ?? "")
+
+        return selectedValue && selectedValue.toLowerCase() !== ALL_FILTER_VALUE
+    })
+    const selectedFilterConfig = selectedFilterKey ? filtersByKey[selectedFilterKey] : null
+    const selectedOption = selectedFilterKey
+        ? filterOptions[selectedFilterKey]?.find(
+            (option) => String(option.value) === String(filters[selectedFilterKey]),
+        )
+        : null
+    const hasActiveValue = Boolean(selectedFilterConfig && selectedOption)
+    const displayValue = hasActiveValue
+        ? `${selectedFilterConfig.label}: ${selectedOption.label}`
+        : `All ${filterGroup.label}`
+    const sectionItems = useMemo(
+        () =>
+            filterGroup.keys
+                .map((filterKey) => {
+                    const filterConfig = filtersByKey[filterKey]
+
+                    if (!filterConfig) {
+                        return null
+                    }
+
+                    const options = (filterOptions[filterKey] ?? []).filter(
+                        (option) => String(option.value).toLowerCase() !== ALL_FILTER_VALUE,
+                    )
+                    const filteredOptions = normalizedSearchQuery
+                        ? options.filter((option) =>
+                            [
+                                filterConfig.label,
+                                option.label,
+                                option.value,
+                            ]
+                                .filter(Boolean)
+                                .join(" ")
+                                .toLowerCase()
+                                .includes(normalizedSearchQuery),
+                        )
+                        : options
+
+                    return {
+                        filterConfig,
+                        options: filteredOptions,
+                    }
+                })
+                .filter(Boolean)
+                .filter((section) => section.options.length > 0),
+        [filterGroup.keys, filterOptions, filtersByKey, normalizedSearchQuery],
+    )
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined
+        }
+
+        const closeDropdown = () => {
+            setIsOpen(false)
+            setSearchQuery("")
+        }
+
+        const handlePointerDown = (event) => {
+            if (!rootRef.current?.contains(event.target)) {
+                closeDropdown()
+            }
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") {
+                closeDropdown()
+            }
+        }
+
+        document.addEventListener("pointerdown", handlePointerDown)
+        document.addEventListener("keydown", handleKeyDown)
+
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown)
+            document.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [isOpen])
+
+    useEffect(() => {
+        if (isOpen) {
+            searchInputRef.current?.focus()
+        }
+    }, [isOpen])
+
+    const handleToggle = () => {
+        if (isOpen) {
+            setSearchQuery("")
+        }
+
+        setIsOpen((currentState) => !currentState)
+    }
+
+    const handleReset = () => {
+        onChange?.(filterGroup.keys, null, ALL_FILTER_VALUE)
+        setIsOpen(false)
+        setSearchQuery("")
+    }
+
+    const handleSelect = (filterKey, nextValue) => {
+        onChange?.(filterGroup.keys, filterKey, nextValue)
+        setIsOpen(false)
+        setSearchQuery("")
+    }
+
+    return (
+        <div
+            ref={rootRef}
+            className={["year-dropdown-tp", "brand-filter-dropdown", "parent-hierarchical-filter", className]
+                .filter(Boolean)
+                .join(" ")}
+        >
+            <button
+                type="button"
+                className={[
+                    "year-dropdown-tp__trigger",
+                    "year-dropdown-tp__trigger--floating",
+                    "year-dropdown-tp__trigger--outlined",
+                    isOpen ? "year-dropdown-tp__trigger--open" : "",
+                    isOpen || hasActiveValue ? "year-dropdown-tp__trigger--has-value" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")}
+                onClick={handleToggle}
+                aria-expanded={isOpen}
+                aria-haspopup="listbox"
+            >
+                <span className="year-dropdown-tp__copy year-dropdown-tp__copy--floating">
+                    <span
+                        className={[
+                            "year-dropdown-tp__label",
+                            "year-dropdown-tp__label--floating",
+                            "year-dropdown-tp__label--outlined",
+                            "year-dropdown-tp__label--raised",
+                        ]
+                            .filter(Boolean)
+                            .join(" ")}
+                    >
+                        {filterGroup.label}
+                    </span>
+                    <span className="year-dropdown-tp__value">{displayValue}</span>
+                </span>
+
+                <ChevronDown
+                    size={16}
+                    aria-hidden="true"
+                    className={`year-dropdown-tp__chevron${isOpen ? " year-dropdown-tp__chevron--open" : ""}`}
+                />
+            </button>
+
+            {isOpen ? (
+                <div className="year-dropdown-tp__menu parent-hierarchical-filter__menu" role="listbox" aria-label={filterGroup.label}>
+                    <div className="brand-filter-dropdown__search-shell">
+                        <input
+                            ref={searchInputRef}
+                            type="search"
+                            className="brand-filter-dropdown__search-input"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder={`Cari ${filterGroup.label.toLowerCase()}...`}
+                            aria-label={`Cari ${filterGroup.label}`}
+                        />
+                    </div>
+
+                    <div className="brand-filter-dropdown__options parent-hierarchical-filter__options">
+                        <button
+                            type="button"
+                            role="option"
+                            aria-selected={!hasActiveValue}
+                            className={[
+                                "year-dropdown-tp__option",
+                                "parent-hierarchical-filter__reset",
+                                !hasActiveValue ? "year-dropdown-tp__option--selected" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            onClick={handleReset}
+                        >
+                            <span className="year-dropdown-tp__option-label">{`All ${filterGroup.label}`}</span>
+                        </button>
+
+                        {sectionItems.length > 0 ? (
+                            sectionItems.map(({ filterConfig, options }) => (
+                                <div key={filterConfig.key} className="parent-hierarchical-filter__section">
+                                    <div className="parent-hierarchical-filter__section-label">
+                                        {filterConfig.label}
+                                    </div>
+                                    <div className="parent-hierarchical-filter__section-options">
+                                        {options.map((option) => {
+                                            const isSelected =
+                                                selectedFilterKey === filterConfig.key &&
+                                                String(option.value) === String(filters[filterConfig.key])
+
+                                            return (
+                                                <button
+                                                    key={`${filterConfig.key}-${option.value}`}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={isSelected}
+                                                    className={[
+                                                        "year-dropdown-tp__option",
+                                                        "parent-hierarchical-filter__option",
+                                                        isSelected ? "year-dropdown-tp__option--selected" : "",
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(" ")}
+                                                    onClick={() => handleSelect(filterConfig.key, option.value)}
+                                                >
+                                                    <span className="year-dropdown-tp__option-label">{option.label}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="brand-filter-dropdown__empty">{emptyMessage}</div>
+                        )}
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
 const columns = [
     {
         key: "identity",
@@ -311,6 +681,24 @@ function DataTableParents({
                 {},
             ),
         [parentRows],
+    )
+    const filtersByKey = useMemo(
+        () =>
+            parentFilterConfig.reduce(
+                (configs, filterConfig) => ({
+                    ...configs,
+                    [filterConfig.key]: filterConfig,
+                }),
+                {},
+            ),
+        [],
+    )
+    const standaloneFilterConfigs = useMemo(
+        () =>
+            parentFilterConfig.filter(
+                (filterConfig) => !groupedParentFilterKeys.includes(filterConfig.key),
+            ),
+        [],
     )
     const parentApiParams = useMemo(
         () =>
@@ -457,6 +845,21 @@ function DataTableParents({
         }))
     }
 
+    const handleHierarchicalFilterChange = (filterKeys, activeFilterKey, nextValue) => {
+        setFilters((currentFilters) => ({
+            ...currentFilters,
+            ...filterKeys.reduce(
+                (resetFilters, filterKey) => ({
+                    ...resetFilters,
+                    [filterKey]: filterKey === activeFilterKey
+                        ? nextValue
+                        : ALL_FILTER_VALUE,
+                }),
+                {},
+            ),
+        }))
+    }
+
     const handleSortChange = (nextSortValue) => {
         if (nextSortValue === sortValue) {
             return
@@ -525,30 +928,45 @@ function DataTableParents({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
+            <div className="parent-table-backdrop" aria-label="Parent table tools">
+                <div className="parent-table-actions">
+                    <ButtonDownloadParent aria-label="Download parent data" />
+                    <ButtonImportParent aria-label="Import parent data" />
+                </div>
+
                 <div className="parent-table-filters" aria-label="Filter item parent">
-                    {/* <FilterDropdownParent
+                    <SimpleParentFilter
                         className="parent-table-filter parent-table-filter--sort"
                         options={parentSortOptions}
                         value={sortValue}
                         label="Sort By"
-                        placeholder="Date Desc"
-                        searchable={false}
                         onChange={handleSortChange}
                     />
-                    {parentFilterConfig.map((filterConfig) => (
-                        <FilterDropdownParent
+                    {standaloneFilterConfigs.map((filterConfig) => (
+                        <SimpleParentFilter
                             key={filterConfig.key}
                             className="parent-table-filter"
                             options={filterOptions[filterConfig.key]}
                             value={filters[filterConfig.key]}
                             label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
-                    ))} */}
+                    ))}
+                    {parentFilterGroups.map((filterGroup) => (
+                        <div
+                            key={filterGroup.label}
+                            className="parent-table-filter-group"
+                        >
+                            <HierarchicalParentFilter
+                                className="parent-table-filter parent-table-filter--grouped"
+                                filterGroup={filterGroup}
+                                filterOptions={filterOptions}
+                                filters={filters}
+                                filtersByKey={filtersByKey}
+                                onChange={handleHierarchicalFilterChange}
+                            />
+                        </div>
+                    ))}
                 </div>
             </div>
 
