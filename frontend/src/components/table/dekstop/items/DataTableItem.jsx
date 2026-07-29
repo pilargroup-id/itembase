@@ -4,7 +4,6 @@ import api from "../../../../services/api.js"
 import DialogDeleteItem from "../../../Dialog/dialog-item/DialogDeleteItem.jsx"
 import DialogEditItem from "../../../Dialog/dialog-item/DialogEditItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
-import FilterDropdownItem from "../../../dropdown/filter-item/FilterDropdownItem.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-item/FilterDropdownItem.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -16,13 +15,13 @@ import {
 } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-const DEFAULT_ITEM_SORT = "date-desc"
-const itemSortOptions = [
+export const DEFAULT_ITEM_SORT = "date-desc"
+export const itemSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
 ]
 
-const defaultItemFilters = itemFilterConfig.reduce(
+export const defaultItemFilters = itemFilterConfig.reduce(
     (filters, filterConfig) => ({
         ...filters,
         [filterConfig.key]: ALL_FILTER_VALUE,
@@ -50,6 +49,36 @@ function getFirstDisplayValue(values) {
     return values
         .map((value) => formatDisplayValue(value))
         .find((value) => value !== "-") || "-"
+}
+
+function getCategoryPicName(item) {
+    const category = item?.parent?.category ?? item?.category
+    const categoryUsers = Array.isArray(category?.users) ? category.users : []
+    const activeCategoryUsers = categoryUsers.filter((relation) => Number(relation?.is_active ?? 1) === 1)
+    const primaryCategoryUser =
+        activeCategoryUsers.find((relation) => Number(relation?.is_primary) === 1) ??
+        activeCategoryUsers[0] ??
+        categoryUsers[0]
+
+    return getFirstDisplayValue([
+        primaryCategoryUser?.user?.name,
+        primaryCategoryUser?.user?.username,
+        primaryCategoryUser?.name,
+        primaryCategoryUser?.username,
+        primaryCategoryUser?.central_user_name,
+        primaryCategoryUser?.central_user_username,
+        category?.pic_name,
+        category?.pic?.name,
+        category?.pic_user?.name,
+        item?.pic_name,
+        item?.parent?.pic_name,
+        category?.pic_code,
+        category?.pic?.code,
+        primaryCategoryUser?.central_user_id,
+        category?.pic_id,
+        item?.pic_code,
+        item?.parent?.pic_code,
+    ])
 }
 
 function getItemChannels(item) {
@@ -379,7 +408,7 @@ const columns = [
         render: (item) => (
             <DataTableIdentity
                 title={item.parent?.category?.detail_category || "-"}
-                subtitle={`PIC \u2014 ${item.parent?.category?.pic_name || item.parent?.category?.pic_code || "-"}`}
+                subtitle={`PIC — ${getCategoryPicName(item)}`}
             />
         ),
     },
@@ -413,7 +442,7 @@ const columns = [
     },
     {
         key: "dimension",
-        header: "Dimension",
+        header: "Dimension (HWD)",
         headerStyle: { width: "9%" },
         cellStyle: { width: "9%" },
         render: (item) =>
@@ -434,10 +463,11 @@ function DataTableItem({
     searchQuery = "",
     tableLabel = "Items table",
     refreshKey = 0,
+    filters = defaultItemFilters,
+    sortValue = DEFAULT_ITEM_SORT,
+    onFilterOptionsChange,
 }) {
     const [itemRows, setItemRows] = useState([])
-    const [filters, setFilters] = useState(defaultItemFilters)
-    const [sortValue, setSortValue] = useState(DEFAULT_ITEM_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
@@ -469,6 +499,11 @@ function DataTableItem({
             ),
         [itemRows],
     )
+
+    useEffect(() => {
+        onFilterOptionsChange?.(filterOptions)
+    }, [filterOptions, onFilterOptionsChange])
+
     const itemApiParams = useMemo(
         () =>
             createPaginatedItemApiParams({
@@ -593,25 +628,6 @@ function DataTableItem({
         closeActionDialog()
     }
 
-    const handleFilterChange = (filterKey, nextValue) => {
-        if (filters[filterKey] === nextValue) {
-            return
-        }
-
-        setFilters((currentFilters) => ({
-            ...currentFilters,
-            [filterKey]: nextValue,
-        }))
-    }
-
-    const handleSortChange = (nextSortValue) => {
-        if (nextSortValue === sortValue) {
-            return
-        }
-
-        setSortValue(nextSortValue)
-    }
-
     const setPaginationPage = (nextPage) => {
         if (nextPage === currentPage && paginationState.resetKey === filterResetKey) {
             return
@@ -673,34 +689,6 @@ function DataTableItem({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter item">
-                    {/* <FilterDropdownItem
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={itemSortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Date Desc"
-                        searchable={false}
-                        onChange={handleSortChange}
-                    />
-                    {itemFilterConfig.map((filterConfig) => (
-                        <FilterDropdownItem
-                            key={filterConfig.key}
-                            className={[
-                                "parent-table-filter",
-                                filterConfig.searchable === false ? "parent-table-filter--quick-select" : "",
-                            ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            options={filterOptions[filterConfig.key]}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={isLoading ? "Memuat opsi..." : filterConfig.emptyMessage}
-                            searchable={filterConfig.searchable ?? true}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))} */}
                 </div>
             </div>
 

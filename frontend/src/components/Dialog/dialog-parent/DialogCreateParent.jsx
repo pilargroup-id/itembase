@@ -1025,9 +1025,6 @@ function DialogCreateParent({
 
   const buildPayload = () => {
     const { port_id: portIds, ...parentValues } = formValues
-    const variantAttributeIds = isCreateItemChecked
-      ? getDetailVariantAttributeIds(detailItems)
-      : []
 
     return {
       ...Object.fromEntries(
@@ -1041,14 +1038,6 @@ function DialogCreateParent({
       parent_name: generatedParentName,
       status: 'active',
       ports: buildParentPorts(portIds),
-      ...(variantAttributeIds.length > 0
-        ? {
-            variant_attributes: variantAttributeIds.map((attributeId, index) => ({
-              attribute_id: attributeId,
-              sort_order: index + 1,
-            })),
-          }
-        : {}),
     }
   }
 

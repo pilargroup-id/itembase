@@ -254,6 +254,8 @@ const api = {
   itemTypes: createResource('/master/item-types'),
   ports: createResource('/master/ports'),
   uoms: createResource('/master/uoms'),
+  variantAttributes: createResource('/master/variants/attributes'),
+  variantValue: createResource('/master/variants/values'),
   variants: {
     attributes: (params, options) =>
       api.get('/master/variants/attributes', { ...options, params }),
@@ -289,6 +291,10 @@ const api = {
     ...createResource('/item/items'),
     updateStatus: (id, is_active, options) =>
       api.put(`/item/items/${id}`, { is_active }, options),
+    matrixPreview: (data, options) =>
+      api.post('/item/items/matrix/preview', data, options),
+    createMatrix: (data, options) =>
+      api.post('/item/items/matrix', data, options),
   },
   itemDownloads: {
     xlsx: (params, options) =>

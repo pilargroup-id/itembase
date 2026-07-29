@@ -30,11 +30,8 @@ export const implementedNavigationPaths = [
   '/ports',
   '/uoms',
   '/brands',
-  '/pics',
-  '/pic-users',
-  '/sku-statuses',
   '/activity-logs',
-  '/sub-brands',
+  '/variant',
 ]
 
 export const primaryNavigationItems = [
@@ -79,55 +76,32 @@ export const primaryNavigationItems = [
         id: 'nav-categories',
         label: 'Categories',
         href: '/categories',
-        icon: List,
       },
       {
         id: 'nav-brands',
         label: 'Brands',
         href: '/brands',
-        icon: Badge,
-      },
-      {
-        id: 'nav-sub-brands',
-        label: 'Sub Brands',
-        href: '/sub-brands',
-        icon: Badge,
+
       },
       {
         id: 'nav-types',
-        label: 'Types',
+        label: 'Source',
         href: '/types',
-        icon: Shapes,
       },
       {
         id: 'nav-ports',
         label: 'Ports',
         href: '/ports',
-        icon: Globe,
       },
       {
         id: 'nav-uoms',
         label: 'Uoms',
         href: '/uoms',
-        icon: Ruler,
       },
       {
-        id: 'nav-pics',
-        label: 'Pic Group',
-        href: '/pics',
-        icon: UserCheck,
-      },
-      {
-        id: 'nav-pic-users',
-        label: 'Pic Users',
-        href: '/pic-users',
-        icon: UserCog,
-      },
-      {
-        id: 'nav-sku-statuses',
-        label: 'SKU Status',
-        href: '/sku-statuses',
-        icon: Barcode,
+        id: 'variant',
+        label: 'Variant',
+        href: '/variant',
       }
     ],
   },

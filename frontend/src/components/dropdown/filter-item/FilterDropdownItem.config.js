@@ -29,6 +29,22 @@ function getBrandId(item) {
     return item?.brand_id ?? item?.parent?.brand_id ?? item?.parent?.brand?.id ?? ""
 }
 
+function getCategoryId(item) {
+    return item?.category_id ?? item?.parent?.category_id ?? item?.parent?.category?.id ?? ""
+}
+
+function getBusinessUnitId(item) {
+    const channelBusinessUnitId = item?.channels
+        ?.map((channel) => channel.business_unit_id ?? channel.business_unit?.id)
+        .find((value) => normalizeOptionValue(value))
+
+    return channelBusinessUnitId ?? getNestedId(item, "business_unit")
+}
+
+function getCreatedByValue(item) {
+    return item?.created_by?.id ?? item?.created_by?.username ?? item?.created_by?.name ?? item?.created_by ?? ""
+}
+
 export const itemFilterConfig = [
     {
         key: "status",
@@ -108,12 +124,43 @@ export const itemFilterConfig = [
         placeholder: "All Business Unit",
         searchPlaceholder: "Search business unit...",
         emptyMessage: "Business unit not found.",
-        searchable: false,
-        getValue: (item) => getNestedId(item, "business_unit"),
+        getValue: (item) => getBusinessUnitId(item),
         getOption: (item) =>
-            createEntityOption(getNestedId(item, "business_unit"), [
+            createEntityOption(getBusinessUnitId(item), [
+                item.channels?.find((channel) => normalizeOptionValue(channel.business_unit_id ?? channel.business_unit?.id))?.business_unit?.code,
+                item.channels?.find((channel) => normalizeOptionValue(channel.business_unit_id ?? channel.business_unit?.id))?.business_unit?.name,
                 item.business_unit?.code,
                 item.business_unit?.name,
+            ]),
+    },
+    {
+        key: "category",
+        apiParam: "category_id",
+        label: "Category",
+        placeholder: "All Category",
+        searchPlaceholder: "Search category...",
+        emptyMessage: "Category not found.",
+        getValue: (item) => getCategoryId(item),
+        getOption: (item) =>
+            createEntityOption(getCategoryId(item), [
+                item.parent?.category?.detail_category,
+                item.parent?.category?.sub_category,
+                item.parent?.category?.main_category,
+            ]),
+    },
+    {
+        key: "createdBy",
+        apiParam: "created_by",
+        label: "Created By",
+        placeholder: "All Created By",
+        searchPlaceholder: "Search creator...",
+        emptyMessage: "Creator not found.",
+        getValue: (item) => getCreatedByValue(item),
+        getOption: (item) =>
+            createEntityOption(getCreatedByValue(item), [
+                item.created_by?.name,
+                item.created_by?.username,
+                item.created_by,
             ]),
     },
     {

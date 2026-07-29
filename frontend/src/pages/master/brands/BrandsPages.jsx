@@ -1,14 +1,23 @@
 import { useState } from 'react'
 
 import ButtonCreateBrand from '../../../components/button/brands-buttons/ButtonCreateBrand.jsx'
+import ButtonCreateSubBrands from '../../../components/button/sub-brands-buttons/SubButtonCreateBrand.jsx'
 import DataTableBrands from '../../../components/table/dekstop/master/DataTableBrands.jsx'
+import DataTableSubBrands from '../../../components/table/dekstop/master/DataTableSubBrands.jsx'
 
 function BrandsPages({ activePage, searchQuery }) {
   const [brandRefreshKey, setBrandRefreshKey] = useState(0)
+  const [subBrandRefreshKey, setSubBrandRefreshKey] = useState(0)
+  const [activeBrandTab, setActiveBrandTab] = useState('brands')
+
+  const brandTabs = [
+    { id: 'brands', label: 'Brands' },
+    { id: 'sub-brands', label: 'Sub Brands' },
+  ]
 
   return (
     <section
-      className="dashboard-panel users-table-card parents-table-card"
+      className="dashboard-panel users-table-card parents-table-card brand-table-card"
       aria-label={activePage.title}
     >
       <div className="users-table-card__header">
@@ -18,17 +27,52 @@ function BrandsPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
-          <ButtonCreateBrand
-            onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
-          />
+          {activeBrandTab === 'brands' ? (
+            <ButtonCreateBrand
+              onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
+            />
+          ) : (
+            <ButtonCreateSubBrands
+              onCreated={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
+            />
+          )}
         </div>
       </div>
 
-      <DataTableBrands
-        searchQuery={searchQuery}
-        tableLabel={`${activePage.title} table`}
-        refreshKey={brandRefreshKey}
-      />
+      <div className="brand-table-tabs" role="tablist" aria-label="Brand tabs">
+        {brandTabs.map((tab) => {
+          const isActive = activeBrandTab === tab.id
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`brand-table-tabs__button${
+                isActive ? ' brand-table-tabs__button--active' : ''
+              }`}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveBrandTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {activeBrandTab === 'brands' ? (
+        <DataTableBrands
+          searchQuery={searchQuery}
+          tableLabel={`${activePage.title} table`}
+          refreshKey={brandRefreshKey}
+        />
+      ) : (
+        <DataTableSubBrands
+          searchQuery={searchQuery}
+          tableLabel={`${activePage.title} sub brands table`}
+          refreshKey={subBrandRefreshKey}
+        />
+      )}
     </section>
   )
 }

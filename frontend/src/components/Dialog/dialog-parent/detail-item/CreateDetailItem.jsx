@@ -312,35 +312,43 @@ function CreateDetailItem({
               </div>
 
               <div className="register-user-popup__field parent-detail-item__field--hwd">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-hwd-height-${item.id}`}>
-                  HWD
-                </label>
                 <div className="parent-detail-item__hwd-inputs">
                   {getHwdParts(item.hwd).map((partValue, partIndex) => {
                     const fieldLabels = ['Height', 'Width', 'Depth']
-                    const fieldPlaceholders = ['H', 'W', 'D']
+                    const fieldNames = ['height', 'width', 'depth']
+                    const inputId = `parent-detail-hwd-${fieldNames[partIndex]}-${item.id}`
 
                     return (
-                      <input
+                      <div
                         key={fieldLabels[partIndex]}
-                        id={
-                          partIndex === 0
-                            ? `parent-detail-hwd-height-${item.id}`
-                            : undefined
-                        }
-                        className="register-user-popup__input parent-detail-item__hwd-input"
-                        value={partValue}
-                        placeholder={fieldPlaceholders[partIndex]}
-                        aria-label={`${fieldLabels[partIndex]} HWD`}
-                        onChange={(event) =>
-                          handleFieldChange(
-                            item.id,
-                            'hwd',
-                            buildHwdValue(item.hwd, partIndex, event.target.value),
-                          )
-                        }
-                        disabled={disabled}
-                      />
+                        className="parent-detail-item__hwd-field"
+                      >
+                        <label className="register-user-popup__label" htmlFor={inputId}>
+                          {fieldLabels[partIndex]}
+                        </label>
+                        <div className="parent-detail-item__input-with-unit">
+                          <input
+                            id={inputId}
+                            className="register-user-popup__input parent-detail-item__hwd-input parent-detail-item__input--with-unit"
+                            type="number"
+                            step="any"
+                            inputMode="decimal"
+                            value={partValue}
+                            placeholder="0"
+                            onChange={(event) =>
+                              handleFieldChange(
+                                item.id,
+                                'hwd',
+                                buildHwdValue(item.hwd, partIndex, event.target.value),
+                              )
+                            }
+                            disabled={disabled}
+                          />
+                          <span className="parent-detail-item__unit" aria-hidden="true">
+                            cm
+                          </span>
+                        </div>
+                      </div>
                     )
                   })}
                 </div>

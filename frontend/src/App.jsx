@@ -8,13 +8,14 @@ import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
 import CategoriesPages from './pages/master/categories/CategoriesPages.jsx'
 import BrandsPages from './pages/master/brands/BrandsPages.jsx'
-import SubBrandsPage from './pages/master/sub-brands/SunBrandsPage.jsx'
+import SubBrandsPage from './pages/master/sub-brands/SubBrandsPage.jsx'
 import TypePages from './pages/master/type/TypePages.jsx'
 import PortsPage from './pages/master/port/PortPages.jsx'
 import UomsPages from './pages/master/uoms/UomsPages.jsx'
 import PicsPages from './pages/master/pics/PicsPages.jsx'
 import PicUsersPage from './pages/master/pic-users/PicUserPages.jsx'
 import SkuStatusesPage from './pages/master/sku-statuses/SkuStatusPages.jsx'
+import VariantPage from './pages/master/variant/VariantPage.jsx'
 import ActivityLogs from './pages/activity-logs/ActivityLogs.jsx'
 import DashboardPage from './pages/dashboard/DashboardPage.jsx'
 
@@ -224,6 +225,10 @@ const pageDetails = {
     title: 'SKU Status',
     eyebrow: 'Master',
   },
+  '/variant': {
+    title: 'Variant',
+    eyebrow: 'Master',
+  },
   '/activity-logs': {
     title: 'Logs',
     eyebrow: 'Setting',
@@ -333,6 +338,7 @@ function App() {
   const isPicsPage = currentPagePath === '/pics'
   const isPicUsersPage = currentPagePath === '/pic-users'
   const isSkuStatusesPage = currentPagePath === '/sku-statuses'
+  const isVariantPage = currentPagePath === '/variant'
   const isActivityLogsPage = currentPagePath === '/activity-logs'
   const isItemManagementTablePage =
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isSubBrandsPage || isTypePage || isPortsPage || isUomsPage
@@ -450,6 +456,8 @@ function App() {
               <PicUsersPage activePage={activePage} searchQuery={searchQuery} />
             ) : isSkuStatusesPage ? (
               <SkuStatusesPage activePage={activePage} searchQuery={searchQuery} />
+            ) : isVariantPage ? (
+              <VariantPage activePage={activePage} searchQuery={searchQuery} />
             ) : isActivityLogsPage ? (
               <ActivityLogs activePage={activePage} searchQuery={searchQuery} />
             ) : (

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, RefreshCw05, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
@@ -12,8 +12,6 @@ const initialFormValues = {
   selling_name: '',
   uom_id: '',
   variant: '',
-  variant_attribute_id: '',
-  variant_value_id: '',
   qty_per_pack: '',
   height: '',
   width: '',
@@ -45,7 +43,6 @@ const itemFields = [
     name: 'selling_name',
     label: 'Selling Name (Editable)',
     placeholder: 'Masukan Selling Name',
-    required: true,
     half: true,
   },
   {
@@ -56,26 +53,6 @@ const itemFields = [
     optionsKey: 'uoms',
     searchPlaceholder: 'Cari UOM...',
     emptyMessage: 'UOM tidak ditemukan.',
-  },
-  {
-    name: 'variant_attribute_id',
-    label: 'Variant Attribute',
-    placeholder: 'Pilih Attribute',
-    type: 'select',
-    optionsKey: 'variantAttributes',
-    searchPlaceholder: 'Cari Attribute...',
-    emptyMessage: 'Attribute tidak ditemukan.',
-    half: true,
-  },
-  {
-    name: 'variant_value_id',
-    label: 'Variant Value',
-    placeholder: 'Pilih Value',
-    type: 'select',
-    optionsKey: 'variantValues',
-    searchPlaceholder: 'Cari Value...',
-    emptyMessage: 'Value tidak ditemukan.',
-    half: true,
   },
   {
     name: 'qty_per_pack',
@@ -142,7 +119,6 @@ const emptyMasterOptions = {
   businessUnits: [],
   departments: [],
   variantAttributes: [],
-  variantValues: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -206,9 +182,8 @@ async function fetchAllActiveParents(options) {
   const limit = 250
   const parentMap = new Map()
   let currentPage = 1
-  let totalPages = 1
 
-  do {
+  while (true) {
     const previousParentCount = parentMap.size
     const response = await api.itemParents.list(
       { status: 'active', page: currentPage, limit, sort: 'name-asc' },
@@ -225,7 +200,7 @@ async function fetchAllActiveParents(options) {
       }
     })
 
-    totalPages = hasPaginationMeta(response)
+    const totalPages = hasPaginationMeta(response)
       ? meta.totalPages
       : rows.length === limit
         ? currentPage + 1
@@ -236,7 +211,11 @@ async function fetchAllActiveParents(options) {
     }
 
     currentPage += 1
-  } while (currentPage <= totalPages)
+
+    if (currentPage > totalPages) {
+      break
+    }
+  }
 
   return Array.from(parentMap.values())
 }
@@ -252,6 +231,16 @@ function makeOption(value, labelParts) {
 }
 
 function getSelectedDepartmentIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '')).filter(Boolean)
+  }
+
+  const normalizedValue = String(value ?? '').trim()
+
+  return normalizedValue ? [normalizedValue] : []
+}
+
+function getSelectedIds(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item ?? '')).filter(Boolean)
   }
@@ -278,6 +267,31 @@ function normalizeMasterOptions(responseData) {
     .filter((option) => option.value && option.label)
 }
 
+function getResourceData(responseData) {
+  return responseData?.data && !Array.isArray(responseData.data)
+    ? responseData.data
+    : responseData
+}
+
+function normalizeVariantAttributes(attributes) {
+  return Array.isArray(attributes)
+    ? [...attributes]
+        .map((attribute, index) => {
+          const id = attribute?.attribute_id ?? attribute?.id ?? attribute?.value
+          const label = attribute?.name ?? attribute?.attribute_name ?? attribute?.code ?? id
+
+          return {
+            value: String(id ?? ''),
+            label: String(label ?? ''),
+            code: String(attribute?.code ?? attribute?.attribute_code ?? ''),
+            sortOrder: Number(attribute?.sort_order ?? index + 1),
+          }
+        })
+        .filter((attribute) => attribute.value && attribute.label)
+        .sort((firstAttribute, secondAttribute) => firstAttribute.sortOrder - secondAttribute.sortOrder)
+    : []
+}
+
 function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((parent) => {
@@ -289,6 +303,7 @@ function normalizeParentOptions(responseData) {
       return {
         ...option,
         itemName: String(parent.item_name ?? ''),
+        variantAttributes: normalizeVariantAttributes(parent.variant_attributes),
       }
     })
     .filter((option) => option.value && option.label)
@@ -403,42 +418,76 @@ function buildPayload(formValues, masterOptions) {
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
       .filter(([key]) => key !== 'department_id')
-      .filter(([key]) => key !== 'variant_attribute_id')
-      .filter(([key]) => key !== 'variant_value_id')
       .filter(([, value]) => value !== ''),
   )
   const channels = createChannelPayload(formValues, masterOptions.departments)
-  const selectedVariantValue = masterOptions.variantValues.find(
-    (option) => option.value === String(formValues.variant_value_id ?? ''),
-  )
 
   if (channels.length > 0) {
     payload.channels = channels
   }
 
-  if (formValues.variant_attribute_id && formValues.variant_value_id) {
-    payload.variants = [
-      {
-        attribute_id: formValues.variant_attribute_id,
-        value_id: formValues.variant_value_id,
-      },
-    ]
-    payload.variant = selectedVariantValue?.label || payload.variant
-  }
-
   return payload
 }
 
+function buildCommonValues(formValues) {
+  const commonFieldNames = [
+    'uom_id',
+    'qty_per_pack',
+    'height',
+    'width',
+    'depth',
+    'gross_weight_pack',
+    'production_time_days',
+    'is_active',
+  ]
+
+  return Object.fromEntries(
+    commonFieldNames
+      .map((fieldName) => {
+        const trimmedValue = String(formValues[fieldName] ?? '').trim()
+
+        if (trimmedValue === '') {
+          return [fieldName, '']
+        }
+
+        return [
+          fieldName,
+          numericFields.has(fieldName) ? Number(trimmedValue) : trimmedValue,
+        ]
+      })
+      .filter(([, value]) => value !== ''),
+  )
+}
+
+function buildMatrixPayload(formValues, matrixRows) {
+  return {
+    item_parent_id: formValues.parent_id,
+    common_values: buildCommonValues(formValues),
+    items: matrixRows
+      .filter((row) => row.create)
+      .map((row) => ({
+        item_name: String(row.item_name ?? '').trim(),
+        selling_name: String(row.selling_name ?? '').trim(),
+        variants: (row.variants ?? []).map((variant) => ({
+          attribute_id: variant.attribute_id,
+          value_id: variant.value_id,
+        })),
+      })),
+  }
+}
+
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.item_name || !payload.selling_name) {
+  if (!payload.item_kind || !payload.item_name) {
     return false
   }
 
   return true
 }
 
-function hasIncompleteVariantSelection(formValues) {
-  return Boolean(formValues.variant_attribute_id) !== Boolean(formValues.variant_value_id)
+function hasIncompleteMatrixSelection(variantAttributes, variantSelections) {
+  return variantAttributes.some(
+    (attribute) => getSelectedIds(variantSelections[attribute.value]).length === 0,
+  )
 }
 
 function ChannelCheckboxSelect({
@@ -659,19 +708,29 @@ function DialogCreateItem({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
-  const [isLoadingVariantValues, setIsLoadingVariantValues] = useState(false)
+  const [isPreviewingMatrix, setIsPreviewingMatrix] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [itemOptionRows, setItemOptionRows] = useState([])
+  const [selectedVariantAttributeIds, setSelectedVariantAttributeIds] = useState([])
+  const [variantSelections, setVariantSelections] = useState({})
+  const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
+  const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
+  const [matrixRows, setMatrixRows] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setIsSubmitting(false)
+    setIsPreviewingMatrix(false)
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
       departments: [],
-      variantValues: [],
     }))
+    setSelectedVariantAttributeIds([])
+    setVariantSelections({})
+    setVariantValueOptionsByAttributeId({})
+    setLoadingVariantValuesByAttributeId({})
+    setMatrixRows([])
     setErrorMessage('')
   }, [])
 
@@ -745,7 +804,6 @@ function DialogCreateItem({
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
           variantAttributes: normalizeMasterOptions(variantAttributes),
-          variantValues: [],
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -833,64 +891,87 @@ function DialogCreateItem({
     }
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
-  useEffect(() => {
-    if (!isOpen || !formValues.variant_attribute_id) {
-      setMasterOptions((currentOptions) => ({
-        ...currentOptions,
-        variantValues: [],
-      }))
+  const selectedVariantAttributeKey = useMemo(
+    () => selectedVariantAttributeIds.join('|'),
+    [selectedVariantAttributeIds],
+  )
 
+  useEffect(() => {
+    const attributeIds = selectedVariantAttributeKey
+      ? selectedVariantAttributeKey.split('|').filter(Boolean)
+      : []
+
+    if (!isOpen || attributeIds.length === 0) {
+      return undefined
+    }
+
+    const missingAttributeIds = attributeIds.filter(
+      (attributeId) => !variantValueOptionsByAttributeId[attributeId],
+    )
+
+    if (missingAttributeIds.length === 0) {
       return undefined
     }
 
     let isMounted = true
     const controller = new AbortController()
 
-    const loadVariantValueOptions = async () => {
-      setIsLoadingVariantValues(true)
-      setErrorMessage('')
+    const loadVariantValues = async () => {
+      setLoadingVariantValuesByAttributeId((currentValues) => ({
+        ...currentValues,
+        ...Object.fromEntries(missingAttributeIds.map((attributeId) => [attributeId, true])),
+      }))
 
-      try {
-        const variantValues = await api.variants.values(
-          {
-            attribute_id: formValues.variant_attribute_id,
-            is_active: 1,
-          },
-          { signal: controller.signal },
-        )
+      return Promise.all(
+        missingAttributeIds.map(async (attributeId) => {
+          const response = await api.variants.values(
+            { attribute_id: attributeId, is_active: 1 },
+            { signal: controller.signal },
+          )
 
+          return [attributeId, normalizeMasterOptions(response)]
+        }),
+      )
+    }
+
+    loadVariantValues()
+      .then((entries) => {
         if (!isMounted) {
           return
         }
 
-        setMasterOptions((currentOptions) => ({
+        setVariantValueOptionsByAttributeId((currentOptions) => ({
           ...currentOptions,
-          variantValues: normalizeMasterOptions(variantValues),
+          ...Object.fromEntries(entries),
         }))
-      } catch (error) {
+      })
+      .catch((error) => {
         if (!isMounted || error?.name === 'AbortError') {
           return
         }
 
-        setMasterOptions((currentOptions) => ({
-          ...currentOptions,
-          variantValues: [],
-        }))
         setErrorMessage(error?.message || 'Gagal memuat data variant value.')
-      } finally {
-        if (isMounted) {
-          setIsLoadingVariantValues(false)
+      })
+      .finally(() => {
+        if (!isMounted) {
+          return
         }
-      }
-    }
 
-    loadVariantValueOptions()
+        setLoadingVariantValuesByAttributeId((currentValues) => ({
+          ...currentValues,
+          ...Object.fromEntries(missingAttributeIds.map((attributeId) => [attributeId, false])),
+        }))
+      })
 
     return () => {
       isMounted = false
       controller.abort()
     }
-  }, [formValues.variant_attribute_id, isOpen])
+  }, [
+    isOpen,
+    selectedVariantAttributeKey,
+    variantValueOptionsByAttributeId,
+  ])
 
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
@@ -915,19 +996,19 @@ function DialogCreateItem({
             : {}
         ),
         ...(name === 'business_unit_id' ? { department_id: [] } : {}),
-        ...(name === 'variant_attribute_id' ? { variant_value_id: '', variant: '' } : {}),
-        ...(name === 'variant_value_id'
-          ? {
-              variant:
-                masterOptions.variantValues.find(
-                  (option) => option.value === String(value ?? ''),
-                )?.label || '',
-            }
-          : {}),
       }
 
       return nextValues
     })
+
+    if (name === 'parent_id' || name === 'item_name') {
+      setMatrixRows([])
+    }
+
+    if (name === 'parent_id') {
+      setSelectedVariantAttributeIds([])
+      setVariantSelections({})
+    }
   }
 
   const handleInputChange = (event) => {
@@ -952,25 +1033,173 @@ function DialogCreateItem({
     })
   }
 
+  const handleVariantAttributeToggle = (attributeId) => {
+    setErrorMessage('')
+    setMatrixRows([])
+    setSelectedVariantAttributeIds((currentIds) => {
+      const normalizedAttributeId = String(attributeId ?? '')
+      const isSelected = currentIds.includes(normalizedAttributeId)
+
+      return isSelected
+        ? currentIds.filter((selectedId) => selectedId !== normalizedAttributeId)
+        : [...currentIds, normalizedAttributeId]
+    })
+  }
+
+  const handleVariantValueToggle = (attributeId, valueId) => {
+    setErrorMessage('')
+    setMatrixRows([])
+    setVariantSelections((currentSelections) => {
+      const normalizedAttributeId = String(attributeId ?? '')
+      const normalizedValueId = String(valueId ?? '')
+      const selectedValueIds = getSelectedIds(currentSelections[normalizedAttributeId])
+      const isSelected = selectedValueIds.includes(normalizedValueId)
+
+      return {
+        ...currentSelections,
+        [normalizedAttributeId]: isSelected
+          ? selectedValueIds.filter((selectedValueId) => selectedValueId !== normalizedValueId)
+          : [...selectedValueIds, normalizedValueId],
+      }
+    })
+  }
+
+  const handlePreviewMatrix = async () => {
+    if (!formValues.parent_id) {
+      setErrorMessage('Pilih parent terlebih dahulu sebelum membuat matrix.')
+      return
+    }
+
+    const activeVariantAttributes =
+      masterOptions.variantAttributes.filter((attribute) =>
+        selectedVariantAttributeIds.includes(attribute.value),
+      )
+
+    if (activeVariantAttributes.length === 0) {
+      setErrorMessage('Pilih minimal satu variant attribute untuk membuat matrix.')
+      return
+    }
+
+    if (hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)) {
+      setErrorMessage('Pilih minimal satu value untuk setiap variant attribute.')
+      return
+    }
+
+    setIsPreviewingMatrix(true)
+    setErrorMessage('')
+
+    try {
+      const response = await api.items.matrixPreview({
+        item_parent_id: formValues.parent_id,
+        attributes: activeVariantAttributes.map((attribute) => ({
+          attribute_id: attribute.value,
+          value_ids: getSelectedIds(variantSelections[attribute.value]),
+        })),
+      })
+      const previewData = getResourceData(response)
+      const combinations = Array.isArray(previewData?.combinations)
+        ? previewData.combinations
+        : []
+
+      setMatrixRows(
+        combinations.map((combination, index) => ({
+          id: `${combination.row_no ?? index + 1}-${combination.variant_summary ?? index}`,
+          create: true,
+          row_no: combination.row_no ?? index + 1,
+          variant_summary: combination.variant_summary ?? '',
+          item_name: combination.suggested_item_name ?? '',
+          selling_name: combination.suggested_selling_name ?? '',
+          variants: Array.isArray(combination.variants) ? combination.variants : [],
+        })),
+      )
+    } catch (error) {
+      setMatrixRows([])
+      setErrorMessage(error?.message || 'Gagal membuat preview matrix.')
+    } finally {
+      setIsPreviewingMatrix(false)
+    }
+  }
+
+  const handleMatrixRowChange = (rowId, fieldName, value) => {
+    setErrorMessage('')
+    setMatrixRows((currentRows) =>
+      currentRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              [fieldName]: value,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const handleMatrixRowToggle = (rowId) => {
+    setErrorMessage('')
+    setMatrixRows((currentRows) =>
+      currentRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              create: !row.create,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const handleMatrixRowRemove = (rowId) => {
+    setErrorMessage('')
+    setMatrixRows((currentRows) => currentRows.filter((row) => row.id !== rowId))
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
-
-    if (hasIncompleteVariantSelection(formValues)) {
-      setErrorMessage('Lengkapi variant attribute dan variant value terlebih dahulu.')
-      return
-    }
-
-    const payload = buildPayload(formValues, masterOptions)
-
-    if (!hasRequiredValues(payload)) {
-      setErrorMessage('Lengkapi item name dan selling name terlebih dahulu.')
-      return
-    }
 
     setIsSubmitting(true)
     setErrorMessage('')
 
     try {
+      const activeVariantAttributes =
+        masterOptions.variantAttributes.filter((attribute) =>
+          selectedVariantAttributeIds.includes(attribute.value),
+        )
+
+      if (activeVariantAttributes.length > 0) {
+        const payload = buildMatrixPayload(formValues, matrixRows)
+        const hasInvalidMatrixRow = payload.items.some(
+          (item) => !item.item_name || item.variants.length === 0,
+        )
+
+        if (!payload.item_parent_id) {
+          setErrorMessage('Pilih parent terlebih dahulu sebelum membuat matrix item.')
+          return
+        }
+
+        if (payload.items.length === 0) {
+          setErrorMessage('Preview matrix dan pilih minimal satu item untuk dibuat.')
+          return
+        }
+
+        if (hasInvalidMatrixRow) {
+          setErrorMessage('Lengkapi item name pada preview matrix.')
+          return
+        }
+
+        const createdItems = await api.items.createMatrix(payload)
+
+        onCreated?.(createdItems)
+        handleClose()
+        return
+      }
+
+      const payload = buildPayload(formValues, masterOptions)
+
+      if (!hasRequiredValues(payload)) {
+        setErrorMessage('Lengkapi item name terlebih dahulu.')
+        return
+      }
+
       const createdItem = await api.items.create(payload)
 
       onCreated?.(createdItem)
@@ -987,6 +1216,185 @@ function DialogCreateItem({
   }
 
   const headerTitle = formValues.item_name || title
+  const activeVariantAttributes =
+    masterOptions.variantAttributes.filter((attribute) =>
+      selectedVariantAttributeIds.includes(attribute.value),
+    )
+  const selectedMatrixRows = matrixRows.filter((row) => row.create)
+  const isMatrixMode = activeVariantAttributes.length > 0
+  const isLoadingAnyVariantValue = Object.values(loadingVariantValuesByAttributeId).some(Boolean)
+  const canPreviewMatrix =
+    isMatrixMode &&
+    Boolean(formValues.parent_id) &&
+    !isSubmitting &&
+    !isPreviewingMatrix &&
+    !isLoadingAnyVariantValue &&
+    !hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)
+
+  const renderVariantMatrix = () => {
+    return (
+      <div className="parent-create-popup__section item-create-popup__matrix-panel">
+        <div className="parent-create-popup__section-header item-create-popup__matrix-header">
+          <div>
+            <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
+            <p className="parent-create-popup__section-description">
+              Pilih attribute dan value untuk membuat beberapa item berbeda variant.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-popup__button dashboard-popup__button--secondary item-create-popup__matrix-preview-button"
+            disabled={!canPreviewMatrix}
+            onClick={handlePreviewMatrix}
+          >
+            <RefreshCw05 size={16} aria-hidden="true" />
+            <span>{isPreviewingMatrix ? 'Previewing...' : 'Preview'}</span>
+          </button>
+        </div>
+
+        <div className="register-user-popup__field item-create-popup__variant-attribute-field">
+          <label
+            className="register-user-popup__label"
+            htmlFor="item-variant-attributes"
+          >
+            Variant Attribute
+          </label>
+          <ChannelCheckboxSelect
+            id="item-variant-attributes"
+            label="Variant Attribute"
+            value={selectedVariantAttributeIds}
+            options={masterOptions.variantAttributes}
+            placeholder="Pilih Attribute"
+            emptyMessage="Attribute tidak ditemukan."
+            loading={isLoadingMasters}
+            disabled={
+              isSubmitting ||
+              isLoadingMasters ||
+              !formValues.parent_id
+            }
+            onToggle={handleVariantAttributeToggle}
+          />
+          {!formValues.parent_id ? (
+            <p className="item-create-popup__matrix-note">
+              Pilih parent terlebih dahulu untuk membuat matrix item.
+            </p>
+          ) : (
+            <p className="item-create-popup__matrix-note">
+              Pilih attribute dari master untuk membuat matrix item.
+            </p>
+          )}
+        </div>
+
+        <div className="item-create-popup__variant-grid">
+          {activeVariantAttributes.length > 0 ? activeVariantAttributes.map((attribute) => (
+            <div key={attribute.value} className="register-user-popup__field">
+              <label
+                className="register-user-popup__label"
+                htmlFor={`item-variant-${attribute.value}`}
+              >
+                {attribute.label}
+              </label>
+              <ChannelCheckboxSelect
+                id={`item-variant-${attribute.value}`}
+                label={attribute.label}
+                value={variantSelections[attribute.value] || []}
+                options={variantValueOptionsByAttributeId[attribute.value] || []}
+                placeholder={`Pilih ${attribute.label}`}
+                emptyMessage="Value tidak ditemukan."
+                loading={Boolean(loadingVariantValuesByAttributeId[attribute.value])}
+                disabled={isSubmitting || Boolean(loadingVariantValuesByAttributeId[attribute.value])}
+                onToggle={(valueId) => handleVariantValueToggle(attribute.value, valueId)}
+              />
+            </div>
+          )) : (
+            <p className="register-user-popup__hint item-create-popup__variant-empty">
+              Pilih variant attribute untuk menampilkan value.
+            </p>
+          )}
+        </div>
+
+        <div className="item-create-popup__matrix-preview">
+          <div className="item-create-popup__matrix-summary">
+            <span>{matrixRows.length} preview item</span>
+            <span>{selectedMatrixRows.length} dipilih</span>
+          </div>
+
+          {matrixRows.length > 0 ? (
+            <div className="item-create-popup__matrix-table-wrap">
+              <table className="item-create-popup__matrix-table">
+                <thead>
+                  <tr>
+                    <th>Create</th>
+                    <th>Variant</th>
+                    <th>Item Name</th>
+                    <th>Selling Name</th>
+                    <th aria-label="Aksi" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrixRows.map((row) => (
+                    <tr key={row.id} className={row.create ? '' : 'item-create-popup__matrix-row--muted'}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          className="register-user-popup__dropdown-checkbox"
+                          checked={row.create}
+                          disabled={isSubmitting}
+                          onChange={() => handleMatrixRowToggle(row.id)}
+                          aria-label={`Create ${row.variant_summary || row.row_no}`}
+                        />
+                      </td>
+                      <td>
+                        <span className="item-create-popup__matrix-variant">
+                          {row.variant_summary || '-'}
+                        </span>
+                      </td>
+                      <td>
+                        <input
+                          className="register-user-popup__input item-create-popup__matrix-input"
+                          value={row.item_name}
+                          disabled={isSubmitting || !row.create}
+                          onChange={(event) =>
+                            handleMatrixRowChange(row.id, 'item_name', event.target.value)
+                          }
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="register-user-popup__input item-create-popup__matrix-input"
+                          value={row.selling_name}
+                          disabled={isSubmitting || !row.create}
+                          onChange={(event) =>
+                            handleMatrixRowChange(row.id, 'selling_name', event.target.value)
+                          }
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="item-create-popup__matrix-delete"
+                          aria-label={`Hapus ${row.variant_summary || row.row_no}`}
+                          disabled={isSubmitting}
+                          onClick={() => handleMatrixRowRemove(row.id)}
+                        >
+                          <Trash03 size={16} aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="register-user-popup__hint">
+              Preview item akan muncul di sini setelah value dipilih.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const renderField = (field) => (
     <div
@@ -1035,17 +1443,13 @@ function DialogCreateItem({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={
-            field.name === 'variant_value_id'
-              ? isLoadingVariantValues
-              : field.name === 'department_id'
+            field.name === 'department_id'
               ? isLoadingDepartments
               : isLoadingMasters
           }
           disabled={
             isSubmitting ||
             isLoadingMasters ||
-            (field.name === 'variant_value_id' &&
-              (!formValues.variant_attribute_id || isLoadingVariantValues)) ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
@@ -1127,13 +1531,13 @@ function DialogCreateItem({
                           'parent_id',
                           'item_name',
                           'selling_name',
-                          'variant_attribute_id',
-                          'variant_value_id',
                         ].includes(field.name),
                       )
                       .map(renderField)}
                   </div>
                 </div>
+
+                {renderVariantMatrix()}
 
                 <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
                   <div className="parent-create-popup__section-header">
@@ -1174,9 +1578,13 @@ function DialogCreateItem({
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPreviewingMatrix}
           >
-            {isSubmitting ? 'Creating...' : 'Create'}
+            {isSubmitting
+              ? 'Creating...'
+              : isMatrixMode
+                ? `Create ${selectedMatrixRows.length || ''}`.trim()
+                : 'Create'}
           </button>
         </div>
       </form>

@@ -58,6 +58,7 @@ function buildWhereClause(query = {}) {
     ['item_kind', 'i.item_kind'], ['parent_id', 'i.parent_id'], ['uom_id', 'i.uom_id'],
     ['status', 'ip.status'], ['brand_id', 'ip.brand_id'], ['category_id', 'ip.category_id'],
     ['item_type_id', 'ip.item_type_id'], ['item_code', 'i.item_code'], ['barcode', 'i.barcode'],
+    ['created_by', 'i.created_by'],
   ];
   directFilters.forEach(([key, column]) => {
     if (query[key] !== undefined && query[key] !== null && query[key] !== '') {
