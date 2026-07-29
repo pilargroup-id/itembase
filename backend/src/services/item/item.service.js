@@ -4,7 +4,7 @@ const ActivityLogService = require('../activity-log.service');
 const DirectoryService = require('../pilargroup-directory.service');
 
 const ALLOWED_ITEM_KIND = ['regular', 'bundle'];
-const STRING_LIMITS = { item_name: 255, selling_name: 255, parent_id: 36, uom_id: 36, variant: 150, component_item_id: 36 };
+const STRING_LIMITS = { item_name: 255, selling_name: 255, parent_id: 36, uom_id: 36, component_item_id: 36 };
 const DECIMAL_FIELDS = ['qty_per_pack', 'height', 'width', 'depth', 'gross_weight_pack'];
 const INTEGER_FIELDS = ['production_time_days'];
 
@@ -50,11 +50,10 @@ function validatePayload(payload = {}) {
   if (!validateRequired(payload.item_kind)) errors.item_kind = 'Item kind is required';
   else if (!ALLOWED_ITEM_KIND.includes(payload.item_kind)) errors.item_kind = 'Item kind must be regular or bundle';
   if (!validateRequired(payload.parent_id)) errors.parent_id = 'Parent item is required';
-  if (!validateRequired(payload.selling_name)) errors.selling_name = 'Selling name is required';
   if (payload.item_kind === 'regular' && !validateRequired(payload.item_name)) errors.item_name = 'Item name is required for regular item';
   if (hasValue(payload.is_active) && !isValidBoolean(payload.is_active)) errors.is_active = 'Is active must be 0 or 1';
 
-  [['item_name', 255], ['selling_name', 255], ['variant', 150], ['parent_id', 36], ['uom_id', 36]].forEach(([field, max]) => {
+  [['item_name', 255], ['selling_name', 255], ['parent_id', 36], ['uom_id', 36]].forEach(([field, max]) => {
     if (hasValue(payload[field]) && String(payload[field]).length > max) errors[field] = `${field} cannot be longer than ${max} characters`;
   });
   DECIMAL_FIELDS.forEach((field) => { if (!isValidDecimal(payload[field])) errors[field] = `${field} must be a positive decimal with maximum 2 decimal places`; });
@@ -69,7 +68,7 @@ function validateComponents(components = [], itemKind, isProvided = false) {
     if (isProvided && components.length) throw makeError('Components are only allowed for bundle items', 422, 'VALIDATION_ERROR');
     return [];
   }
-  if (components.length < 2) throw makeError('Bundle must have at least 2 components', 422, 'VALIDATION_ERROR');
+  if (components.length < 1) throw makeError('Bundle must have at least 1 component', 422, 'VALIDATION_ERROR');
   if (components.length > 5) throw makeError('Bundle can only have maximum 5 components', 422, 'VALIDATION_ERROR');
   const unique = new Set();
   return components.map((component, index) => {
@@ -78,6 +77,7 @@ function validateComponents(components = [], itemKind, isProvided = false) {
     if (unique.has(component.component_item_id)) throw makeError('Duplicate component item in request', 422, 'VALIDATION_ERROR');
     unique.add(component.component_item_id);
     if (!isValidPositiveDecimal(component.qty)) throw makeError(`Component qty must be greater than 0 at index ${index}`, 422, 'VALIDATION_ERROR');
+    if (components.length === 1 && Number(component.qty) <= 1) throw makeError('A bundle with 1 component must have component qty greater than 1', 422, 'VALIDATION_ERROR');
     if (hasValue(component.sort_order) && (!isValidInteger(component.sort_order) || Number(component.sort_order) <= 0)) throw makeError(`Component sort order is invalid at index ${index}`, 422, 'VALIDATION_ERROR');
     return { component_item_id: component.component_item_id, qty: Number(component.qty), sort_order: hasValue(component.sort_order) ? Number(component.sort_order) : index + 1 };
   });
@@ -133,8 +133,8 @@ function normalizeItemData(payload, userId, generatedCode = null, existing = nul
   return {
     id: existing?.id || crypto.randomUUID(), item_code: existing?.item_code || generatedCode,
     barcode: existing?.barcode || generatedCode, item_name: String(payload.item_name || '').trim(),
-    selling_name: String(payload.selling_name || '').trim(), item_kind: payload.item_kind,
-    parent_id: payload.parent_id, uom_id: payload.uom_id || null, variant: payload.variant || null,
+    selling_name: String(payload.selling_name || payload.item_name || '').trim(), item_kind: payload.item_kind,
+    parent_id: payload.parent_id, uom_id: payload.uom_id || null,
     qty_per_pack: normalizeNumber(payload.qty_per_pack), height: normalizeNumber(payload.height),
     width: normalizeNumber(payload.width), depth: normalizeNumber(payload.depth),
     gross_weight_pack: normalizeNumber(payload.gross_weight_pack),
@@ -224,7 +224,7 @@ async function update(id, payload, userId, req = null) {
   const merged = {
     item_kind: payload.item_kind ?? existing.item_kind, parent_id: payload.parent_id ?? existing.parent_id,
     uom_id: payload.uom_id ?? existing.uom_id, item_name: payload.item_name ?? existing.item_name,
-    selling_name: payload.selling_name ?? existing.selling_name, variant: payload.variant ?? existing.variant,
+    selling_name: payload.selling_name ?? existing.selling_name,
     qty_per_pack: payload.qty_per_pack ?? existing.qty_per_pack, height: payload.height ?? existing.height,
     width: payload.width ?? existing.width, depth: payload.depth ?? existing.depth,
     gross_weight_pack: payload.gross_weight_pack ?? existing.gross_weight_pack,
