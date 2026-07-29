@@ -2122,15 +2122,29 @@ select {
   flex-wrap: wrap;
 }
 
-.parent-table-tool-button {
+.users-table-card__action.parent-table-tool-button {
   min-height: 38px;
-  color: #ffffff;
-  padding-inline: 0.8rem;
+  min-width: 128px;
+  border: 1px solid rgba(26, 42, 87, 0.12);
+  background: #ffffff;
+  color: var(--primary-blue);
+  padding-inline: 1.15rem;
+  box-shadow: 0 10px 24px rgba(45, 59, 82, 0.08);
 }
 
-.parent-table-tool-button svg,
-.parent-table-tool-button span {
-  color: #ffffff;
+.users-table-card__action.parent-table-tool-button:hover {
+  box-shadow: 0 14px 28px rgba(45, 59, 82, 0.12);
+}
+
+.users-table-card__action.parent-table-tool-button:focus-visible {
+  box-shadow:
+    0 0 0 4px rgba(26, 42, 87, 0.1),
+    0 14px 28px rgba(45, 59, 82, 0.12);
+}
+
+.users-table-card__action.parent-table-tool-button svg,
+.users-table-card__action.parent-table-tool-button span {
+  color: var(--primary-blue);
 }
 
 .parent-table-import-input {
