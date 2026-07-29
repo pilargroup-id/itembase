@@ -5,32 +5,15 @@ import DialogDeleteBrand from "../../../Dialog/dialog-brands/DialogDeleteBrand.j
 import DialogEditBrand from "../../../Dialog/dialog-brands/DialogEditBrand.jsx"
 import ButtonDeleteBrand from "../../../button/brands-buttons/ButtonDeleteBrand.jsx"
 import ButtonEditBrand from "../../../button/brands-buttons/ButtonEditBrand.jsx"
-import FilterDropdownBrand from "../../../dropdown/filter-brands/FilterDropdownBrand.jsx"
-import { brandFilterConfig } from "../../../dropdown/filter-brands/FilterDropdownBrand.config.js"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
 } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
-const ALL_FILTER_VALUE = "all"
 const DEFAULT_BRAND_PAGE_SIZE = 50
 const BRAND_PAGE_SIZE_OPTIONS = [50, 100, 250]
 const DEFAULT_BRAND_SORT = "date-desc"
-const brandSortOptions = [
-    { value: "date-desc", label: "Date Desc" },
-    { value: "date-asc", label: "Date Asc" },
-    { value: "name-asc", label: "Name Asc" },
-    { value: "name-desc", label: "Name Desc" },
-]
-
-const defaultBrandFilters = brandFilterConfig.reduce(
-    (filters, filterConfig) => ({
-        ...filters,
-        [filterConfig.key]: ALL_FILTER_VALUE,
-    }),
-    {},
-)
 
 function normalizeBrandRows(responseData) {
     if (Array.isArray(responseData)) {
@@ -183,45 +166,6 @@ function matchesSearch(brand, searchQuery) {
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
-function normalizeFilterValue(value) {
-    return String(value ?? "").trim()
-}
-
-function createFilterOptions(rows, filterConfig) {
-    if (Array.isArray(filterConfig.options)) {
-        return [
-            { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
-            ...filterConfig.options,
-        ]
-    }
-
-    const uniqueOptions = new Map()
-
-    rows.forEach((brand) => {
-        const customOption = filterConfig.getOption?.(brand)
-
-        if (customOption?.value) {
-            uniqueOptions.set(String(customOption.value), {
-                value: String(customOption.value),
-                label: String(customOption.label ?? customOption.value),
-            })
-            return
-        }
-
-        const value = normalizeFilterValue(filterConfig.getValue(brand))
-
-        if (value) {
-            uniqueOptions.set(value, { value, label: value })
-        }
-    })
-
-    const options = Array.from(uniqueOptions.values()).sort((firstOption, secondOption) =>
-        firstOption.label.localeCompare(secondOption.label),
-    )
-
-    return [{ value: ALL_FILTER_VALUE, label: filterConfig.placeholder }, ...options]
-}
-
 function getBrandDateValue(brand) {
     const dateValue =
         brand.created_at ??
@@ -262,18 +206,6 @@ function sortBrandRows(rows, sortValue) {
                 String(secondBrand.code ?? secondBrand.brand_code ?? ""),
             ) * sortDirection
         )
-    })
-}
-
-function matchesBrandFilters(brand, filters) {
-    return brandFilterConfig.every((filterConfig) => {
-        const selectedValue = filters[filterConfig.key]
-
-        if (!selectedValue || selectedValue === ALL_FILTER_VALUE) {
-            return true
-        }
-
-        return normalizeFilterValue(filterConfig.getValue(brand)) === selectedValue
     })
 }
 
@@ -347,8 +279,6 @@ function DataTableBrands({
     refreshKey = 0,
 }) {
     const [brandRows, setBrandRows] = useState([])
-    const [filters, setFilters] = useState(defaultBrandFilters)
-    const [sortValue, setSortValue] = useState(DEFAULT_BRAND_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_BRAND_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
@@ -356,8 +286,8 @@ function DataTableBrands({
     const [selectedBrand, setSelectedBrand] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
     const filterResetKey = useMemo(
-        () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
-        [filters, pageSize, searchQuery, sortValue],
+        () => JSON.stringify({ pageSize, searchQuery }),
+        [pageSize, searchQuery],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -366,27 +296,13 @@ function DataTableBrands({
     const currentPage =
         paginationState.resetKey === filterResetKey ? paginationState.currentPage : 1
 
-    const filterOptions = useMemo(
-        () =>
-            brandFilterConfig.reduce(
-                (options, filterConfig) => ({
-                    ...options,
-                    [filterConfig.key]: createFilterOptions(brandRows, filterConfig),
-                }),
-                {},
-            ),
-        [brandRows],
-    )
     const filteredRows = useMemo(
-        () =>
-            brandRows.filter(
-                (brand) => matchesSearch(brand, searchQuery) && matchesBrandFilters(brand, filters),
-            ),
-        [brandRows, filters, searchQuery],
+        () => brandRows.filter((brand) => matchesSearch(brand, searchQuery)),
+        [brandRows, searchQuery],
     )
     const sortedRows = useMemo(
-        () => sortBrandRows(filteredRows, sortValue),
-        [filteredRows, sortValue],
+        () => sortBrandRows(filteredRows, DEFAULT_BRAND_SORT),
+        [filteredRows],
     )
     const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
         () => getPageRows(sortedRows, currentPage, pageSize),
@@ -536,13 +452,6 @@ function DataTableBrands({
         closeActionDialog()
     }
 
-    const handleFilterChange = (filterKey, nextValue) => {
-        setFilters((currentFilters) => ({
-            ...currentFilters,
-            [filterKey]: nextValue,
-        }))
-    }
-
     const setPaginationPage = (nextPage) => {
         setPaginationState({
             currentPage: nextPage,
@@ -554,7 +463,7 @@ function DataTableBrands({
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery, sortValue }),
+            resetKey: JSON.stringify({ pageSize: nextPageSize, searchQuery }),
         })
     }
 
@@ -583,33 +492,6 @@ function DataTableBrands({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter brand">
-                    <FilterDropdownBrand
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={brandSortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Date Desc"
-                        searchable={false}
-                        onChange={setSortValue}
-                    />
-                    {brandFilterConfig.map((filterConfig) => (
-                        <FilterDropdownBrand
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key]}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))}
-                </div>
-            </div>
-
             <DataTable
                 className="mtickets-table"
                 rows={rows}

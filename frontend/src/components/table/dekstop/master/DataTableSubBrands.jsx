@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import FilterDropdownBrand from "../../../dropdown/filter-brands/FilterDropdownBrand.jsx"
 import DataTable, { DataTableIdentity } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
@@ -11,12 +10,6 @@ const DEFAULT_SUB_BRAND_SORT = "score-desc"
 const SUB_BRAND_SUGGESTION_LIMIT = 200
 const SUB_BRAND_LIST_LIMIT = 100
 const SUB_BRAND_MIN_SCORE = 35
-const subBrandSortOptions = [
-    { value: "score-desc", label: "Score Desc" },
-    { value: "score-asc", label: "Score Asc" },
-    { value: "name-asc", label: "Name Asc" },
-    { value: "name-desc", label: "Name Desc" },
-]
 
 function normalizeSubBrandRows(responseData) {
     if (Array.isArray(responseData)) {
@@ -175,13 +168,12 @@ function DataTableSubBrands({
     refreshKey = 0,
 }) {
     const [subBrandRows, setSubBrandRows] = useState([])
-    const [sortValue, setSortValue] = useState(DEFAULT_SUB_BRAND_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_SUB_BRAND_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(false)
     const [errorMessage, setErrorMessage] = useState("")
     const filterResetKey = useMemo(
-        () => JSON.stringify({ pageSize, searchQuery, sortValue }),
-        [pageSize, searchQuery, sortValue],
+        () => JSON.stringify({ pageSize, searchQuery }),
+        [pageSize, searchQuery],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -191,8 +183,8 @@ function DataTableSubBrands({
         paginationState.resetKey === filterResetKey ? paginationState.currentPage : 1
 
     const sortedRows = useMemo(
-        () => sortSubBrandRows(subBrandRows, sortValue),
-        [subBrandRows, sortValue],
+        () => sortSubBrandRows(subBrandRows, DEFAULT_SUB_BRAND_SORT),
+        [subBrandRows],
     )
     const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
         () => getPageRows(sortedRows, currentPage, pageSize),
@@ -267,7 +259,7 @@ function DataTableSubBrands({
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ pageSize: nextPageSize, searchQuery, sortValue }),
+            resetKey: JSON.stringify({ pageSize: nextPageSize, searchQuery }),
         })
     }
 
@@ -296,20 +288,6 @@ function DataTableSubBrands({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter sub brand">
-                    <FilterDropdownBrand
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={subBrandSortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Score Desc"
-                        searchable={false}
-                        onChange={setSortValue}
-                    />
-                </div>
-            </div>
-
             <DataTable
                 className="mtickets-table"
                 rows={rows}
