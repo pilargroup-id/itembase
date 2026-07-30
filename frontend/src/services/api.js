@@ -304,10 +304,18 @@ const api = {
     templates: {
       parents: (options) =>
         api.get('/item-data/templates/parents', { ...options, responseType: 'blob' }),
+      items: (options) =>
+        api.get('/item-data/templates/items', { ...options, responseType: 'blob' }),
+      bundles: (options) =>
+        api.get('/item-data/templates/bundles', { ...options, responseType: 'blob' }),
     },
     imports: {
       parentsPreview: (data, options) =>
         api.post('/item-data/imports/parents/preview', data, options),
+      itemsPreview: (data, options) =>
+        api.post('/item-data/imports/items/preview', data, options),
+      bundlesPreview: (data, options) =>
+        api.post('/item-data/imports/bundles/preview', data, options),
       commit: (data, options) =>
         api.post('/item-data/imports/commit', data, options),
       errors: (errorFileToken, options) =>

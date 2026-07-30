@@ -2,10 +2,24 @@ import { useState } from 'react'
 
 import ButtonCreateBundle from '../../../components/button/bundles-buttons/ButtonCreateBundle.jsx'
 import SearchBundle from '../../../components/search/SearchBundle.jsx'
-import DataTableBundles from '../../../components/table/dekstop/items/DataTableBundles.jsx'
+import DataTableBundles, {
+  DEFAULT_BUNDLE_SORT,
+  bundleSortOptions,
+  defaultBundleFilters,
+} from '../../../components/table/dekstop/items/DataTableBundles.jsx'
 
 function BundlesPage({ activePage, searchQuery, onSearchQueryChange }) {
   const [bundleRefreshKey, setBundleRefreshKey] = useState(0)
+  const [bundleFilters, setBundleFilters] = useState(defaultBundleFilters)
+  const [bundleSortValue, setBundleSortValue] = useState(DEFAULT_BUNDLE_SORT)
+
+  const handleApplyFilters = ({ filters, sortValue }) => {
+    setBundleFilters((currentFilters) => ({
+      ...currentFilters,
+      ...filters,
+    }))
+    setBundleSortValue(sortValue)
+  }
 
   return (
     <section
@@ -33,6 +47,10 @@ function BundlesPage({ activePage, searchQuery, onSearchQueryChange }) {
         searchQuery={searchQuery}
         tableLabel={`${activePage.title} table`}
         refreshKey={bundleRefreshKey}
+        filters={bundleFilters}
+        sortValue={bundleSortValue}
+        sortOptions={bundleSortOptions}
+        onApplyFilters={handleApplyFilters}
       />
     </section>
   )

@@ -15,7 +15,7 @@ function saveBlob(blob, filename) {
   window.URL.revokeObjectURL(url)
 }
 
-function ButtonDownloadItem({
+function ButtonDownloadBundle({
   className = '',
   children = 'Download',
   iconSize = 18,
@@ -38,9 +38,9 @@ function ButtonDownloadItem({
     setIsDownloading(true)
 
     try {
-      const blob = await api.itemData.templates.items()
+      const blob = await api.itemData.templates.bundles()
 
-      saveBlob(blob, 'item-template.xlsx')
+      saveBlob(blob, 'bundle-template.xlsx')
     } catch (error) {
       console.error(error)
     } finally {
@@ -63,4 +63,4 @@ function ButtonDownloadItem({
   )
 }
 
-export default ButtonDownloadItem
+export default ButtonDownloadBundle

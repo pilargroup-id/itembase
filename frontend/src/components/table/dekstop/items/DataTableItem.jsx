@@ -3,6 +3,7 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteItem from "../../../Dialog/dialog-item/DialogDeleteItem.jsx"
 import DialogEditItem from "../../../Dialog/dialog-item/DialogEditItem.jsx"
+import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
 import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
 import ButtonImportItem from "../../../button/item-buttons/ButtonImportItem.jsx"
@@ -483,6 +484,11 @@ function DataTableItem({
     const [totalPages, setTotalPages] = useState(1)
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedItem, setSelectedItem] = useState(null)
+    const [importPreviewResponse, setImportPreviewResponse] = useState(null)
+    const [importFileName, setImportFileName] = useState("")
+    const [importErrorMessage, setImportErrorMessage] = useState("")
+    const [isImportPreviewing, setIsImportPreviewing] = useState(false)
+    const [importDialogKey, setImportDialogKey] = useState(0)
     const [reloadKey, setReloadKey] = useState(0)
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
@@ -586,9 +592,47 @@ function DataTableItem({
         setSelectedItem(null)
     }
 
+    const closeImportDialog = () => {
+        setActiveActionDialog(null)
+        setImportPreviewResponse(null)
+        setImportFileName("")
+        setImportErrorMessage("")
+        setIsImportPreviewing(false)
+    }
+
     const openActionDialog = (dialogType, item) => {
         setSelectedItem(item)
         setActiveActionDialog(dialogType)
+    }
+
+    const handleImportFileSelect = async (file) => {
+        if (!file || isImportPreviewing) {
+            return
+        }
+
+        const formData = new FormData()
+
+        formData.append("file", file)
+        setImportDialogKey((currentKey) => currentKey + 1)
+        setImportFileName(file.name)
+        setImportPreviewResponse(null)
+        setImportErrorMessage("")
+        setActiveActionDialog("import")
+        setIsImportPreviewing(true)
+
+        try {
+            const previewResponse = await api.itemData.imports.itemsPreview(formData)
+
+            setImportPreviewResponse(previewResponse)
+        } catch (error) {
+            setImportErrorMessage(error?.message || "Gagal membuat preview import item.")
+        } finally {
+            setIsImportPreviewing(false)
+        }
+    }
+
+    const handleImportCommitted = () => {
+        setReloadKey((currentKey) => currentKey + 1)
     }
 
     const tableColumns = [
@@ -721,7 +765,12 @@ function DataTableItem({
                     <ButtonDownloadItem aria-label="Download item data" />
                     <ButtonImportItem
                         aria-label="Import item data"
-                    />
+                        onFileSelect={handleImportFileSelect}
+                        disabled={isImportPreviewing}
+                        aria-busy={isImportPreviewing}
+                    >
+                        {isImportPreviewing ? "Previewing..." : "Import"}
+                    </ButtonImportItem>
                 </div>
 
                 <div className="parent-table-filters" aria-label="Filter item">
@@ -780,6 +829,19 @@ function DataTableItem({
                 user={dialogItem}
                 onClose={closeActionDialog}
                 onDeleted={handleDeleteConfirm}
+            />
+
+            <DialogImportItem
+                key={`import-item-${importDialogKey}`}
+                isOpen={activeActionDialog === "import"}
+                eyebrow="Import Item"
+                title="Preview Import Item"
+                fileName={importFileName}
+                previewResponse={importPreviewResponse}
+                errorMessage={importErrorMessage}
+                isPreviewing={isImportPreviewing}
+                onClose={closeImportDialog}
+                onCommitted={handleImportCommitted}
             />
         </div>
     )

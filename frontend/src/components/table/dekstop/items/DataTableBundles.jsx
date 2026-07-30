@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogEditBundle from "../../../Dialog/dialog-bundles/DialogEditBundle.jsx"
+import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
+import ButtonDownloadBundle from "../../../button/bundles-buttons/ButtonDownloadBundle.jsx"
 import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
+import ButtonImportBundle from "../../../button/bundles-buttons/ButtonImportBundle.jsx"
 import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdownBundles.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
@@ -15,18 +18,22 @@ import {
 } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-const DEFAULT_ITEM_SORT = "date-desc"
-const itemSortOptions = [
+export const DEFAULT_BUNDLE_SORT = "date-desc"
+export const bundleSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
 ]
 
-const defaultItemFilters = itemFilterConfig.reduce(
+export const defaultBundleFilters = itemFilterConfig.reduce(
     (filters, filterConfig) => ({
         ...filters,
         [filterConfig.key]: ALL_FILTER_VALUE,
     }),
     {},
+)
+const visibleBundleFilterConfigs = itemFilterConfig.filter(
+    (filterConfig) =>
+        !["itemCode", "barcode", "itemKind", "skuStatus", "uom"].includes(filterConfig.key),
 )
 
 function formatDisplayValue(value) {
@@ -274,13 +281,6 @@ const columns = [
         render: (item) => renderItemValue(item.barcode),
     },
     {
-        key: "variant",
-        header: "Variant",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
-        render: (item) => renderItemValue(item.variant),
-    },
-    {
         key: "parent",
         header: "Parent",
         headerStyle: { width: "15%" },
@@ -305,20 +305,6 @@ const columns = [
         headerStyle: { width: "10%" },
         cellStyle: { width: "10%" },
         render: (item) => renderItemValue(item.parent?.category?.detail_category),
-    },
-    {
-        key: "skuStatus",
-        header: "SKU Status",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
-        render: (item) => renderItemValue(item.sku_status?.name),
-    },
-    {
-        key: "businessUnit",
-        header: "BU",
-        headerStyle: { width: "6%" },
-        cellStyle: { width: "6%" },
-        render: (item) => renderItemValue(item.business_unit?.code ?? item.business_unit?.name),
     },
     {
         key: "uom",
@@ -349,10 +335,12 @@ function DataTableBundles({
     searchQuery = "",
     tableLabel = "Bundles table",
     refreshKey = 0,
+    filters = defaultBundleFilters,
+    sortValue = DEFAULT_BUNDLE_SORT,
+    sortOptions = bundleSortOptions,
+    onApplyFilters,
 }) {
     const [itemRows, setItemRows] = useState([])
-    const [filters, setFilters] = useState(defaultItemFilters)
-    const [sortValue, setSortValue] = useState(DEFAULT_ITEM_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
@@ -360,6 +348,11 @@ function DataTableBundles({
     const [totalPages, setTotalPages] = useState(1)
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedItem, setSelectedItem] = useState(null)
+    const [importPreviewResponse, setImportPreviewResponse] = useState(null)
+    const [importFileName, setImportFileName] = useState("")
+    const [importErrorMessage, setImportErrorMessage] = useState("")
+    const [isImportPreviewing, setIsImportPreviewing] = useState(false)
+    const [importDialogKey, setImportDialogKey] = useState(0)
     const [reloadKey, setReloadKey] = useState(0)
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
@@ -461,6 +454,14 @@ function DataTableBundles({
         setSelectedItem(null)
     }
 
+    const closeImportDialog = () => {
+        setActiveActionDialog(null)
+        setImportPreviewResponse(null)
+        setImportFileName("")
+        setImportErrorMessage("")
+        setIsImportPreviewing(false)
+    }
+
     const openActionDialog = (dialogType, item) => {
         setSelectedItem(item)
         setActiveActionDialog(dialogType)
@@ -495,15 +496,48 @@ function DataTableBundles({
         closeActionDialog()
     }
 
+    const handleImportFileSelect = async (file) => {
+        if (!file || isImportPreviewing) {
+            return
+        }
+
+        const formData = new FormData()
+
+        formData.append("file", file)
+        setImportDialogKey((currentKey) => currentKey + 1)
+        setImportFileName(file.name)
+        setImportPreviewResponse(null)
+        setImportErrorMessage("")
+        setActiveActionDialog("import")
+        setIsImportPreviewing(true)
+
+        try {
+            const previewResponse = await api.itemData.imports.bundlesPreview(formData)
+
+            setImportPreviewResponse(previewResponse)
+        } catch (error) {
+            setImportErrorMessage(error?.message || "Gagal membuat preview import bundle.")
+        } finally {
+            setIsImportPreviewing(false)
+        }
+    }
+
+    const handleImportCommitted = () => {
+        setReloadKey((currentKey) => currentKey + 1)
+    }
+
     const handleFilterChange = (filterKey, nextValue) => {
         if (filters[filterKey] === nextValue) {
             return
         }
 
-        setFilters((currentFilters) => ({
-            ...currentFilters,
-            [filterKey]: nextValue,
-        }))
+        onApplyFilters?.({
+            filters: {
+                ...filters,
+                [filterKey]: nextValue,
+            },
+            sortValue,
+        })
     }
 
     const handleSortChange = (nextSortValue) => {
@@ -511,7 +545,10 @@ function DataTableBundles({
             return
         }
 
-        setSortValue(nextSortValue)
+        onApplyFilters?.({
+            filters,
+            sortValue: nextSortValue,
+        })
     }
 
     const setPaginationPage = (nextPage) => {
@@ -573,40 +610,49 @@ function DataTableBundles({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
+            <div className="parent-table-backdrop" aria-label="Bundle table tools">
+                <div className="parent-table-actions">
+                    <ButtonDownloadBundle aria-label="Download bundle data" />
+                    <ButtonImportBundle
+                        aria-label="Import bundle data"
+                        onFileSelect={handleImportFileSelect}
+                        disabled={isImportPreviewing}
+                        aria-busy={isImportPreviewing}
+                    >
+                        {isImportPreviewing ? "Previewing..." : "Import"}
+                    </ButtonImportBundle>
+                </div>
+
                 <div className="parent-table-filters" aria-label="Filter bundle">
-                    {/* <FilterDropdownBundle
+                    <FilterDropdownBundle
                         className="parent-table-filter parent-table-filter--sort"
-                        options={itemSortOptions}
+                        options={sortOptions}
                         value={sortValue}
                         label="Sort By"
-                        placeholder="Date Desc"
+                        placeholder="Sort By"
                         searchable={false}
                         onChange={handleSortChange}
                     />
-                    {itemFilterConfig
-                        .filter((filterConfig) => filterConfig.apiParam !== "item_kind")
-                        .map((filterConfig) => (
-                            <FilterDropdownBundle
-                                key={filterConfig.key}
-                                className="parent-table-filter"
-                                options={filterOptions[filterConfig.key]}
-                                value={filters[filterConfig.key]}
-                                label={filterConfig.label}
-                                placeholder={filterConfig.placeholder}
-                                searchPlaceholder={filterConfig.searchPlaceholder}
-                                emptyMessage={
-                                    isLoading ? "Memuat opsi..." : filterConfig.emptyMessage
-                                }
-                                onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                            />
-                        ))} */}
+                    {visibleBundleFilterConfigs.map((filterConfig) => (
+                        <FilterDropdownBundle
+                            key={filterConfig.key}
+                            className="parent-table-filter"
+                            options={filterOptions[filterConfig.key] ?? []}
+                            value={filters[filterConfig.key]}
+                            label={filterConfig.label}
+                            placeholder={filterConfig.placeholder}
+                            searchPlaceholder={filterConfig.searchPlaceholder}
+                            emptyMessage={filterConfig.emptyMessage}
+                            searchable={filterConfig.searchable ?? true}
+                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
+                        />
+                    ))}
                 </div>
             </div>
 
             <DataTable
                 className="mtickets-table"
-                rows={rows}
+                rows={isLoading ? [] : rows}
                 columns={tableColumns}
                 getRowId={(item) => item.id ?? item.item_code ?? item.barcode}
                 tableLabel={tableLabel}
@@ -622,6 +668,21 @@ function DataTableBundles({
                 item={selectedItem}
                 onClose={closeActionDialog}
                 onEdited={handleEditConfirm}
+            />
+
+            <DialogImportItem
+                key={`import-bundle-${importDialogKey}`}
+                isOpen={activeActionDialog === "import"}
+                eyebrow="Import Bundle"
+                title="Preview Import Bundle"
+                commitErrorMessage="Gagal commit import bundle."
+                errorFileName="bundle-import-errors.xlsx"
+                fileName={importFileName}
+                previewResponse={importPreviewResponse}
+                errorMessage={importErrorMessage}
+                isPreviewing={isImportPreviewing}
+                onClose={closeImportDialog}
+                onCommitted={handleImportCommitted}
             />
         </div>
     )
