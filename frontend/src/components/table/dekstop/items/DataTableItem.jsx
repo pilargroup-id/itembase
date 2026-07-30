@@ -3,7 +3,10 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteItem from "../../../Dialog/dialog-item/DialogDeleteItem.jsx"
 import DialogEditItem from "../../../Dialog/dialog-item/DialogEditItem.jsx"
+import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
+import ButtonImportItem from "../../../button/item-buttons/ButtonImportItem.jsx"
+import FilterDropdownItem from "../../../dropdown/filter-item/FilterDropdownItem.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-item/FilterDropdownItem.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -27,6 +30,10 @@ export const defaultItemFilters = itemFilterConfig.reduce(
         [filterConfig.key]: ALL_FILTER_VALUE,
     }),
     {},
+)
+const visibleItemFilterKeys = ["itemKind", "parent", "category", "businessUnit", "createdBy"]
+const visibleItemFilterConfigs = itemFilterConfig.filter((filterConfig) =>
+    visibleItemFilterKeys.includes(filterConfig.key),
 )
 
 function formatDisplayValue(value) {
@@ -465,7 +472,8 @@ function DataTableItem({
     refreshKey = 0,
     filters = defaultItemFilters,
     sortValue = DEFAULT_ITEM_SORT,
-    onFilterOptionsChange,
+    sortOptions = itemSortOptions,
+    onApplyFilters,
 }) {
     const [itemRows, setItemRows] = useState([])
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -499,10 +507,6 @@ function DataTableItem({
             ),
         [itemRows],
     )
-
-    useEffect(() => {
-        onFilterOptionsChange?.(filterOptions)
-    }, [filterOptions, onFilterOptionsChange])
 
     const itemApiParams = useMemo(
         () =>
@@ -656,6 +660,31 @@ function DataTableItem({
         })
     }
 
+    const handleFilterChange = (filterKey, nextValue) => {
+        if (filters[filterKey] === nextValue) {
+            return
+        }
+
+        onApplyFilters?.({
+            filters: {
+                ...filters,
+                [filterKey]: nextValue,
+            },
+            sortValue,
+        })
+    }
+
+    const handleSortChange = (nextSortValue) => {
+        if (nextSortValue === sortValue) {
+            return
+        }
+
+        onApplyFilters?.({
+            filters,
+            sortValue: nextSortValue,
+        })
+    }
+
     const loadingPageMessage = `Memuat data item halaman ${currentPage}...`
     const paginationSummary = isLoading
         ? `Memuat halaman ${currentPage} dari ${totalPages}`
@@ -687,8 +716,38 @@ function DataTableItem({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
+            <div className="parent-table-backdrop" aria-label="Item table tools">
+                <div className="parent-table-actions">
+                    <ButtonDownloadItem aria-label="Download item data" />
+                    <ButtonImportItem
+                        aria-label="Import item data"
+                    />
+                </div>
+
                 <div className="parent-table-filters" aria-label="Filter item">
+                    <FilterDropdownItem
+                        className="parent-table-filter parent-table-filter--sort"
+                        options={sortOptions}
+                        value={sortValue}
+                        label="Sort By"
+                        placeholder="Sort By"
+                        searchable={false}
+                        onChange={handleSortChange}
+                    />
+                    {visibleItemFilterConfigs.map((filterConfig) => (
+                        <FilterDropdownItem
+                            key={filterConfig.key}
+                            className="parent-table-filter"
+                            options={filterOptions[filterConfig.key] ?? []}
+                            value={filters[filterConfig.key]}
+                            label={filterConfig.label}
+                            placeholder={filterConfig.placeholder}
+                            searchPlaceholder={filterConfig.searchPlaceholder}
+                            emptyMessage={filterConfig.emptyMessage}
+                            searchable={filterConfig.searchable ?? true}
+                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
+                        />
+                    ))}
                 </div>
             </div>
 

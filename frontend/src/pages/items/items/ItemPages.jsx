@@ -1,8 +1,6 @@
 import { useState } from 'react'
 
 import ButtonCreateItem from '../../../components/button/item-buttons/ButtonCreateItem.jsx'
-import ButtonFilterItem from '../../../components/button/item-buttons/ButtonFilterItem.jsx'
-import { itemFilterConfig } from '../../../components/dropdown/filter-item/FilterDropdownItem.config.js'
 
 import SearchItem from '../../../components/search/SearchItem.jsx'
 import DataTableItem, {
@@ -11,25 +9,12 @@ import DataTableItem, {
   itemSortOptions,
 } from '../../../components/table/dekstop/items/DataTableItem.jsx'
 
-const visibleItemFilterConfigs = itemFilterConfig.filter((filterConfig) =>
-  ['itemKind', 'parent', 'category', 'businessUnit', 'createdBy'].includes(filterConfig.key),
-)
-
 function ItemPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [itemRefreshKey, setItemRefreshKey] = useState(0)
   const [itemFilters, setItemFilters] = useState(defaultItemFilters)
   const [itemSortValue, setItemSortValue] = useState(DEFAULT_ITEM_SORT)
-  const [itemFilterOptions, setItemFilterOptions] = useState({})
 
   const handleApplyFilters = ({ filters, sortValue }) => {
-    setItemFilters((currentFilters) => ({
-      ...currentFilters,
-      ...filters,
-    }))
-    setItemSortValue(sortValue)
-  }
-
-  const handleResetFilters = ({ filters, sortValue }) => {
     setItemFilters((currentFilters) => ({
       ...currentFilters,
       ...filters,
@@ -53,15 +38,6 @@ function ItemPages({ activePage, searchQuery, onSearchQueryChange }) {
             value={searchQuery}
             onChange={onSearchQueryChange}
           />
-          <ButtonFilterItem
-            filterConfigs={visibleItemFilterConfigs}
-            filterOptions={itemFilterOptions}
-            filters={itemFilters}
-            sortOptions={itemSortOptions}
-            sortValue={itemSortValue}
-            onApply={handleApplyFilters}
-            onReset={handleResetFilters}
-          />
           <ButtonCreateItem
             onCreated={() => setItemRefreshKey((currentKey) => currentKey + 1)}
           />
@@ -74,7 +50,8 @@ function ItemPages({ activePage, searchQuery, onSearchQueryChange }) {
         refreshKey={itemRefreshKey}
         filters={itemFilters}
         sortValue={itemSortValue}
-        onFilterOptionsChange={setItemFilterOptions}
+        sortOptions={itemSortOptions}
+        onApplyFilters={handleApplyFilters}
       />
     </section>
   )
