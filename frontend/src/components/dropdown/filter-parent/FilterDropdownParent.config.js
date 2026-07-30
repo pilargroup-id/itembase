@@ -6,6 +6,7 @@ export const parentFilterConfig = [
         placeholder: "All Status",
         searchPlaceholder: "Search status...",
         emptyMessage: "Status not found.",
+        searchable: false,
         options: [
             { value: "active", label: "Active" },
             { value: "inactive", label: "Inactive" },

@@ -3,10 +3,12 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent.jsx"
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
+import DialogImportParent from "../../../Dialog/dialog-parent/DialogImportParent.jsx"
 import ButtonDownloadParent from "../../../button/parents-buttons/ButtonDownloadParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
 import ButtonImportParent from "../../../button/parents-buttons/ButtonImportParent.jsx"
-import { ChevronDown } from "../../../template/TemplateIcons.jsx"
+import { Check, ChevronDown, FilterFunnel, SearchMd } from "../../../template/TemplateIcons.jsx"
+import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdownParent.jsx"
 import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -214,120 +216,6 @@ function useDebouncedValue(value, delay = 350) {
     return debouncedValue
 }
 
-function SimpleParentFilter({
-    className = "",
-    label,
-    options = [],
-    value,
-    onChange,
-}) {
-    return (
-        <label className={["parent-simple-filter", className].filter(Boolean).join(" ")}>
-            <span className="parent-simple-filter__label">{label}</span>
-            <select
-                className="parent-simple-filter__select"
-                value={value}
-                onChange={(event) => onChange?.(event.target.value)}
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-        </label>
-    )
-}
-
-function createHierarchicalOptionValue(filterKey, optionValue) {
-    return JSON.stringify([filterKey, String(optionValue ?? "")])
-}
-
-function parseHierarchicalOptionValue(optionValue) {
-    try {
-        const [filterKey, selectedValue] = JSON.parse(optionValue)
-
-        return { filterKey, selectedValue }
-    } catch {
-        return { filterKey: null, selectedValue: ALL_FILTER_VALUE }
-    }
-}
-
-function HierarchicalParentFilter({
-    className = "",
-    filterGroup,
-    filterOptions = {},
-    filters = {},
-    filtersByKey = {},
-    onChange,
-}) {
-    const selectedFilterKey = filterGroup.keys.find((filterKey) => {
-        const selectedValue = String(filters[filterKey] ?? "")
-
-        return selectedValue && selectedValue.toLowerCase() !== ALL_FILTER_VALUE
-    })
-    const selectedValue = selectedFilterKey
-        ? createHierarchicalOptionValue(selectedFilterKey, filters[selectedFilterKey])
-        : ALL_FILTER_VALUE
-
-    const handleChange = (nextValue) => {
-        if (nextValue === ALL_FILTER_VALUE) {
-            onChange?.(filterGroup.keys, null, ALL_FILTER_VALUE)
-            return
-        }
-
-        const { filterKey, selectedValue } = parseHierarchicalOptionValue(nextValue)
-
-        if (!filterKey) {
-            onChange?.(filterGroup.keys, null, ALL_FILTER_VALUE)
-            return
-        }
-
-        onChange?.(filterGroup.keys, filterKey, selectedValue)
-    }
-
-    return (
-        <label className={["parent-simple-filter", className].filter(Boolean).join(" ")}>
-            <span className="parent-simple-filter__label">{filterGroup.label}</span>
-            <select
-                className="parent-simple-filter__select"
-                value={selectedValue}
-                onChange={(event) => handleChange(event.target.value)}
-            >
-                <option value={ALL_FILTER_VALUE}>{`All ${filterGroup.label}`}</option>
-                {filterGroup.keys.map((filterKey) => {
-                    const filterConfig = filtersByKey[filterKey]
-
-                    if (!filterConfig) {
-                        return null
-                    }
-
-                    const options = (filterOptions[filterKey] ?? []).filter(
-                        (option) => String(option.value).toLowerCase() !== ALL_FILTER_VALUE,
-                    )
-
-                    if (options.length === 0) {
-                        return null
-                    }
-
-                    return (
-                        <optgroup key={filterConfig.key} label={filterConfig.label}>
-                            {options.map((option) => (
-                                <option
-                                    key={`${filterConfig.key}-${option.value}`}
-                                    value={createHierarchicalOptionValue(filterConfig.key, option.value)}
-                                >
-                                    {option.label}
-                                </option>
-                            ))}
-                        </optgroup>
-                    )
-                })}
-            </select>
-        </label>
-    )
-}
-
 function HierarchicalParentFilterDropdown({
     className = "",
     emptyMessage = "Filter tidak ditemukan.",
@@ -473,6 +361,8 @@ function HierarchicalParentFilterDropdown({
                 aria-expanded={isOpen}
                 aria-haspopup="listbox"
             >
+                <FilterFunnel size={14} aria-hidden="true" />
+
                 <span className="year-dropdown-tp__copy year-dropdown-tp__copy--floating">
                     <span
                         className={[
@@ -499,6 +389,11 @@ function HierarchicalParentFilterDropdown({
             {isOpen ? (
                 <div className="year-dropdown-tp__menu parent-hierarchical-filter__menu" role="listbox" aria-label={filterGroup.label}>
                     <div className="brand-filter-dropdown__search-shell">
+                        <SearchMd
+                            size={15}
+                            className="brand-filter-dropdown__search-icon"
+                            aria-hidden="true"
+                        />
                         <input
                             ref={searchInputRef}
                             type="search"
@@ -525,6 +420,13 @@ function HierarchicalParentFilterDropdown({
                             onClick={handleReset}
                         >
                             <span className="year-dropdown-tp__option-label">{`All ${filterGroup.label}`}</span>
+                            {!hasActiveValue ? (
+                                <Check
+                                    size={14}
+                                    className="year-dropdown-tp__option-check"
+                                    aria-hidden="true"
+                                />
+                            ) : null}
                         </button>
 
                         {sectionItems.length > 0 ? (
@@ -555,6 +457,13 @@ function HierarchicalParentFilterDropdown({
                                                     onClick={() => handleSelect(filterConfig.key, option.value)}
                                                 >
                                                     <span className="year-dropdown-tp__option-label">{option.label}</span>
+                                                    {isSelected ? (
+                                                        <Check
+                                                            size={14}
+                                                            className="year-dropdown-tp__option-check"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : null}
                                                 </button>
                                             )
                                         })}
@@ -658,6 +567,11 @@ function DataTableParents({
     const [totalPages, setTotalPages] = useState(1)
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedParent, setSelectedParent] = useState(null)
+    const [importPreviewResponse, setImportPreviewResponse] = useState(null)
+    const [importFileName, setImportFileName] = useState("")
+    const [importErrorMessage, setImportErrorMessage] = useState("")
+    const [isImportPreviewing, setIsImportPreviewing] = useState(false)
+    const [importDialogKey, setImportDialogKey] = useState(0)
     const [reloadKey, setReloadKey] = useState(0)
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
@@ -778,9 +692,47 @@ function DataTableParents({
         setSelectedParent(null)
     }
 
+    const closeImportDialog = () => {
+        setActiveActionDialog(null)
+        setImportPreviewResponse(null)
+        setImportFileName("")
+        setImportErrorMessage("")
+        setIsImportPreviewing(false)
+    }
+
     const openActionDialog = (dialogType, parent) => {
         setSelectedParent(parent)
         setActiveActionDialog(dialogType)
+    }
+
+    const handleImportFileSelect = async (file) => {
+        if (!file || isImportPreviewing) {
+            return
+        }
+
+        const formData = new FormData()
+
+        formData.append("file", file)
+        setImportDialogKey((currentKey) => currentKey + 1)
+        setImportFileName(file.name)
+        setImportPreviewResponse(null)
+        setImportErrorMessage("")
+        setActiveActionDialog("import")
+        setIsImportPreviewing(true)
+
+        try {
+            const previewResponse = await api.itemData.imports.parentsPreview(formData)
+
+            setImportPreviewResponse(previewResponse)
+        } catch (error) {
+            setImportErrorMessage(error?.message || "Gagal membuat preview import parent.")
+        } finally {
+            setIsImportPreviewing(false)
+        }
+    }
+
+    const handleImportCommitted = () => {
+        setReloadKey((currentKey) => currentKey + 1)
     }
 
     const tableColumns = [
@@ -910,7 +862,6 @@ function DataTableParents({
         pageSizeOptions: PAGE_SIZE_OPTIONS,
         pageSizeLabel: "Tampilkan",
         pageSizeSuffix: "baris",
-        previousLabel: "Sebelumnya",
         previousLabel: "<",
         nextLabel: ">",
         circularButtons: true,
@@ -931,24 +882,37 @@ function DataTableParents({
             <div className="parent-table-backdrop" aria-label="Parent table tools">
                 <div className="parent-table-actions">
                     <ButtonDownloadParent aria-label="Download parent data" />
-                    <ButtonImportParent aria-label="Import parent data" />
+                    <ButtonImportParent
+                        aria-label="Import parent data"
+                        onFileSelect={handleImportFileSelect}
+                        disabled={isImportPreviewing}
+                        aria-busy={isImportPreviewing}
+                    >
+                        {isImportPreviewing ? "Previewing..." : "Import"}
+                    </ButtonImportParent>
                 </div>
 
                 <div className="parent-table-filters" aria-label="Filter item parent">
-                    <SimpleParentFilter
+                    <FilterDropdownParent
                         className="parent-table-filter parent-table-filter--sort"
                         options={parentSortOptions}
                         value={sortValue}
                         label="Sort By"
+                        placeholder="Sort By"
+                        searchable={false}
                         onChange={handleSortChange}
                     />
                     {standaloneFilterConfigs.map((filterConfig) => (
-                        <SimpleParentFilter
+                        <FilterDropdownParent
                             key={filterConfig.key}
                             className="parent-table-filter"
                             options={filterOptions[filterConfig.key]}
                             value={filters[filterConfig.key]}
                             label={filterConfig.label}
+                            placeholder={filterConfig.placeholder}
+                            searchPlaceholder={filterConfig.searchPlaceholder}
+                            emptyMessage={filterConfig.emptyMessage}
+                            searchable={filterConfig.searchable ?? true}
                             onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
                         />
                     ))}
@@ -957,7 +921,7 @@ function DataTableParents({
                             key={filterGroup.label}
                             className="parent-table-filter-group"
                         >
-                            <HierarchicalParentFilter
+                            <HierarchicalParentFilterDropdown
                                 className="parent-table-filter parent-table-filter--grouped"
                                 filterGroup={filterGroup}
                                 filterOptions={filterOptions}
@@ -999,6 +963,19 @@ function DataTableParents({
                 user={dialogParent}
                 onClose={closeActionDialog}
                 onDeleted={handleDeleteConfirm}
+            />
+
+            <DialogImportParent
+                key={`import-parent-${importDialogKey}`}
+                isOpen={activeActionDialog === "import"}
+                eyebrow="Import Item Parent"
+                title="Preview Import Parent"
+                fileName={importFileName}
+                previewResponse={importPreviewResponse}
+                errorMessage={importErrorMessage}
+                isPreviewing={isImportPreviewing}
+                onClose={closeImportDialog}
+                onCommitted={handleImportCommitted}
             />
         </div>
     )

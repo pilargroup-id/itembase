@@ -305,6 +305,19 @@ const api = {
       parents: (options) =>
         api.get('/item-data/templates/parents', { ...options, responseType: 'blob' }),
     },
+    imports: {
+      parentsPreview: (data, options) =>
+        api.post('/item-data/imports/parents/preview', data, options),
+      commit: (data, options) =>
+        api.post('/item-data/imports/commit', data, options),
+      errors: (errorFileToken, options) =>
+        api.get(`/item-data/imports/errors/${errorFileToken}`, {
+          ...options,
+          responseType: 'blob',
+        }),
+      cancelPreview: (previewToken, options) =>
+        api.delete(`/item-data/imports/preview/${previewToken}`, options),
+    },
   },
   activityLogs: createResource('/activity-logs'),
 };

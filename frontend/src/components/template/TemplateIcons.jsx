@@ -36,6 +36,14 @@ export function ChevronDown(props) {
   )
 }
 
+export function Check(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m5 12 4 4 10-10" />
+    </IconBase>
+  )
+}
+
 export function ChevronLeft(props) {
   return (
     <IconBase {...props}>
@@ -94,6 +102,16 @@ export function FileText01(props) {
       <path d="M9 13h6" />
       <path d="M9 17h6" />
       <path d="M9 9h1" />
+    </IconBase>
+  )
+}
+
+export function FilterFunnel(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 5h18" />
+      <path d="M6 12h12" />
+      <path d="M10 19h4" />
     </IconBase>
   )
 }

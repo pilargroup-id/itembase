@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { ChevronDown } from "../../template/TemplateIcons.jsx"
+import { Check, ChevronDown, FilterFunnel, SearchMd } from "../../template/TemplateIcons.jsx"
 
 function normalizeOption(option) {
     if (typeof option === "object" && option !== null) {
@@ -107,7 +107,7 @@ function FilterDropdownParent({
     return (
         <div
             ref={rootRef}
-            className={["year-dropdown-tp", "brand-filter-dropdown", className]
+            className={["year-dropdown-tp", "brand-filter-dropdown", "parent-filter-dropdown", className]
                 .filter(Boolean)
                 .join(" ")}
         >
@@ -126,6 +126,8 @@ function FilterDropdownParent({
                 aria-expanded={isOpen}
                 aria-haspopup="listbox"
             >
+                <FilterFunnel size={14} aria-hidden="true" />
+
                 <span className="year-dropdown-tp__copy year-dropdown-tp__copy--floating">
                     <span
                         className={[
@@ -153,6 +155,11 @@ function FilterDropdownParent({
                 <div className="year-dropdown-tp__menu" role="listbox" aria-label={label}>
                     {searchable ? (
                         <div className="brand-filter-dropdown__search-shell">
+                            <SearchMd
+                                size={15}
+                                className="brand-filter-dropdown__search-icon"
+                                aria-hidden="true"
+                            />
                             <input
                                 ref={searchInputRef}
                                 type="search"
@@ -185,6 +192,13 @@ function FilterDropdownParent({
                                         onClick={() => handleSelect(option.value)}
                                     >
                                         <span className="year-dropdown-tp__option-label">{option.label}</span>
+                                        {isSelected ? (
+                                            <Check
+                                                size={14}
+                                                className="year-dropdown-tp__option-check"
+                                                aria-hidden="true"
+                                            />
+                                        ) : null}
                                     </button>
                                 )
                             })

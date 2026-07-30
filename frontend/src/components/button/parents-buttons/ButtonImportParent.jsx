@@ -26,7 +26,11 @@ function ButtonImportParent({
 
   const handleFileChange = (event) => {
     const [file] = Array.from(event.target.files ?? [])
-    onFileSelect?.(file)
+
+    if (file) {
+      onFileSelect?.(file)
+    }
+
     event.target.value = ''
   }
 
