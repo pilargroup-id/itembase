@@ -282,6 +282,10 @@ const api = {
   },
   itemParents: {
     ...createResource('/item/item-parents'),
+    options: (params, options) =>
+      api.get('/item/item-parents/options', { ...options, params }),
+    itemConfig: (id, options) =>
+      api.get(`/item/item-parents/${id}/item-config`, options),
     suggestSubbrands: (params, options) =>
       api.subBrands.suggestions(params, options),
     updateStatus: (id, status, options) =>
@@ -308,6 +312,10 @@ const api = {
         api.get('/item-data/templates/items', { ...options, responseType: 'blob' }),
       bundles: (options) =>
         api.get('/item-data/templates/bundles', { ...options, responseType: 'blob' }),
+    },
+    exports: {
+      parents: (options) =>
+        api.get('/item-data/exports/parents', { ...options, responseType: 'blob' }),
     },
     imports: {
       parentsPreview: (data, options) =>

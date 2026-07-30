@@ -13,7 +13,9 @@ function SearchableItemSelect({
   emptyMessage = 'Data tidak ditemukan.',
   loading = false,
   disabled = false,
+  remoteSearch = false,
   onChange,
+  onSearchChange,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -27,14 +29,28 @@ function SearchableItemSelect({
   const filteredOptions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
-    if (!normalizedQuery) {
+    if (remoteSearch || !normalizedQuery) {
       return options
     }
 
     return options.filter((option) =>
       String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
     )
-  }, [options, searchQuery])
+  }, [options, remoteSearch, searchQuery])
+
+  useEffect(() => {
+    if (!isOpen || !remoteSearch) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      onSearchChange?.(searchQuery)
+    }, 250)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [isOpen, onSearchChange, remoteSearch, searchQuery])
 
   useEffect(() => {
     if (!isOpen) {

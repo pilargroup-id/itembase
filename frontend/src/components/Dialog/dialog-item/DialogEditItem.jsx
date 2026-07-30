@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
@@ -6,38 +6,44 @@ import { XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
-  item_name: '',
+  item_kind: 'regular',
   parent_id: '',
+  item_name: '',
+  selling_name: '',
   uom_id: '',
-  sku_status_id: '',
-  business_unit_id: '',
   variant: '',
   qty_per_pack: '',
   height: '',
   width: '',
   depth: '',
   gross_weight_pack: '',
-  container_20ft_qty: '',
-  container_40hq_qty: '',
   production_time_days: '',
   is_active: '1',
 }
 
 const itemFields = [
   {
-    name: 'item_name',
-    label: 'Item Name',
-    placeholder: 'TEST GOTO BOTTLE BLUE',
-    full: true,
-  },
-  {
     name: 'parent_id',
     label: 'Parent',
-    placeholder: 'Pilih parent',
+    placeholder: 'Pilih Parent',
     type: 'select',
     optionsKey: 'parents',
-    searchPlaceholder: 'Cari parent...',
+    searchPlaceholder: 'Cari Parent...',
     emptyMessage: 'Parent tidak ditemukan.',
+    fullRow: true,
+  },
+  {
+    name: 'item_name',
+    label: 'Item Name',
+    placeholder: 'Masukan Item Name',
+    required: true,
+    half: true,
+  },
+  {
+    name: 'selling_name',
+    label: 'Selling Name (Editable)',
+    placeholder: 'Masukan Selling Name',
+    half: true,
   },
   {
     name: 'uom_id',
@@ -49,75 +55,51 @@ const itemFields = [
     emptyMessage: 'UOM tidak ditemukan.',
   },
   {
-    name: 'sku_status_id',
-    label: 'SKU Status',
-    placeholder: 'Pilih SKU status',
-    type: 'select',
-    optionsKey: 'skuStatuses',
-    searchPlaceholder: 'Cari SKU status...',
-    emptyMessage: 'SKU status tidak ditemukan.',
-  },
-  {
-    name: 'business_unit_id',
-    label: 'Business Unit',
-    placeholder: 'Pilih business unit',
-    type: 'select',
-    optionsKey: 'businessUnits',
-    searchPlaceholder: 'Cari business unit...',
-    emptyMessage: 'Business unit tidak ditemukan.',
-  },
-  {
-    name: 'variant',
-    label: 'Variant',
-    placeholder: 'BLUE',
-  },
-  {
     name: 'qty_per_pack',
     label: 'Qty / Pack',
-    placeholder: '1',
+    placeholder: '0',
     type: 'number',
+    compactDimension: true,
+    qtyField: true,
   },
   {
     name: 'height',
     label: 'Height',
-    placeholder: '25',
+    placeholder: '0',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'width',
     label: 'Width',
-    placeholder: '8',
+    placeholder: '0',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'depth',
     label: 'Depth',
-    placeholder: '8',
+    placeholder: '0',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'cm',
   },
   {
     name: 'gross_weight_pack',
     label: 'Gross Weight / Pack',
-    placeholder: '0.30',
+    placeholder: '0.00',
     type: 'number',
-  },
-  {
-    name: 'container_20ft_qty',
-    label: '20ft Qty',
-    placeholder: '2000',
-    type: 'number',
-  },
-  {
-    name: 'container_40hq_qty',
-    label: '40HQ Qty',
-    placeholder: '4500',
-    type: 'number',
+    compactDimension: true,
   },
   {
     name: 'production_time_days',
-    label: 'Production Days',
-    placeholder: '10',
+    label: 'Lead Time',
+    placeholder: '0',
     type: 'number',
+    compactDimension: true,
+    unitSuffix: 'day',
   },
 ]
 
@@ -127,8 +109,6 @@ const numericFields = new Set([
   'width',
   'depth',
   'gross_weight_pack',
-  'container_20ft_qty',
-  'container_40hq_qty',
   'production_time_days',
   'is_active',
 ])
@@ -136,8 +116,6 @@ const numericFields = new Set([
 const emptyMasterOptions = {
   parents: [],
   uoms: [],
-  skuStatuses: [],
-  businessUnits: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -184,12 +162,18 @@ function makeOption(value, labelParts) {
 
 function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
-    .map((parent) =>
-      makeOption(parent.id, [
+    .map((parent) => {
+      const option = makeOption(parent.id ?? parent.value ?? parent.parent_id ?? parent.item_parent_id, [
+        parent.label,
         parent.parent_name || parent.item_name,
         parent.parent_code,
-      ]),
-    )
+      ])
+
+      return {
+        ...option,
+        itemName: String(parent.item_name ?? ''),
+      }
+    })
     .filter((option) => option.value && option.label)
 }
 
@@ -199,78 +183,79 @@ function normalizeMasterOptions(responseData) {
     .filter((option) => option.value && option.label)
 }
 
-function normalizeBusinessUnitOptions(responseData, itemRows = []) {
-  const optionMap = new Map()
+function getResourceData(responseData) {
+  return responseData?.data && !Array.isArray(responseData.data)
+    ? responseData.data
+    : responseData
+}
 
-  normalizeListResponse(responseData).forEach((unit) => {
-    const option = makeOption(unit.id ?? unit.value, [unit.name, unit.code])
-
-    if (option.value && option.label) {
-      optionMap.set(option.value, option)
-    }
-  })
-
-  itemRows.forEach((item) => {
-    const unit = item.business_unit
-    const option = makeOption(unit?.id ?? item.business_unit_id, [unit?.name, unit?.code])
-
-    if (option.value && option.label && !optionMap.has(option.value)) {
-      optionMap.set(option.value, option)
-    }
-  })
-
-  return Array.from(optionMap.values()).sort((firstOption, secondOption) =>
-    firstOption.label.localeCompare(secondOption.label),
+function getParentId(item) {
+  return (
+    item?.parent_id ??
+    item?.item_parent_id ??
+    item?.parent?.id ??
+    item?.parent?.parent_id ??
+    item?.parent?.item_parent_id ??
+    item?.item_parent?.id ??
+    item?.item_parent?.parent_id ??
+    item?.item_parent?.item_parent_id ??
+    ''
   )
 }
 
-function normalizeDepartmentOptions(responseData, itemRows = [], businessUnitId = '') {
+function normalizeParentOptionFromItem(item) {
+  const parent = item?.parent ?? item?.item_parent ?? null
+  const parentId = getParentId(item)
+
+  if (!parentId) {
+    return []
+  }
+
+  const option = makeOption(parentId, [
+    parent?.label,
+    parent?.parent_name || parent?.item_name,
+    parent?.parent_code,
+    item?.parent_name || item?.item_parent_name,
+    item?.parent_code || item?.item_parent_code,
+    item?.item_parent_parent_name,
+    item?.item_parent_parent_code,
+  ])
+
+  return option.value && option.label
+    ? [
+        {
+          ...option,
+          itemName: String(parent?.item_name ?? item?.item_name ?? ''),
+        },
+      ]
+    : []
+}
+
+function mergeOptions(...optionLists) {
   const optionMap = new Map()
 
-  normalizeListResponse(responseData).forEach((department) => {
-    const option = makeOption(department.department_id ?? department.id ?? department.value, [
-      department.department_name ?? department.name,
-      department.department_code ?? department.code,
-    ])
-
-    if (option.value && option.label) {
-      option.code = department.department_code ?? department.code ?? ''
+  optionLists.flat().forEach((option) => {
+    if (option?.value && option?.label && !optionMap.has(option.value)) {
       optionMap.set(option.value, option)
     }
   })
 
-  itemRows.forEach((item) => {
-    if (String(item.business_unit?.id ?? item.business_unit_id ?? '') !== String(businessUnitId)) {
-      return
-    }
+  return Array.from(optionMap.values())
+}
 
-    ;(item.channels ?? []).forEach((channel) => {
-      const option = makeOption(channel.department_id, [
-        channel.channel_name,
-        channel.channel_code,
-      ])
-
-      if (option.value && option.label && !optionMap.has(option.value)) {
-        option.code = channel.channel_code ?? ''
-        optionMap.set(option.value, option)
-      }
-    })
-  })
-
-  return Array.from(optionMap.values()).sort((firstOption, secondOption) =>
-    firstOption.label.localeCompare(secondOption.label),
-  )
+function toTitleCase(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(
+      /(^|[\s/-])([a-z])/g,
+      (match, separator, letter) => `${separator}${letter.toUpperCase()}`,
+    )
 }
 
 function getNestedId(item, key) {
   return item?.[`${key}_id`] ?? item?.[key]?.id ?? ''
-}
-
-function getSelectedDepartmentId(item) {
-  const primaryChannel = item?.channels?.find((channel) => Number(channel.is_primary) === 1)
-  const selectedChannel = primaryChannel ?? item?.channels?.[0]
-
-  return selectedChannel?.department_id ?? item?.department_id ?? ''
 }
 
 function createFormValuesFromItem(item) {
@@ -279,19 +264,17 @@ function createFormValuesFromItem(item) {
   }
 
   return {
+    item_kind: item.item_kind ?? 'regular',
+    parent_id: String(getParentId(item)),
     item_name: item.item_name ?? '',
-    parent_id: String(getNestedId(item, 'parent')),
+    selling_name: item.selling_name ?? '',
     uom_id: String(getNestedId(item, 'uom')),
-    sku_status_id: String(getNestedId(item, 'sku_status')),
-    business_unit_id: String(getNestedId(item, 'business_unit')),
     variant: item.variant ?? '',
     qty_per_pack: item.qty_per_pack ?? '',
     height: item.height ?? '',
     width: item.width ?? '',
     depth: item.depth ?? '',
     gross_weight_pack: item.gross_weight_pack ?? '',
-    container_20ft_qty: item.container_20ft_qty ?? '',
-    container_40hq_qty: item.container_40hq_qty ?? '',
     production_time_days: item.production_time_days ?? '',
     is_active: String(item.is_active ?? 1),
   }
@@ -313,12 +296,12 @@ function buildPayload(formValues) {
   )
 }
 
-function hasRequiredValues(payload, item) {
-  if (!payload.parent_id || !payload.business_unit_id) {
+function hasRequiredValues(payload) {
+  if (!payload.item_kind || !payload.item_name) {
     return false
   }
 
-  return item?.item_kind !== 'regular' || Boolean(payload.item_name)
+  return true
 }
 
 function DialogEditItem({
@@ -330,12 +313,18 @@ function DialogEditItem({
   onClose,
   onEdited,
 }) {
-  const selectedItem = item ?? parent
+  const incomingItem = item ?? parent
+  const [detailItem, setDetailItem] = useState(incomingItem)
+  const selectedItem = detailItem ?? incomingItem
   const [formValues, setFormValues] = useState(() => createFormValuesFromItem(selectedItem))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const parentOptions = useMemo(
+    () => mergeOptions(masterOptions.parents, normalizeParentOptionFromItem(selectedItem)),
+    [masterOptions.parents, selectedItem],
+  )
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromItem(selectedItem))
@@ -350,9 +339,46 @@ function DialogEditItem({
 
   useEffect(() => {
     if (isOpen) {
-      setFormValues(createFormValuesFromItem(selectedItem))
+      setDetailItem(incomingItem)
+      setFormValues(createFormValuesFromItem(incomingItem))
     }
-  }, [isOpen, selectedItem])
+  }, [incomingItem, isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !incomingItem?.id) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadItemDetail = async () => {
+      try {
+        const response = await api.items.detail(incomingItem.id, undefined, {
+          signal: controller.signal,
+        })
+        const itemDetail = getResourceData(response)
+
+        if (!isMounted || !itemDetail) {
+          return
+        }
+
+        setDetailItem(itemDetail)
+        setFormValues(createFormValuesFromItem(itemDetail))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    loadItemDetail()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [incomingItem?.id, isOpen])
 
   useEffect(() => {
     if (!isOpen) {
@@ -384,23 +410,13 @@ function DialogEditItem({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses] = await Promise.all([
-          api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
-          api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
-          api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
-        ])
-        let businessUnits = []
-
-        try {
-          businessUnits = await api.businessUnits.list(
-            { active: 1 },
+        const [parents, uoms] = await Promise.all([
+          api.itemParents.options(
+            { page: 1, limit: 20, status: 'active' },
             { signal: controller.signal },
-          )
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            throw error
-          }
-        }
+          ),
+          api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
+        ])
 
         if (!isMounted) {
           return
@@ -409,8 +425,6 @@ function DialogEditItem({
         setMasterOptions({
           parents: normalizeParentOptions(parents),
           uoms: normalizeMasterOptions(uoms),
-          skuStatuses: normalizeMasterOptions(skuStatuses),
-          businessUnits: normalizeBusinessUnitOptions(businessUnits),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -435,10 +449,34 @@ function DialogEditItem({
   }, [isOpen])
 
   const handleFieldChange = (name, value) => {
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const selectedParent =
+        name === 'parent_id'
+          ? parentOptions.find((option) => option.value === String(value ?? ''))
+          : null
+      const nextItemName =
+        name === 'parent_id'
+          ? selectedParent?.itemName || currentValues.item_name
+          : name === 'item_name'
+            ? value
+            : currentValues.item_name
+
+      return {
+        ...currentValues,
+        [name]: value,
+        ...(
+          name === 'parent_id' && selectedParent?.itemName
+            ? { item_name: selectedParent.itemName }
+            : {}
+        ),
+        ...(
+          name === 'parent_id' || name === 'item_name'
+            ? { selling_name: toTitleCase(nextItemName) }
+            : {}
+        ),
+      }
+    })
   }
 
   const handleInputChange = (event) => {
@@ -457,8 +495,8 @@ function DialogEditItem({
 
     const payload = buildPayload(formValues)
 
-    if (!hasRequiredValues(payload, selectedItem)) {
-      setErrorMessage('Lengkapi parent, business unit, dan item name untuk regular item.')
+    if (!hasRequiredValues(payload)) {
+      setErrorMessage('Lengkapi item name terlebih dahulu.')
       return
     }
 
@@ -466,7 +504,7 @@ function DialogEditItem({
     setErrorMessage('')
 
     try {
-      const editedItem = await api.items.update(selectedItem.id, payload)
+      const editedItem = await api.items.update(selectedItem.id, payload, undefined)
 
       onEdited?.(editedItem, payload)
       handleClose()
@@ -480,6 +518,75 @@ function DialogEditItem({
   if (!isOpen || typeof document === 'undefined') {
     return null
   }
+
+  const headerTitle = formValues.item_name || title
+
+  const renderField = (field) => (
+    <div
+      key={field.name}
+      className={`register-user-popup__field${
+        field.full ? ' register-user-popup__field--full' : ''
+      }${
+        field.fullRow ? ' item-create-popup__field--full-row' : ''
+      }${
+        field.half ? ' item-create-popup__field--half' : ''
+      }${
+        field.compactDimension ? ' item-create-popup__field--compact-dimension' : ''
+      }${
+        field.qtyField ? ' item-create-popup__field--qty' : ''
+      }${
+        field.name ? ` item-create-popup__field--${field.name}` : ''
+      }`}
+    >
+      <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
+        {field.label}
+        {field.required && <span style={{ color: 'red', marginLeft: '4px' }}>*</span>}
+      </label>
+      {field.type === 'select' ? (
+        <SearchableItemSelect
+          id={`item-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={field.name === 'parent_id' ? parentOptions : masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          loading={isLoadingMasters}
+          disabled={isSubmitting || isLoadingMasters}
+          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+        />
+      ) : (
+        <div className={field.unitSuffix ? 'item-create-popup__input-with-unit' : undefined}>
+          <input
+            id={`item-${field.name}`}
+            name={field.name}
+            className={`register-user-popup__input${
+              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
+                ? ' register-user-popup__input--readonly'
+                : ''
+            }${field.unitSuffix ? ' item-create-popup__input--with-unit' : ''}`}
+            type={field.type === 'number' ? 'number' : 'text'}
+            step={field.type === 'number' ? 'any' : undefined}
+            value={formValues[field.name]}
+            placeholder={field.placeholder}
+            onChange={handleInputChange}
+            disabled={isSubmitting}
+            readOnly={field.readOnly || (field.name === 'item_name' && Boolean(formValues.parent_id))}
+            aria-readonly={
+              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
+                ? 'true'
+                : undefined
+            }
+          />
+          {field.unitSuffix ? (
+            <span className="item-create-popup__unit" aria-hidden="true">
+              {field.unitSuffix}
+            </span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  )
 
   const dialogNode = (
     <div
@@ -499,13 +606,13 @@ function DialogEditItem({
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
             <h2 className="dashboard-popup__title" id="dialog-edit-item-title">
-              {title}
+              {headerTitle}
             </h2>
           </div>
 
           <button
             type="button"
-            className="dashboard-popup__close parent-create-popup__close"
+            className="dashboard-popup__close item-create-popup__close-button"
             aria-label="Tutup dialog"
             onClick={handleClose}
             disabled={isSubmitting}
@@ -518,75 +625,43 @@ function DialogEditItem({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="register-user-popup__grid">
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="item-kind-readonly">
-                      Item Kind
-                    </label>
-                    <input
-                      id="item-kind-readonly"
-                      className="register-user-popup__input"
-                      value={selectedItem?.item_kind ?? '-'}
-                      readOnly
-                      disabled
-                    />
+                <div className="parent-create-popup__section">
+                  <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
+                    {itemFields
+                      .filter((field) =>
+                        [
+                          'parent_id',
+                          'item_name',
+                          'selling_name',
+                        ].includes(field.name),
+                      )
+                      .map(renderField)}
+                  </div>
+                </div>
+
+                <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
+                  <div className="parent-create-popup__section-header">
+                    <h3 className="parent-create-popup__section-title">Dimency Item</h3>
+                    <p className="parent-create-popup__section-description">
+                      Lengkapi detail dimensi item mulai dari UOM sampai lead time.
+                    </p>
                   </div>
 
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="item-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="item-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
+                  <div className="register-user-popup__grid item-create-popup__dimension-grid" style={{ rowGap: '12px' }}>
+                    {itemFields
+                      .filter((field) =>
+                        [
+                          'uom_id',
+                          'qty_per_pack',
+                          'height',
+                          'width',
+                          'depth',
+                          'gross_weight_pack',
+                          'production_time_days',
+                        ].includes(field.name),
+                      )
+                      .map(renderField)}
                   </div>
-
-                  {itemFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className={`register-user-popup__field${
-                        field.full ? ' register-user-popup__field--full' : ''
-                      }`}
-                    >
-                      <label className="register-user-popup__label" htmlFor={`item-${field.name}`}>
-                        {field.label}
-                      </label>
-                      {field.type === 'select' ? (
-                        <SearchableItemSelect
-                          id={`item-${field.name}`}
-                          label={field.label}
-                          value={formValues[field.name]}
-                          options={masterOptions[field.optionsKey]}
-                          placeholder={field.placeholder}
-                          searchPlaceholder={field.searchPlaceholder}
-                          emptyMessage={field.emptyMessage}
-                          loading={isLoadingMasters}
-                          disabled={isSubmitting || isLoadingMasters}
-                          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-                        />
-                      ) : (
-                        <input
-                          id={`item-${field.name}`}
-                          name={field.name}
-                          className="register-user-popup__input"
-                          type={field.type === 'number' ? 'number' : 'text'}
-                          step={field.type === 'number' ? 'any' : undefined}
-                          value={formValues[field.name]}
-                          placeholder={field.placeholder}
-                          onChange={handleInputChange}
-                          disabled={isSubmitting}
-                        />
-                      )}
-                    </div>
-                  ))}
                 </div>
 
                 {errorMessage ? (

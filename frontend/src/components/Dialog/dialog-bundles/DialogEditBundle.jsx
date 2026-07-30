@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { XClose } from '../../template/TemplateIcons.jsx'
+import { Minus, Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
 
 const BUNDLE_MIN_COMPONENTS = 2
@@ -10,12 +10,8 @@ const BUNDLE_MAX_COMPONENTS = 5
 
 const initialFormValues = {
   parent_id: '',
+  selling_name: '',
   uom_id: '',
-  sku_status_id: '',
-  business_unit_id: '',
-  department_id: '',
-  variant: '',
-  qty_per_pack: '',
   is_active: '1',
 }
 
@@ -25,11 +21,17 @@ const bundleFields = [
   {
     name: 'parent_id',
     label: 'Parent',
-    placeholder: 'Pilih parent',
+    placeholder: 'Pilih Parent',
     type: 'select',
     optionsKey: 'parents',
-    searchPlaceholder: 'Cari parent...',
+    searchPlaceholder: 'Cari Parent...',
     emptyMessage: 'Parent tidak ditemukan.',
+    required: true,
+  },
+  {
+    name: 'selling_name',
+    label: 'Selling Name',
+    placeholder: 'Masukan Selling Name',
   },
   {
     name: 'uom_id',
@@ -39,58 +41,16 @@ const bundleFields = [
     optionsKey: 'uoms',
     searchPlaceholder: 'Cari UOM...',
     emptyMessage: 'UOM tidak ditemukan.',
-  },
-  {
-    name: 'sku_status_id',
-    label: 'SKU Status',
-    placeholder: 'Pilih SKU status',
-    type: 'select',
-    optionsKey: 'skuStatuses',
-    searchPlaceholder: 'Cari SKU status...',
-    emptyMessage: 'SKU status tidak ditemukan.',
-  },
-  {
-    name: 'business_unit_id',
-    label: 'Business Unit',
-    placeholder: 'Pilih business unit',
-    type: 'select',
-    optionsKey: 'businessUnits',
-    searchPlaceholder: 'Cari business unit...',
-    emptyMessage: 'Business unit tidak ditemukan.',
-  },
-  {
-    name: 'department_id',
-    label: 'Channel',
-    placeholder: 'Pilih channel',
-    type: 'select',
-    optionsKey: 'departments',
-    searchPlaceholder: 'Cari channel...',
-    emptyMessage: 'Channel tidak ditemukan.',
-  },
-  {
-    name: 'variant',
-    label: 'Variant',
-    placeholder: 'BUNDLE TEST',
-  },
-  {
-    name: 'qty_per_pack',
-    label: 'Qty / Pack',
-    placeholder: '1',
-    type: 'number',
+    required: true,
   },
 ]
 
-const numericFields = new Set([
-  'qty_per_pack',
-  'is_active',
-])
+const numericFields = new Set(['is_active'])
+const integerInputFields = new Set()
 
 const emptyMasterOptions = {
   parents: [],
   uoms: [],
-  skuStatuses: [],
-  businessUnits: [],
-  departments: [],
   regularItems: [],
 }
 
@@ -136,40 +96,88 @@ function makeOption(value, labelParts) {
   }
 }
 
-function normalizeParentOptions(responseData) {
-  return normalizeListResponse(responseData)
-    .map((parent) =>
-      makeOption(parent.id, [
-        parent.parent_name || parent.item_name,
-        parent.parent_code,
-      ]),
-    )
-    .filter((option) => option.value && option.label)
-}
-
 function normalizeMasterOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((item) => makeOption(item.id ?? item.value, [item.name, item.code]))
     .filter((option) => option.value && option.label)
 }
 
-function normalizeRegularItemOptions(responseData) {
-  return normalizeRegularItemRows(responseData)
-    .map(createRegularItemOption)
+function normalizeParentOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .map((parent) => {
+      const option = makeOption(
+        parent.id ??
+          parent.value ??
+          parent.parent_id ??
+          parent.item_parent_id,
+        [
+        parent.label,
+        parent.parent_name || parent.item_name,
+        parent.parent_code,
+        ],
+      )
+
+      return {
+        ...option,
+        sellingName: String(parent.selling_name ?? parent.item_name ?? ''),
+      }
+    })
     .filter((option) => option.value && option.label)
 }
 
-function normalizeRegularItemRows(responseData) {
-  return normalizeListResponse(responseData)
-    .filter((item) => item.item_kind === 'regular')
+function getParentId(item) {
+  return (
+    item?.parent_id ??
+    item?.item_parent_id ??
+    item?.parent?.id ??
+    item?.parent?.parent_id ??
+    item?.parent?.item_parent_id ??
+    item?.item_parent?.id ??
+    item?.item_parent?.parent_id ??
+    item?.item_parent?.item_parent_id ??
+    ''
+  )
 }
 
-function createRegularItemOption(item) {
-  return makeOption(item?.id ?? item?.item_id ?? item?.value, [
-    item?.item_name || item?.item_code,
-    item?.item_code,
-    item?.barcode,
+function normalizeParentOptionFromItem(item) {
+  const parent = item?.parent ?? item?.item_parent ?? null
+  const parentId = getParentId(item)
+
+  if (!parentId) {
+    return []
+  }
+
+  const option = makeOption(parentId, [
+    parent?.label,
+    parent?.parent_name || parent?.item_name,
+    parent?.parent_code,
+    item?.parent_name || item?.item_parent_name,
+    item?.parent_code || item?.item_parent_code,
+    item?.item_parent_parent_name,
+    item?.item_parent_parent_code,
   ])
+
+  return option.value && option.label
+    ? [
+        {
+          ...option,
+          sellingName: String(parent?.selling_name ?? item?.selling_name ?? item?.item_name ?? ''),
+        },
+      ]
+    : []
+}
+
+function normalizeRegularItemOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .filter((item) => item.item_kind === 'regular')
+    .map((item) =>
+      makeOption(item.id, [
+        item.item_name || item.item_code,
+        item.item_code,
+        item.barcode,
+      ]),
+    )
+    .filter((option) => option.value && option.label)
 }
 
 function mergeOptions(...optionLists) {
@@ -184,78 +192,48 @@ function mergeOptions(...optionLists) {
   return Array.from(optionMap.values())
 }
 
-function normalizeBusinessUnitOptions(responseData, itemRows = []) {
-  const optionMap = new Map()
-
-  normalizeListResponse(responseData).forEach((unit) => {
-    const option = makeOption(unit.id ?? unit.value, [unit.name, unit.code])
-
-    if (option.value && option.label) {
-      optionMap.set(option.value, option)
-    }
-  })
-
-  itemRows.forEach((item) => {
-    const unit = item.business_unit
-    const option = makeOption(unit?.id ?? item.business_unit_id, [unit?.name, unit?.code])
-
-    if (option.value && option.label && !optionMap.has(option.value)) {
-      optionMap.set(option.value, option)
-    }
-  })
-
-  return Array.from(optionMap.values()).sort((firstOption, secondOption) =>
-    firstOption.label.localeCompare(secondOption.label),
-  )
+function sanitizeIntegerInput(value) {
+  return String(value ?? '').replace(/[^\d]/g, '')
 }
 
-function normalizeDepartmentOptions(responseData, itemRows = [], businessUnitId = '') {
-  const optionMap = new Map()
+function isPositiveInteger(value) {
+  const normalizedValue = String(value ?? '').trim()
 
-  normalizeListResponse(responseData).forEach((department) => {
-    const option = makeOption(department.department_id ?? department.id ?? department.value, [
-      department.department_name ?? department.name,
-      department.department_code ?? department.code,
-    ])
+  if (!/^\d+$/.test(normalizedValue)) {
+    return false
+  }
 
-    if (option.value && option.label) {
-      option.code = department.department_code ?? department.code ?? ''
-      optionMap.set(option.value, option)
-    }
-  })
+  const numberValue = Number(normalizedValue)
 
-  itemRows.forEach((item) => {
-    if (String(item.business_unit?.id ?? item.business_unit_id ?? '') !== String(businessUnitId)) {
-      return
-    }
+  return Number.isSafeInteger(numberValue) && numberValue > 0
+}
 
-    ;(item.channels ?? []).forEach((channel) => {
-      const option = makeOption(channel.department_id, [
-        channel.channel_name,
-        channel.channel_code,
-      ])
+function getOptionLabel(options, value) {
+  const normalizedValue = String(value ?? '')
+  const option = options.find((currentOption) => currentOption.value === normalizedValue)
 
-      if (option.value && option.label && !optionMap.has(option.value)) {
-        option.code = channel.channel_code ?? ''
-        optionMap.set(option.value, option)
+  return option?.label ?? ''
+}
+
+function buildBundleFormulaPreview(components, regularItems) {
+  const formulaParts = components
+    .map((component) => {
+      const itemLabel = getOptionLabel(regularItems, component.component_item_id)
+      const qty = String(component.qty ?? '').trim()
+
+      if (!itemLabel) {
+        return ''
       }
-    })
-  })
 
-  return Array.from(optionMap.values()).sort((firstOption, secondOption) =>
-    firstOption.label.localeCompare(secondOption.label),
-  )
+      return qty ? `${qty} ${itemLabel}` : itemLabel
+    })
+    .filter(Boolean)
+
+  return formulaParts.length > 0 ? `BUNDLE ${formulaParts.join(' + ')}` : ''
 }
 
 function getNestedId(item, key) {
   return item?.[`${key}_id`] ?? item?.[key]?.id ?? ''
-}
-
-function getSelectedDepartmentId(item) {
-  const primaryChannel = item?.channels?.find((channel) => Number(channel.is_primary) === 1)
-  const selectedChannel = primaryChannel ?? item?.channels?.[0]
-
-  return selectedChannel?.department_id ?? item?.department_id ?? ''
 }
 
 function normalizeItemDetailResponse(responseData) {
@@ -311,10 +289,24 @@ function normalizeComponentsFromItem(item) {
 
   const sorted = [...itemComponents].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
-  return sorted.slice(0, BUNDLE_MAX_COMPONENTS).map((comp) => ({
-    component_item_id: String(getComponentItemId(comp)),
-    qty: String(comp.qty ?? ''),
+  const normalizedComponents = sorted.slice(0, BUNDLE_MAX_COMPONENTS).map((component) => ({
+    component_item_id: String(getComponentItemId(component)),
+    qty: sanitizeIntegerInput(component.qty),
   }))
+
+  while (normalizedComponents.length < BUNDLE_MIN_COMPONENTS) {
+    normalizedComponents.push(initialComponent())
+  }
+
+  return normalizedComponents
+}
+
+function createRegularItemOption(item) {
+  return makeOption(item?.id ?? item?.item_id ?? item?.value, [
+    item?.item_name || item?.item_code,
+    item?.item_code,
+    item?.barcode,
+  ])
 }
 
 function normalizeRegularItemOptionsFromComponents(item) {
@@ -342,45 +334,21 @@ function createFormValuesFromItem(item) {
   }
 
   return {
-    parent_id: String(getNestedId(item, 'parent')),
+    parent_id: String(getParentId(item)),
+    selling_name: item.selling_name ?? item.item_name ?? '',
     uom_id: String(getNestedId(item, 'uom')),
-    sku_status_id: String(getNestedId(item, 'sku_status')),
-    business_unit_id: String(getNestedId(item, 'business_unit')),
-    department_id: String(getSelectedDepartmentId(item)),
-    variant: item.variant ?? '',
-    qty_per_pack: item.qty_per_pack ?? '',
     is_active: String(item.is_active ?? 1),
   }
 }
 
-function createChannelPayload(formValues, departmentOption) {
-  if (!formValues.business_unit_id || !formValues.department_id || !departmentOption) {
-    return []
-  }
-
-  const numericDepartmentId = Number(formValues.department_id)
-
-  return [
-    {
-      business_unit_id: formValues.business_unit_id,
-      department_id: Number.isNaN(numericDepartmentId)
-        ? formValues.department_id
-        : numericDepartmentId,
-      channel_code: departmentOption.code || departmentOption.value,
-      channel_name: departmentOption.label,
-      is_primary: 1,
-      is_active: 1,
-    },
-  ]
-}
-
-function buildPayload(formValues, masterOptions, components) {
-  const selectedDepartment = masterOptions.departments.find(
-    (option) => option.value === String(formValues.department_id),
-  )
+function buildPayload(formValues, components) {
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          return [key, value]
+        }
+
         const trimmedValue = String(value ?? '').trim()
 
         if (trimmedValue === '') {
@@ -389,27 +357,18 @@ function buildPayload(formValues, masterOptions, components) {
 
         return [key, numericFields.has(key) ? Number(trimmedValue) : trimmedValue]
       })
-      .filter(([key]) => key !== 'department_id')
       .filter(([, value]) => value !== ''),
   )
-  const channels = createChannelPayload(formValues, selectedDepartment)
 
-  if (channels.length > 0) {
-    payload.channels = channels
-  }
+  payload.item_kind = 'bundle'
 
   const validComponents = components
+    .filter((component) => component.component_item_id && isPositiveInteger(component.qty))
     .map((component, index) => ({
       component_item_id: component.component_item_id,
       qty: Number(component.qty),
       sort_order: index + 1,
     }))
-    .filter(
-      (component) =>
-        component.component_item_id &&
-        Number.isFinite(component.qty) &&
-        component.qty > 0,
-    )
 
   if (validComponents.length > 0) {
     payload.components = validComponents
@@ -419,35 +378,13 @@ function buildPayload(formValues, masterOptions, components) {
 }
 
 function hasRequiredValues(payload, components) {
-  if (
-    !payload.parent_id ||
-    !payload.uom_id ||
-    !payload.sku_status_id ||
-    !payload.business_unit_id ||
-    !payload.variant ||
-    !payload.qty_per_pack ||
-    !Array.isArray(payload.channels) ||
-    payload.channels.length === 0
-  ) {
+  if (!payload.item_kind || !payload.parent_id || !payload.uom_id) {
     return false
   }
 
-  const qtyPerPack = Number(payload.qty_per_pack)
-
-  if (!Number.isFinite(qtyPerPack) || qtyPerPack <= 0) {
-    return false
-  }
-
-  const validComponents = components.filter((component) => {
-    const qty = Number(component.qty)
-
-    return (
-      component.component_item_id &&
-      String(component.qty).trim() !== '' &&
-      Number.isFinite(qty) &&
-      qty > 0
-    )
-  })
+  const validComponents = components.filter(
+    (component) => component.component_item_id && isPositiveInteger(component.qty),
+  )
 
   return (
     validComponents.length >= BUNDLE_MIN_COMPONENTS &&
@@ -468,10 +405,28 @@ function DialogEditBundle({
   const [components, setComponents] = useState(() => normalizeComponentsFromItem(item))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
-  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
+  const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
-  const [itemOptionRows, setItemOptionRows] = useState([])
+  const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+
+  const componentItemOptions = useMemo(
+    () =>
+      mergeOptions(
+        masterOptions.regularItems,
+        normalizeRegularItemOptionsFromComponents(bundleItem ?? item),
+      ),
+    [bundleItem, item, masterOptions.regularItems],
+  )
+  const parentOptions = useMemo(
+    () => mergeOptions(masterOptions.parents, normalizeParentOptionFromItem(bundleItem ?? item)),
+    [bundleItem, item, masterOptions.parents],
+  )
+  const bundleFormulaPreview = useMemo(
+    () => buildBundleFormulaPreview(components, componentItemOptions),
+    [componentItemOptions, components],
+  )
+  const dialogTitle = bundleFormulaPreview || title
 
   const resetDialogState = useCallback(() => {
     const currentItem = bundleItem ?? item
@@ -479,6 +434,8 @@ function DialogEditBundle({
     setFormValues(createFormValuesFromItem(currentItem))
     setComponents(normalizeComponentsFromItem(currentItem))
     setIsSubmitting(false)
+    setMasterOptions(emptyMasterOptions)
+    setParentSearchQuery('')
     setErrorMessage('')
   }, [bundleItem, item])
 
@@ -486,6 +443,16 @@ function DialogEditBundle({
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    setBundleItem(item)
+    setFormValues(createFormValuesFromItem(item))
+    setComponents(normalizeComponentsFromItem(item))
+  }, [isOpen, item])
 
   useEffect(() => {
     if (!isOpen || !item?.id) {
@@ -527,24 +494,6 @@ function DialogEditBundle({
       return undefined
     }
 
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) {
-        handleClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleClose, isOpen, isSubmitting])
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined
-    }
-
     let isMounted = true
     const controller = new AbortController()
 
@@ -552,41 +501,20 @@ function DialogEditBundle({
       setIsLoadingMasters(true)
 
       try {
-        const [parents, uoms, skuStatuses, items] = await Promise.all([
-          api.itemParents.list({ status: 'active' }, { signal: controller.signal }),
+        const [uoms, items] = await Promise.all([
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
-          api.skuStatuses.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({ item_kind: 'regular' }, { signal: controller.signal }),
         ])
-        let businessUnits = []
-
-        try {
-          businessUnits = await api.businessUnits.list(
-            { active: 1 },
-            { signal: controller.signal },
-          )
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            throw error
-          }
-        }
 
         if (!isMounted) {
           return
         }
 
-        const itemRows = normalizeRegularItemRows(items)
-        const optionSourceRows = [bundleItem, ...itemRows].filter(Boolean)
-
-        setItemOptionRows(itemRows)
-        setMasterOptions({
-          parents: normalizeParentOptions(parents),
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
           uoms: normalizeMasterOptions(uoms),
-          skuStatuses: normalizeMasterOptions(skuStatuses),
-          businessUnits: normalizeBusinessUnitOptions(businessUnits, optionSourceRows),
-          departments: [],
           regularItems: normalizeRegularItemOptions(items),
-        })
+        }))
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
           return
@@ -607,34 +535,30 @@ function DialogEditBundle({
       isMounted = false
       controller.abort()
     }
-  }, [bundleItem, isOpen])
+  }, [isOpen])
 
   useEffect(() => {
-    if (!isOpen || !formValues.business_unit_id) {
+    if (!isOpen) {
       return undefined
     }
 
     let isMounted = true
     const controller = new AbortController()
 
-    const loadDepartmentOptions = async () => {
-      setIsLoadingDepartments(true)
-      setErrorMessage('')
+    const loadParentOptions = async () => {
+      setIsLoadingParentOptions(true)
 
       try {
-        let departments = []
-
-        try {
-          departments = await api.businessUnits.departments(
-            formValues.business_unit_id,
-            { active: 1 },
-            { signal: controller.signal },
-          )
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            throw error
-          }
-        }
+        const search = parentSearchQuery.trim()
+        const response = await api.itemParents.options(
+          {
+            page: 1,
+            limit: 20,
+            status: 'active',
+            ...(search ? { search } : {}),
+          },
+          { signal: controller.signal },
+        )
 
         if (!isMounted) {
           return
@@ -642,11 +566,7 @@ function DialogEditBundle({
 
         setMasterOptions((currentOptions) => ({
           ...currentOptions,
-          departments: normalizeDepartmentOptions(
-            departments,
-            [bundleItem, ...itemOptionRows].filter(Boolean),
-            formValues.business_unit_id,
-          ),
+          parents: normalizeParentOptions(response),
         }))
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -655,61 +575,106 @@ function DialogEditBundle({
 
         setMasterOptions((currentOptions) => ({
           ...currentOptions,
-          departments: [],
+          parents: [],
         }))
-        setErrorMessage(error?.message || 'Gagal memuat data channel.')
+        setErrorMessage(error?.message || 'Gagal memuat parent bundle.')
       } finally {
         if (isMounted) {
-          setIsLoadingDepartments(false)
+          setIsLoadingParentOptions(false)
         }
       }
     }
 
-    loadDepartmentOptions()
+    loadParentOptions()
 
     return () => {
       isMounted = false
       controller.abort()
     }
-  }, [bundleItem, formValues.business_unit_id, isOpen, itemOptionRows])
+  }, [isOpen, parentSearchQuery])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !isSubmitting) {
+        handleClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleClose, isOpen, isSubmitting])
 
   const handleFieldChange = (name, value) => {
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-      ...(name === 'business_unit_id' ? { department_id: '' } : {}),
-    }))
+    setErrorMessage('')
+    setFormValues((currentValues) => {
+      const selectedParent =
+        name === 'parent_id'
+          ? parentOptions.find((option) => option.value === String(value ?? ''))
+          : null
 
-    if (name === 'business_unit_id') {
-      setMasterOptions((currentOptions) => ({
-        ...currentOptions,
-        departments: [],
-      }))
-    }
+      return {
+        ...currentValues,
+        [name]: value,
+        ...(name === 'parent_id' ? { selling_name: selectedParent?.sellingName || '' } : {}),
+      }
+    })
   }
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
+    const normalizedValue = integerInputFields.has(name)
+      ? sanitizeIntegerInput(value)
+      : value
 
-    handleFieldChange(name, value)
+    handleFieldChange(name, normalizedValue)
   }
 
   const handleComponentChange = (index, field, value) => {
+    const normalizedValue = field === 'qty' ? sanitizeIntegerInput(value) : value
+
+    setErrorMessage('')
     setComponents((currentComponents) =>
-      currentComponents.map((comp, i) => (i === index ? { ...comp, [field]: value } : comp)),
+      currentComponents.map((component, currentIndex) =>
+        currentIndex === index
+          ? { ...component, [field]: normalizedValue }
+          : component,
+      ),
     )
   }
 
   const handleAddComponent = () => {
     if (components.length < BUNDLE_MAX_COMPONENTS) {
-      setComponents((current) => [...current, { component_item_id: '', qty: '' }])
+      setComponents((current) => [...current, initialComponent()])
     }
   }
 
   const handleRemoveComponent = (index) => {
     if (components.length > BUNDLE_MIN_COMPONENTS) {
-      setComponents((current) => current.filter((_, i) => i !== index))
+      setComponents((current) => current.filter((_, currentIndex) => currentIndex !== index))
     }
+  }
+
+  const handleQtyStep = (index, direction) => {
+    setErrorMessage('')
+    setComponents((currentComponents) =>
+      currentComponents.map((component, currentIndex) => {
+        if (currentIndex !== index) {
+          return component
+        }
+
+        const currentQty = Number(component.qty) || 0
+        const nextQty = Math.max(1, currentQty + direction)
+
+        return { ...component, qty: String(nextQty) }
+      }),
+    )
   }
 
   const handleSubmit = async (event) => {
@@ -720,11 +685,11 @@ function DialogEditBundle({
       return
     }
 
-    const payload = buildPayload(formValues, masterOptions, components)
+    const payload = buildPayload(formValues, components)
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi parent, UOM, SKU status, business unit, channel, variant, qty/pack, dan ${BUNDLE_MIN_COMPONENTS}-${BUNDLE_MAX_COMPONENTS} component item dengan qty valid.`,
+        `Lengkapi Parent, UOM, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
       )
       return
     }
@@ -748,16 +713,61 @@ function DialogEditBundle({
     return null
   }
 
-  const componentItemOptions = mergeOptions(
-    masterOptions.regularItems,
-    normalizeRegularItemOptionsFromComponents(bundleItem ?? item),
+  const renderField = (field) => (
+    <div
+      key={field.name}
+      className={`register-user-popup__field${
+        field.full ? ' register-user-popup__field--full' : ''
+      }`}
+    >
+      <label className="register-user-popup__label" htmlFor={`edit-bundle-${field.name}`}>
+        {field.label}
+        {field.required ? <span style={{ color: 'red', marginLeft: '4px' }}>*</span> : null}
+      </label>
+      {field.type === 'select' ? (
+        <SearchableItemSelect
+          id={`edit-bundle-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={field.name === 'parent_id' ? parentOptions : masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          loading={
+            field.name === 'parent_id'
+              ? isLoadingParentOptions && !formValues.parent_id
+              : isLoadingMasters
+          }
+          disabled={isSubmitting || isLoadingMasters}
+          remoteSearch={field.name === 'parent_id'}
+          onSearchChange={
+            field.name === 'parent_id'
+              ? setParentSearchQuery
+              : undefined
+          }
+          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+        />
+      ) : (
+        <input
+          id={`edit-bundle-${field.name}`}
+          name={field.name}
+          className="register-user-popup__input"
+          type="text"
+          inputMode={field.type === 'number' ? 'numeric' : undefined}
+          pattern={field.type === 'number' ? '[0-9]*' : undefined}
+          value={formValues[field.name]}
+          placeholder={field.placeholder}
+          onChange={handleInputChange}
+          disabled={isSubmitting}
+        />
+      )}
+    </div>
   )
 
   const dialogNode = (
     <div
       className="dashboard-popup-overlay"
       role="presentation"
-      // onClick={isSubmitting ? undefined : handleClose}
     >
       <form
         className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
@@ -771,222 +781,193 @@ function DialogEditBundle({
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
             <h2 className="dashboard-popup__title" id="dialog-edit-bundle-title">
-              {title}
+              {dialogTitle}
             </h2>
           </div>
 
-          <button
-            type="button"
-            className="dashboard-popup__close parent-create-popup__close"
+          <XClose
+            className="bundle-create-popup__close-icon"
+            size={23}
+            role="button"
+            tabIndex={isSubmitting ? -1 : 0}
             aria-label="Tutup dialog"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            <XClose size={23} />
-          </button>
+            onClick={() => {
+              if (!isSubmitting) {
+                handleClose()
+              }
+            }}
+            onKeyDown={(event) => {
+              if (!isSubmitting && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault()
+                handleClose()
+              }
+            }}
+            aria-disabled={isSubmitting}
+          />
         </div>
 
         <div className="dashboard-popup__body">
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="register-user-popup__grid">
-                  {/* Item Kind (readonly) */}
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="edit-bundle-item-kind">
-                      Item Kind
-                    </label>
-                    <input
-                      id="edit-bundle-item-kind"
-                      className="register-user-popup__input"
-                      value={bundleItem?.item_kind ?? item?.item_kind ?? 'bundle'}
-                      readOnly
-                      disabled
-                    />
-                  </div>
-
-                  {/* Status */}
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="edit-bundle-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="edit-bundle-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
-                  </div>
-
-                  {/* Bundle fields */}
-                  {bundleFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className={`register-user-popup__field${
-                        field.full ? ' register-user-popup__field--full' : ''
-                      }`}
-                    >
+                <div className="parent-create-popup__section">
+                  <div className="register-user-popup__grid bundle-create-popup__meta-grid">
+                    <div className="register-user-popup__field">
                       <label
                         className="register-user-popup__label"
-                        htmlFor={`edit-bundle-${field.name}`}
+                        htmlFor="edit-bundle-is-active"
                       >
-                        {field.label}
+                        Status
                       </label>
-                      {field.type === 'select' ? (
-                        <SearchableItemSelect
-                          id={`edit-bundle-${field.name}`}
-                          label={field.label}
-                          value={formValues[field.name]}
-                          options={masterOptions[field.optionsKey]}
-                          placeholder={field.placeholder}
-                          searchPlaceholder={field.searchPlaceholder}
-                          emptyMessage={field.emptyMessage}
-                          loading={
-                            field.name === 'department_id'
-                              ? isLoadingDepartments
-                              : isLoadingMasters
-                          }
-                          disabled={
-                            isSubmitting ||
-                            isLoadingMasters ||
-                            (field.name === 'department_id' &&
-                              (!formValues.business_unit_id || isLoadingDepartments))
-                          }
-                          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-                        />
-                      ) : (
-                        <input
-                          id={`edit-bundle-${field.name}`}
-                          name={field.name}
-                          className="register-user-popup__input"
-                          type={field.type === 'number' ? 'number' : 'text'}
-                          step={field.type === 'number' ? 'any' : undefined}
-                          value={formValues[field.name]}
-                          placeholder={field.placeholder}
-                          onChange={handleInputChange}
-                          disabled={isSubmitting}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Components Section */}
-                <div className="register-user-popup__section" style={{ marginTop: '1.25rem' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '0.75rem',
-                    }}
-                  >
-                    <p
-                      className="register-user-popup__label"
-                      style={{ margin: 0, fontWeight: 600 }}
-                    >
-                      Components ({components.length}/{BUNDLE_MAX_COMPONENTS})
-                      <span
-                        style={{
-                          fontWeight: 400,
-                          opacity: 0.6,
-                          marginLeft: '0.5rem',
-                          fontSize: '0.8em',
-                        }}
-                      >
-                        min {BUNDLE_MIN_COMPONENTS}, maks {BUNDLE_MAX_COMPONENTS} item regular
-                      </span>
-                    </p>
-                    {components.length < BUNDLE_MAX_COMPONENTS && (
-                      <button
-                        type="button"
-                        className="dashboard-popup__button dashboard-popup__button--secondary"
-                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
-                        onClick={handleAddComponent}
+                      <select
+                        id="edit-bundle-is-active"
+                        name="is_active"
+                        className="register-user-popup__select"
+                        value={formValues.is_active}
+                        onChange={handleInputChange}
                         disabled={isSubmitting}
                       >
-                        + Tambah
-                      </button>
-                    )}
+                        <option value="1">active</option>
+                        <option value="0">inactive</option>
+                      </select>
+                    </div>
+                    {bundleFields.map(renderField)}
+                  </div>
+                </div>
+
+                <div className="parent-create-popup__section bundle-create-popup__items-backdrop">
+                  <div className="bundle-create-popup__section-top">
+                    <div className="parent-create-popup__section-header">
+                      <h3 className="parent-create-popup__section-title">Daftar Item Bundle</h3>
+                      <p className="parent-create-popup__section-description">
+                        Tambahkan minimal {BUNDLE_MIN_COMPONENTS} item regular. Qty hanya bisa angka bulat tanpa koma.
+                      </p>
+                    </div>
+
+                    <div className="bundle-create-popup__section-actions">
+                      <span className="bundle-create-popup__count">
+                        {components.length}/{BUNDLE_MAX_COMPONENTS} item
+                      </span>
+                    </div>
                   </div>
 
-                  {components.map((comp, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 100px auto',
-                        gap: '0.5rem',
-                        marginBottom: '0.5rem',
-                        alignItems: 'end',
-                      }}
-                    >
-                      <div>
-                        <label
-                          className="register-user-popup__label"
-                          htmlFor={`edit-bundle-component-item-${index}`}
-                          style={{ fontSize: '0.8em' }}
-                        >
-                          Item #{index + 1}
-                        </label>
-                        <SearchableItemSelect
-                          id={`edit-bundle-component-item-${index}`}
-                          label={`Component item ${index + 1}`}
-                          value={comp.component_item_id}
-                          options={componentItemOptions}
-                          placeholder="Pilih regular item..."
-                          searchPlaceholder="Cari item..."
-                          emptyMessage="Item tidak ditemukan."
-                          loading={isLoadingMasters}
-                          disabled={isSubmitting || isLoadingMasters}
-                          onChange={(nextValue) =>
-                            handleComponentChange(index, 'component_item_id', nextValue)
-                          }
-                        />
+                  <div className="bundle-create-popup__components">
+                    {components.map((component, index) => (
+                      <div
+                        key={`component-${index}`}
+                        className="bundle-create-popup__component-card"
+                      >
+                        <div className="bundle-create-popup__component-grid">
+                          <div className="register-user-popup__field">
+                            <label
+                              className="register-user-popup__label"
+                              htmlFor={`edit-bundle-component-item-${index}`}
+                            >
+                              Item Regular
+                              <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
+                            </label>
+                            <SearchableItemSelect
+                              id={`edit-bundle-component-item-${index}`}
+                              label={`Component item ${index + 1}`}
+                              value={component.component_item_id}
+                              options={componentItemOptions}
+                              placeholder="Pilih regular item..."
+                              searchPlaceholder="Cari item..."
+                              emptyMessage="Item tidak ditemukan."
+                              loading={isLoadingMasters}
+                              disabled={isSubmitting || isLoadingMasters}
+                              onChange={(nextValue) =>
+                                handleComponentChange(index, 'component_item_id', nextValue)
+                              }
+                            />
+                          </div>
+
+                          <div className="register-user-popup__field">
+                            <label
+                              className="register-user-popup__label"
+                              htmlFor={`edit-bundle-component-qty-${index}`}
+                            >
+                              Qty
+                              <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
+                            </label>
+                            <div className="bundle-create-popup__qty-control">
+                              <button
+                                type="button"
+                                className="bundle-create-popup__qty-button"
+                                onClick={() => handleQtyStep(index, -1)}
+                                disabled={isSubmitting || Number(component.qty) <= 1}
+                                title="Kurangi qty"
+                                aria-label={`Kurangi qty item bundle ${index + 1}`}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <input
+                                id={`edit-bundle-component-qty-${index}`}
+                                className="register-user-popup__input bundle-create-popup__qty-input"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={component.qty}
+                                placeholder="0"
+                                onChange={(event) =>
+                                  handleComponentChange(index, 'qty', event.target.value)
+                                }
+                                disabled={isSubmitting}
+                              />
+                              <button
+                                type="button"
+                                className="bundle-create-popup__qty-button"
+                                onClick={() => handleQtyStep(index, 1)}
+                                disabled={isSubmitting}
+                                title="Tambah qty"
+                                aria-label={`Tambah qty item bundle ${index + 1}`}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bundle-create-popup__component-actions">
+                            {index === components.length - 1 &&
+                            components.length < BUNDLE_MAX_COMPONENTS ? (
+                              <button
+                                type="button"
+                                className="bundle-create-popup__component-add"
+                                onClick={handleAddComponent}
+                                disabled={isSubmitting}
+                                title="Tambah item"
+                                aria-label="Tambah item bundle"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            ) : (
+                              <span
+                                className="bundle-create-popup__component-action-spacer"
+                                aria-hidden="true"
+                              />
+                            )}
+
+                            <button
+                              type="button"
+                              className="bundle-create-popup__component-remove"
+                              onClick={() => handleRemoveComponent(index)}
+                              disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
+                              title="Hapus component"
+                              aria-label={`Hapus item bundle ${index + 1}`}
+                            >
+                              <Trash03 size={16} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label
-                          className="register-user-popup__label"
-                          htmlFor={`edit-bundle-component-qty-${index}`}
-                          style={{ fontSize: '0.8em' }}
-                        >
-                          Qty
-                        </label>
-                        <input
-                          id={`edit-bundle-component-qty-${index}`}
-                          className="register-user-popup__input"
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={comp.qty}
-                          placeholder="1"
-                          onChange={(e) => handleComponentChange(index, 'qty', e.target.value)}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      <div style={{ paddingBottom: '0.125rem' }}>
-                        <button
-                          type="button"
-                          className="dashboard-popup__button dashboard-popup__button--secondary"
-                          style={{
-                            padding: '0.4rem 0.6rem',
-                            fontSize: '0.8rem',
-                            opacity: components.length <= BUNDLE_MIN_COMPONENTS ? 0.4 : 1,
-                          }}
-                          onClick={() => handleRemoveComponent(index)}
-                          disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
-                          title="Hapus component"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  <div className="bundle-create-popup__footer">
+                    <p className="register-user-popup__hint">
+                      Minimal {BUNDLE_MIN_COMPONENTS} item dan maksimal {BUNDLE_MAX_COMPONENTS} item regular per bundle.
+                    </p>
+                  </div>
                 </div>
 
                 {errorMessage ? (
@@ -1000,14 +981,6 @@ function DialogEditBundle({
         </div>
 
         <div className="dashboard-popup__actions">
-          <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Batal
-          </button>
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"

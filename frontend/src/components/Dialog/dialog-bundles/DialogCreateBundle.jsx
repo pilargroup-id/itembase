@@ -9,6 +9,8 @@ const BUNDLE_MIN_COMPONENTS = 2
 const BUNDLE_MAX_COMPONENTS = 5
 
 const initialFormValues = {
+  parent_id: '',
+  selling_name: '',
   uom_id: '',
   is_active: '1',
 }
@@ -16,6 +18,21 @@ const initialFormValues = {
 const initialComponent = () => ({ component_item_id: '', qty: '' })
 
 const bundleFields = [
+  {
+    name: 'parent_id',
+    label: 'Parent',
+    placeholder: 'Pilih Parent',
+    type: 'select',
+    optionsKey: 'parents',
+    searchPlaceholder: 'Cari Parent...',
+    emptyMessage: 'Parent tidak ditemukan.',
+    required: true,
+  },
+  {
+    name: 'selling_name',
+    label: 'Selling Name',
+    placeholder: 'Masukan Selling Name',
+  },
   {
     name: 'uom_id',
     label: 'UOM',
@@ -32,6 +49,7 @@ const numericFields = new Set(['is_active'])
 const integerInputFields = new Set()
 
 const emptyMasterOptions = {
+  parents: [],
   uoms: [],
   regularItems: [],
 }
@@ -81,6 +99,23 @@ function makeOption(value, labelParts) {
 function normalizeMasterOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((item) => makeOption(item.id ?? item.value, [item.name, item.code]))
+    .filter((option) => option.value && option.label)
+}
+
+function normalizeParentOptions(responseData) {
+  return normalizeListResponse(responseData)
+    .map((parent) => {
+      const option = makeOption(parent.id, [
+        parent.label,
+        parent.parent_name || parent.item_name,
+        parent.parent_code,
+      ])
+
+      return {
+        ...option,
+        sellingName: String(parent.selling_name ?? parent.item_name ?? ''),
+      }
+    })
     .filter((option) => option.value && option.label)
 }
 
@@ -174,7 +209,7 @@ function buildPayload(formValues, components) {
 }
 
 function hasRequiredValues(payload, components) {
-  if (!payload.item_kind || !payload.uom_id) {
+  if (!payload.item_kind || !payload.parent_id || !payload.uom_id) {
     return false
   }
 
@@ -199,7 +234,9 @@ function DialogCreateBundle({
   const [components, setComponents] = useState([initialComponent(), initialComponent()])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
+  const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
+  const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
   const bundleFormulaPreview = useMemo(
@@ -213,6 +250,7 @@ function DialogCreateBundle({
     setComponents([initialComponent(), initialComponent()])
     setIsSubmitting(false)
     setMasterOptions(emptyMasterOptions)
+    setParentSearchQuery('')
     setErrorMessage('')
   }, [])
   
@@ -242,10 +280,11 @@ function DialogCreateBundle({
           return
         }
 
-        setMasterOptions({
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
           uoms: normalizeMasterOptions(uoms),
           regularItems: normalizeRegularItemOptions(items),
-        })
+        }))
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
           return
@@ -268,12 +307,76 @@ function DialogCreateBundle({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadParentOptions = async () => {
+      setIsLoadingParentOptions(true)
+
+      try {
+        const search = parentSearchQuery.trim()
+        const response = await api.itemParents.options(
+          {
+            page: 1,
+            limit: 20,
+            status: 'active',
+            ...(search ? { search } : {}),
+          },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          parents: normalizeParentOptions(response),
+        }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          parents: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat parent bundle.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingParentOptions(false)
+        }
+      }
+    }
+
+    loadParentOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [isOpen, parentSearchQuery])
+
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+    setFormValues((currentValues) => {
+      const selectedParent =
+        name === 'parent_id'
+          ? masterOptions.parents.find((option) => option.value === String(value ?? ''))
+          : null
+
+      return {
+        ...currentValues,
+        [name]: value,
+        ...(name === 'parent_id' ? { selling_name: selectedParent?.sellingName || '' } : {}),
+      }
+    })
   }
 
   const handleInputChange = (event) => {
@@ -333,7 +436,7 @@ function DialogCreateBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi UOM dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
+        `Lengkapi Parent, UOM, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
       )
       return
     }
@@ -377,8 +480,18 @@ function DialogCreateBundle({
           placeholder={field.placeholder}
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
-          loading={isLoadingMasters}
+          loading={
+            field.name === 'parent_id'
+              ? isLoadingParentOptions && !formValues.parent_id
+              : isLoadingMasters
+          }
           disabled={isSubmitting || isLoadingMasters}
+          remoteSearch={field.name === 'parent_id'}
+          onSearchChange={
+            field.name === 'parent_id'
+              ? setParentSearchQuery
+              : undefined
+          }
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
         />
       ) : (

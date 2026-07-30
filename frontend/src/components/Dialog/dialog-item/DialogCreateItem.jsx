@@ -153,73 +153,6 @@ function normalizeListResponse(responseData) {
   return []
 }
 
-function getPaginationMeta(responseData, rows) {
-  const meta = responseData?.meta ?? responseData?.data?.meta ?? {}
-  const page = Number(meta.page ?? meta.current_page ?? 1)
-  const limit = Number(meta.limit ?? meta.per_page ?? rows.length)
-  const total = Number(meta.total ?? meta.total_data ?? rows.length)
-  const totalPages = Number(
-    meta.totalPages ?? meta.total_page ?? meta.totalPage ?? meta.total_pages ?? meta.last_page,
-  )
-  const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : rows.length || 1
-  const safeTotal = Number.isInteger(total) && total >= 0 ? total : rows.length
-
-  return {
-    page: Number.isInteger(page) && page > 0 ? page : 1,
-    limit: safeLimit,
-    total: safeTotal,
-    totalPages: Number.isInteger(totalPages) && totalPages > 0
-      ? totalPages
-      : Math.max(1, Math.ceil(safeTotal / safeLimit)),
-  }
-}
-
-function hasPaginationMeta(responseData) {
-  return Boolean(responseData?.meta || responseData?.data?.meta)
-}
-
-async function fetchAllActiveParents(options) {
-  const limit = 250
-  const parentMap = new Map()
-  let currentPage = 1
-
-  while (true) {
-    const previousParentCount = parentMap.size
-    const response = await api.itemParents.list(
-      { status: 'active', page: currentPage, limit, sort: 'name-asc' },
-      options,
-    )
-    const rows = normalizeListResponse(response)
-    const meta = getPaginationMeta(response, rows)
-
-    rows.forEach((parent) => {
-      const parentId = parent?.id
-
-      if (parentId !== undefined && parentId !== null && parentId !== '') {
-        parentMap.set(String(parentId), parent)
-      }
-    })
-
-    const totalPages = hasPaginationMeta(response)
-      ? meta.totalPages
-      : rows.length === limit
-        ? currentPage + 1
-        : currentPage
-
-    if (rows.length === 0 || parentMap.size === previousParentCount) {
-      break
-    }
-
-    currentPage += 1
-
-    if (currentPage > totalPages) {
-      break
-    }
-  }
-
-  return Array.from(parentMap.values())
-}
-
 function makeOption(value, labelParts) {
   const label = labelParts.find(Boolean)
 
@@ -296,6 +229,7 @@ function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((parent) => {
       const option = makeOption(parent.id, [
+        parent.label,
         parent.parent_name || parent.item_name,
         parent.parent_code,
       ])
@@ -707,10 +641,12 @@ function DialogCreateItem({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
+  const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [isPreviewingMatrix, setIsPreviewingMatrix] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [itemOptionRows, setItemOptionRows] = useState([])
+  const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [selectedVariantAttributeIds, setSelectedVariantAttributeIds] = useState([])
   const [variantSelections, setVariantSelections] = useState({})
   const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
@@ -722,8 +658,10 @@ function DialogCreateItem({
     setFormValues(initialFormValues)
     setIsSubmitting(false)
     setIsPreviewingMatrix(false)
+    setParentSearchQuery('')
     setMasterOptions((currentOptions) => ({
       ...currentOptions,
+      parents: [],
       departments: [],
     }))
     setSelectedVariantAttributeIds([])
@@ -755,19 +693,8 @@ function DialogCreateItem({
           api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
           api.items.list({}, { signal: controller.signal }),
         ])
-        let parents = []
         let businessUnits = []
         let variantAttributes = []
-
-        try {
-          parents = await fetchAllActiveParents({ signal: controller.signal })
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            throw error
-          }
-
-          setErrorMessage(error?.message || 'Gagal memuat data parent.')
-        }
 
         try {
           businessUnits = await api.businessUnits.list(
@@ -798,13 +725,13 @@ function DialogCreateItem({
         const itemRows = normalizeListResponse(items)
 
         setItemOptionRows(itemRows)
-        setMasterOptions({
-          parents: normalizeParentOptions(parents),
+        setMasterOptions((currentOptions) => ({
+          parents: currentOptions.parents,
           uoms: normalizeMasterOptions(uoms),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
           variantAttributes: normalizeMasterOptions(variantAttributes),
-        })
+        }))
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
           return
@@ -826,6 +753,62 @@ function DialogCreateItem({
       controller.abort()
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadParentOptions = async () => {
+      setIsLoadingParentOptions(true)
+
+      try {
+        const search = parentSearchQuery.trim()
+        const response = await api.itemParents.options(
+          {
+            page: 1,
+            limit: 20,
+            status: 'active',
+            ...(search ? { search } : {}),
+          },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          parents: normalizeParentOptions(response),
+        }))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          parents: [],
+        }))
+        setErrorMessage(error?.message || 'Gagal memuat data parent.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingParentOptions(false)
+        }
+      }
+    }
+
+    loadParentOptions()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [isOpen, parentSearchQuery])
 
   useEffect(() => {
     if (!isOpen || !formValues.business_unit_id) {
@@ -1443,7 +1426,9 @@ function DialogCreateItem({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={
-            field.name === 'department_id'
+            field.name === 'parent_id'
+              ? isLoadingParentOptions && !formValues.parent_id
+              : field.name === 'department_id'
               ? isLoadingDepartments
               : isLoadingMasters
           }
@@ -1451,6 +1436,12 @@ function DialogCreateItem({
             isSubmitting ||
             isLoadingMasters ||
             (field.name === 'department_id' && !formValues.business_unit_id)
+          }
+          remoteSearch={field.name === 'parent_id'}
+          onSearchChange={
+            field.name === 'parent_id'
+              ? setParentSearchQuery
+              : undefined
           }
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
         />

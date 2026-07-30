@@ -10,13 +10,13 @@ const buttonClassNames = {
   pagination: 'users-table-pagination__button',
 }
 
-function ButtonDownloadDashboard({
+function ButtonExportDashboard({
   children,
   className = '',
   variant = 'accordion',
   tone = 'default',
   active = false,
-  type = 'button',
+type = 'button',
   dialogEyebrow,
   dialogTitle,
   onClick,
@@ -59,4 +59,4 @@ function ButtonDownloadDashboard({
   )
 }
 
-export default ButtonDownloadDashboard
+export default ButtonExportDashboard

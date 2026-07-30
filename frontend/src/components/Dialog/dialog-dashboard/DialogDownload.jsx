@@ -2,26 +2,15 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { FileText01, XClose } from '../../template/TemplateIcons.jsx'
+import { Export01, XClose } from '../../template/TemplateIcons.jsx'
 
-const downloadOptions = [
+const exportOptions = [
   {
-    value: 'parent',
+    value: 'parents',
     label: 'Parent',
     description: 'Export data parent dari Item Management',
     filename: 'item-parent.xlsx',
-  },
-  {
-    value: 'items',
-    label: 'Items',
-    description: 'Export data item regular dari Item Management',
-    filename: 'items.xlsx',
-  },
-  {
-    value: 'bundles',
-    label: 'Bundles',
-    description: 'Export data bundle dan komponennya',
-    filename: 'bundles.xlsx',
+    request: (options) => api.itemData.exports.parents(options),
   },
 ]
 
@@ -39,12 +28,12 @@ function saveBlob(blob, filename) {
 
 function DialogDownloadSelect({
   isOpen = false,
-  eyebrow = 'Download Select',
-  title = 'Download Item Management',
+  eyebrow = 'Export Select',
+  title = 'Export Item Management',
   onClose,
 }) {
-  const [selectedDownload, setSelectedDownload] = useState(downloadOptions[0].value)
-  const [isDownloading, setIsDownloading] = useState(false)
+  const [selectedExport, setSelectedExport] = useState(exportOptions[0].value)
+  const [isExporting, setIsExporting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
@@ -67,9 +56,9 @@ function DialogDownloadSelect({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedDownload(downloadOptions[0].value)
+      setSelectedExport(exportOptions[0].value)
       setErrorMessage('')
-      setIsDownloading(false)
+      setIsExporting(false)
     }
   }, [isOpen])
 
@@ -82,21 +71,21 @@ function DialogDownloadSelect({
   }
 
   const selectedOption =
-    downloadOptions.find((option) => option.value === selectedDownload) || downloadOptions[0]
+    exportOptions.find((option) => option.value === selectedExport) || exportOptions[0]
 
-  const handleDownload = async () => {
-    setIsDownloading(true)
+  const handleExport = async () => {
+    setIsExporting(true)
     setErrorMessage('')
 
     try {
-      const blob = await api.itemDownloads.xlsx({ download: selectedOption.value })
+      const blob = await selectedOption.request()
 
       saveBlob(blob, selectedOption.filename)
       onClose?.()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal download file.')
+      setErrorMessage(error?.message || 'Gagal export file.')
     } finally {
-      setIsDownloading(false)
+      setIsExporting(false)
     }
   }
 
@@ -129,9 +118,9 @@ function DialogDownloadSelect({
 
         <div className="dashboard-popup__body">
           <div className="download-select">
-            <div className="download-select__options" role="radiogroup" aria-label="Pilih data download">
-              {downloadOptions.map((option) => {
-                const isSelected = selectedDownload === option.value
+            <div className="download-select__options" role="radiogroup" aria-label="Pilih data export">
+              {exportOptions.map((option) => {
+                const isSelected = selectedExport === option.value
 
                 return (
                   <label
@@ -141,13 +130,13 @@ function DialogDownloadSelect({
                     <input
                       className="download-select__radio"
                       type="radio"
-                      name="download-type"
+                      name="export-type"
                       value={option.value}
                       checked={isSelected}
-                      onChange={() => setSelectedDownload(option.value)}
+                      onChange={() => setSelectedExport(option.value)}
                     />
                     <span className="download-select__icon">
-                      <FileText01 size={18} />
+                      <Export01 size={18} />
                     </span>
                     <span className="download-select__content">
                       <span className="download-select__label">{option.label}</span>
@@ -168,10 +157,10 @@ function DialogDownloadSelect({
           <button
             type="button"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            onClick={handleDownload}
-            disabled={isDownloading}
+            onClick={handleExport}
+            disabled={isExporting}
           >
-            {isDownloading ? 'Downloading...' : 'Download XLSX'}
+            {isExporting ? 'Exporting...' : 'Export XLSX'}
           </button>
         </div>
       </div>
