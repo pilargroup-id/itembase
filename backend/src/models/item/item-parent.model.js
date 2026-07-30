@@ -91,6 +91,78 @@ async function findPortsByParentIds(ids = [], connection = db) {
   }, {});
 }
 
+
+async function findOptions(query = {}) {
+  const page = Math.max(parseInt(query.page || 1, 10), 1);
+  const limit = Math.min(Math.max(parseInt(query.limit || 20, 10), 1), 100);
+  const offset = (page - 1) * limit;
+  const search = String(query.search || '').trim();
+  const status = String(query.status || 'active').trim();
+  const selectedId = String(query.selected_id || '').trim();
+
+  const conditions = [];
+  const params = [];
+
+  if (search) {
+    const keyword = `%${search}%`;
+    conditions.push('(ip.parent_code LIKE ? OR ip.parent_name LIKE ? OR ip.item_name LIKE ?)');
+    params.push(keyword, keyword, keyword);
+  }
+
+  if (status) {
+    conditions.push('ip.status = ?');
+    params.push(status);
+  }
+
+  let whereSql = conditions.length ? `(${conditions.join(' AND ')})` : '1 = 1';
+
+  if (selectedId) {
+    whereSql = `(${whereSql} OR ip.id = ?)`;
+    params.push(selectedId);
+  }
+
+  const [rows] = await db.query(`
+    SELECT
+      ip.id,
+      ip.parent_code,
+      ip.parent_name,
+      ip.item_name,
+      ip.status
+    FROM item_parents ip
+    WHERE ${whereSql}
+    ORDER BY
+      CASE WHEN ip.id = ? THEN 0 ELSE 1 END,
+      ip.parent_code ASC
+    LIMIT ? OFFSET ?
+  `, [...params, selectedId || '', limit, offset]);
+
+  const [countRows] = await db.query(`
+    SELECT COUNT(*) AS total
+    FROM item_parents ip
+    WHERE ${whereSql}
+  `, params);
+
+  const total = Number(countRows[0]?.total || 0);
+
+  return {
+    data: rows.map((row) => ({
+      id: row.id,
+      parent_code: row.parent_code,
+      parent_name: row.parent_name,
+      item_name: row.item_name,
+      status: row.status,
+      label: `${row.parent_code} - ${row.parent_name}`,
+    })),
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      total_page: Math.ceil(total / limit),
+    },
+  };
+}
+
 async function findAll(query = {}) {
   const { page, limit, offset } = normalizePagination(query);
   const { whereSql, params } = buildWhereClause(query);
@@ -163,4 +235,4 @@ async function upsertSubbrandItem(data,connection=db){await connection.query(`IN
 async function findSubbrandSuggestionCandidates(connection=db){const [rows]=await connection.query(`SELECT ms.id AS subbrand_id,ms.name AS sub_brand,msi.item_name AS parent_name FROM master_subbrand_items msi INNER JOIN master_subbrands ms ON ms.id=msi.subbrand_id WHERE ms.is_active=1 AND msi.is_active=1 ORDER BY ms.name,msi.item_name`);return rows;}
 async function transaction(callback){const connection=await db.getConnection();try{await connection.beginTransaction();const result=await callback(connection);await connection.commit();return result;}catch(error){await connection.rollback();throw error;}finally{connection.release();}}
 
-module.exports={findAll,findById,findRawById,findLastParentCode,create,update,replacePorts,findVariantAttributesByParentIds,replaceVariantAttributes,findVariantAttributesByIds,countChildItems,deactivateChildItems,existsInTable,findSubbrandById,findSubbrandByName,createSubbrand,upsertSubbrandItem,findSubbrandSuggestionCandidates,transaction};
+module.exports={findOptions,findAll,findById,findRawById,findLastParentCode,create,update,replacePorts,findVariantAttributesByParentIds,replaceVariantAttributes,findVariantAttributesByIds,countChildItems,deactivateChildItems,existsInTable,findSubbrandById,findSubbrandByName,createSubbrand,upsertSubbrandItem,findSubbrandSuggestionCandidates,transaction};

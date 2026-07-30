@@ -430,6 +430,31 @@ function similarityPercentage(input, target) {
   return Number(finalScore.toFixed(2));
 }
 
+async function getOptions(query = {}) {
+  return ItemParentModel.findOptions(query);
+}
+
+async function getItemConfig(id) {
+  const itemParent = await ItemParentModel.findById(id);
+
+  if (!itemParent) {
+    return null;
+  }
+
+  return {
+    id: itemParent.id,
+    parent_code: itemParent.parent_code,
+    parent_name: itemParent.parent_name,
+    item_name: itemParent.item_name,
+    status: itemParent.status,
+    brand: itemParent.brand,
+    category: itemParent.category,
+    item_type: itemParent.item_type,
+    ports: itemParent.ports || [],
+    variant_attributes: itemParent.variant_attributes || [],
+  };
+}
+
 async function getAll(query) {
   return ItemParentModel.findAll(query);
 }
@@ -676,6 +701,8 @@ async function update(id, payload, userId, req = null) {
 }
 
 module.exports = {
+  getOptions,
+  getItemConfig,
   getAll,
   getById,
   suggestSubbrands,

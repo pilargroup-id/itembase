@@ -33,6 +33,39 @@ async function index(req, res, next) {
   }
 }
 
+async function options(req, res, next) {
+  try {
+    const result = await ItemParentService.getOptions(req.query);
+
+    return response.paginated(
+      res,
+      result.data,
+      result.meta,
+      'Item parent options retrieved successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function itemConfig(req, res, next) {
+  try {
+    const data = await ItemParentService.getItemConfig(req.params.id);
+
+    if (!data) {
+      return response.notFound(res, 'Item parent not found');
+    }
+
+    return response.ok(
+      res,
+      data,
+      'Item parent config retrieved successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function show(req, res, next) {
   try {
     const itemParent = await ItemParentService.getById(req.params.id);
@@ -108,6 +141,8 @@ async function update(req, res, next) {
 
 module.exports = {
   index,
+  options,
+  itemConfig,
   show,
   suggestSubbrands,
   store,
