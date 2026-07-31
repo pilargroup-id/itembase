@@ -30,7 +30,7 @@ const itemFields = [
     optionsKey: 'parents',
     searchPlaceholder: 'Cari Parent...',
     emptyMessage: 'Parent tidak ditemukan.',
-    fullRow: true,
+    half: true,
   },
   {
     name: 'item_name',
@@ -181,6 +181,14 @@ function getSelectedIds(value) {
   const normalizedValue = String(value ?? '').trim()
 
   return normalizedValue ? [normalizedValue] : []
+}
+
+function getSelectedOptionsInOrder(value, options) {
+  const selectedIds = getSelectedIds(value)
+
+  return selectedIds
+    .map((selectedId) => options.find((option) => option.value === selectedId))
+    .filter(Boolean)
 }
 
 function toTitleCase(value) {
@@ -441,7 +449,7 @@ function ChannelCheckboxSelect({
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
   const selectedIds = getSelectedDepartmentIds(value)
-  const selectedOptions = options.filter((option) => selectedIds.includes(option.value))
+  const selectedOptions = getSelectedOptionsInOrder(selectedIds, options)
 
   useEffect(() => {
     if (!isOpen) {
@@ -1053,10 +1061,10 @@ function DialogCreateItem({
       return
     }
 
-    const activeVariantAttributes =
-      masterOptions.variantAttributes.filter((attribute) =>
-        selectedVariantAttributeIds.includes(attribute.value),
-      )
+    const activeVariantAttributes = getSelectedOptionsInOrder(
+      selectedVariantAttributeIds,
+      masterOptions.variantAttributes,
+    )
 
     if (activeVariantAttributes.length === 0) {
       setErrorMessage('Pilih minimal satu variant attribute untuk membuat matrix.')
@@ -1143,10 +1151,10 @@ function DialogCreateItem({
     setErrorMessage('')
 
     try {
-      const activeVariantAttributes =
-        masterOptions.variantAttributes.filter((attribute) =>
-          selectedVariantAttributeIds.includes(attribute.value),
-        )
+      const activeVariantAttributes = getSelectedOptionsInOrder(
+        selectedVariantAttributeIds,
+        masterOptions.variantAttributes,
+      )
 
       if (activeVariantAttributes.length > 0) {
         const payload = buildMatrixPayload(formValues, matrixRows)
@@ -1199,13 +1207,16 @@ function DialogCreateItem({
   }
 
   const headerTitle = formValues.item_name || title
-  const activeVariantAttributes =
-    masterOptions.variantAttributes.filter((attribute) =>
-      selectedVariantAttributeIds.includes(attribute.value),
-    )
+  const activeVariantAttributes = getSelectedOptionsInOrder(
+    selectedVariantAttributeIds,
+    masterOptions.variantAttributes,
+  )
   const selectedMatrixRows = matrixRows.filter((row) => row.create)
   const isMatrixMode = activeVariantAttributes.length > 0
   const isLoadingAnyVariantValue = Object.values(loadingVariantValuesByAttributeId).some(Boolean)
+  const selectedParentItemName = masterOptions.parents.find(
+    (option) => option.value === String(formValues.parent_id ?? ''),
+  )?.itemName
   const canPreviewMatrix =
     isMatrixMode &&
     Boolean(formValues.parent_id) &&
@@ -1213,6 +1224,43 @@ function DialogCreateItem({
     !isPreviewingMatrix &&
     !isLoadingAnyVariantValue &&
     !hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)
+
+  const isFieldReadOnly = (field) =>
+    field.readOnly ||
+    (field.name === 'item_name' &&
+      Boolean(formValues.parent_id) &&
+      Boolean(selectedParentItemName))
+
+  const renderVariantAttributeField = () => (
+    <div className="register-user-popup__field item-create-popup__variant-attribute-field item-create-popup__field--half">
+      <label
+        className="register-user-popup__label"
+        htmlFor="item-variant-attributes"
+      >
+        Variant Attribute
+      </label>
+      <ChannelCheckboxSelect
+        id="item-variant-attributes"
+        label="Variant Attribute"
+        value={selectedVariantAttributeIds}
+        options={masterOptions.variantAttributes}
+        placeholder="Pilih Attribute"
+        emptyMessage="Attribute tidak ditemukan."
+        loading={isLoadingMasters}
+        disabled={
+          isSubmitting ||
+          isLoadingMasters ||
+          !formValues.parent_id
+        }
+        onToggle={handleVariantAttributeToggle}
+      />
+      {!formValues.parent_id ? (
+        <p className="item-create-popup__matrix-note">
+          Pilih parent terlebih dahulu untuk membuat matrix item.
+        </p>
+      ) : null}
+    </div>
+  )
 
   const renderVariantMatrix = () => {
     return (
@@ -1234,39 +1282,6 @@ function DialogCreateItem({
             <RefreshCw05 size={16} aria-hidden="true" />
             <span>{isPreviewingMatrix ? 'Previewing...' : 'Preview'}</span>
           </button>
-        </div>
-
-        <div className="register-user-popup__field item-create-popup__variant-attribute-field">
-          <label
-            className="register-user-popup__label"
-            htmlFor="item-variant-attributes"
-          >
-            Variant Attribute
-          </label>
-          <ChannelCheckboxSelect
-            id="item-variant-attributes"
-            label="Variant Attribute"
-            value={selectedVariantAttributeIds}
-            options={masterOptions.variantAttributes}
-            placeholder="Pilih Attribute"
-            emptyMessage="Attribute tidak ditemukan."
-            loading={isLoadingMasters}
-            disabled={
-              isSubmitting ||
-              isLoadingMasters ||
-              !formValues.parent_id
-            }
-            onToggle={handleVariantAttributeToggle}
-          />
-          {!formValues.parent_id ? (
-            <p className="item-create-popup__matrix-note">
-              Pilih parent terlebih dahulu untuk membuat matrix item.
-            </p>
-          ) : (
-            <p className="item-create-popup__matrix-note">
-              Pilih attribute dari master untuk membuat matrix item.
-            </p>
-          )}
         </div>
 
         <div className="item-create-popup__variant-grid">
@@ -1451,7 +1466,7 @@ function DialogCreateItem({
             id={`item-${field.name}`}
             name={field.name}
             className={`register-user-popup__input${
-              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
+              isFieldReadOnly(field)
                 ? ' register-user-popup__input--readonly'
                 : ''
             }${field.unitSuffix ? ' item-create-popup__input--with-unit' : ''}`}
@@ -1461,12 +1476,8 @@ function DialogCreateItem({
             placeholder={field.placeholder}
             onChange={handleInputChange}
             disabled={isSubmitting}
-            readOnly={field.readOnly || (field.name === 'item_name' && Boolean(formValues.parent_id))}
-            aria-readonly={
-              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
-                ? 'true'
-                : undefined
-            }
+            readOnly={isFieldReadOnly(field)}
+            aria-readonly={isFieldReadOnly(field) ? 'true' : undefined}
           />
           {field.unitSuffix ? (
             <span className="item-create-popup__unit" aria-hidden="true">
@@ -1525,6 +1536,7 @@ function DialogCreateItem({
                         ].includes(field.name),
                       )
                       .map(renderField)}
+                    {renderVariantAttributeField()}
                   </div>
                 </div>
 

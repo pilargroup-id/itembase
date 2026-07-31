@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { CheckSquare, ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 
@@ -14,6 +14,7 @@ const initialFormValues = {
   category_id: '',
   item_type_id: '',
   port_id: [],
+  variant_attribute_ids: [],
   parent_name: '',
   status: 'active',
 }
@@ -70,6 +71,15 @@ const parentDetailFields = [
     optionsKey: 'ports',
     searchPlaceholder: 'Cari port...',
     emptyMessage: 'Port tidak ditemukan.',
+  },
+  {
+    name: 'variant_attribute_ids',
+    label: 'Variant Attribute',
+    placeholder: 'Pilih attribute',
+    type: 'checkbox-list',
+    optionsKey: 'variantAttributes',
+    searchPlaceholder: 'Cari attribute...',
+    emptyMessage: 'Attribute tidak ditemukan.',
   },
 ]
 
@@ -173,22 +183,104 @@ function buildParentPorts(portIds) {
   }))
 }
 
-function getDetailVariantAttributeIds(detailItems) {
-  return Array.from(
-    new Set(
-      detailItems
-        .map((item) => normalizeFieldValue(item.variant_attribute_id))
-        .filter(Boolean),
+function getSelectedIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeFieldValue(item)).filter(Boolean)
+  }
+
+  const normalizedValue = normalizeFieldValue(value)
+
+  return normalizedValue ? [normalizedValue] : []
+}
+
+function buildParentVariantAttributes(attributeIds) {
+  return getSelectedIds(attributeIds).map((attributeId, index) => ({
+    attribute_id: attributeId,
+    sort_order: index + 1,
+  }))
+}
+
+function hasIncompleteDetailVariantSelection(detailItems, attributeIds) {
+  const selectedAttributeIds = getSelectedIds(attributeIds)
+
+  if (selectedAttributeIds.length === 0) {
+    return false
+  }
+
+  return detailItems.some(
+    (item) => selectedAttributeIds.some(
+      (attributeId) => !normalizeFieldValue(item.variant_values_by_attribute_id?.[attributeId]),
     ),
   )
 }
 
-function hasIncompleteDetailVariantSelection(detailItems) {
-  return detailItems.some(
-    (item) =>
-      Boolean(normalizeFieldValue(item.variant_attribute_id)) !==
-      Boolean(normalizeFieldValue(item.variant_value_id)),
+function getCreatedParentId(parent) {
+  return parent?.id ?? parent?.parent_id ?? parent?.item_parent_id ?? ''
+}
+
+function getHwdParts(value) {
+  const parts = String(value ?? '')
+    .split(/\s*x\s*/i)
+    .map((part) => normalizeFieldValue(part))
+
+  return [parts[0] ?? '', parts[1] ?? '', parts[2] ?? '']
+}
+
+function normalizeNumberPayloadValue(value) {
+  const normalizedValue = normalizeFieldValue(value)
+
+  if (!normalizedValue) {
+    return undefined
+  }
+
+  const numberValue = Number(normalizedValue)
+
+  return Number.isFinite(numberValue) ? numberValue : undefined
+}
+
+function compactPayload(payload) {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== ''),
   )
+}
+
+function buildDetailItemPayloads(detailItems, itemName, parentId, attributeIds) {
+  const selectedAttributeIds = getSelectedIds(attributeIds)
+
+  return detailItems.map((detailItem) => {
+    const normalizedItemName = normalizeFieldValue(itemName)
+    const normalizedVariant = normalizeFieldValue(detailItem.item_variant)
+    const [height, width, depth] = getHwdParts(detailItem.hwd)
+    const payload = compactPayload({
+      item_kind: 'regular',
+      parent_id: parentId,
+      item_name: normalizedVariant
+        ? `${normalizedItemName} ${normalizedVariant}`
+        : normalizedItemName,
+      selling_name: normalizedVariant
+        ? `${normalizedItemName} ${normalizedVariant}`
+        : normalizedItemName,
+      uom_id: normalizeFieldValue(detailItem.uom_id),
+      height: normalizeNumberPayloadValue(height),
+      width: normalizeNumberPayloadValue(width),
+      depth: normalizeNumberPayloadValue(depth),
+      production_time_days: normalizeNumberPayloadValue(detailItem.lead_time_days),
+      is_active: 1,
+    })
+
+    const variants = selectedAttributeIds
+      .map((attributeId) => ({
+        attribute_id: attributeId,
+        value_id: normalizeFieldValue(detailItem.variant_values_by_attribute_id?.[attributeId]),
+      }))
+      .filter((variant) => variant.value_id)
+
+    if (variants.length > 0) {
+      payload.variants = variants
+    }
+
+    return payload
+  })
 }
 
 function getResourceData(responseData) {
@@ -774,8 +866,7 @@ function DialogCreateParent({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
-  const [isSaveParentChecked, setIsSaveParentChecked] = useState(false)
-  const [isCreateItemChecked, setIsCreateItemChecked] = useState(false)
+  const [createdParent, setCreatedParent] = useState(null)
   const [detailItems, setDetailItems] = useState(() => [createInitialDetailItem()])
   const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
@@ -784,8 +875,7 @@ function DialogCreateParent({
     setFormValues(initialFormValues)
     setIsSubmitting(false)
     setErrorMessage('')
-    setIsSaveParentChecked(false)
-    setIsCreateItemChecked(false)
+    setCreatedParent(null)
     setDetailItems([createInitialDetailItem()])
     setVariantValueOptionsByAttributeId({})
     setLoadingVariantValuesByAttributeId({})
@@ -852,8 +942,8 @@ function DialogCreateParent({
   }, [isOpen])
 
   const selectedDetailVariantAttributeIds = useMemo(
-    () => getDetailVariantAttributeIds(detailItems),
-    [detailItems],
+    () => getSelectedIds(formValues.variant_attribute_ids),
+    [formValues.variant_attribute_ids],
   )
   const selectedDetailVariantAttributeKey = selectedDetailVariantAttributeIds.join('|')
 
@@ -967,22 +1057,18 @@ function DialogCreateParent({
     }))
   }
 
-  const handlePortToggle = (portId) => {
+  const handleCheckboxToggle = (name, optionId) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
-      const normalizedPortId = String(portId ?? '')
-      const selectedPortIds = Array.isArray(currentValues.port_id)
-        ? currentValues.port_id.map((selectedPortId) => String(selectedPortId ?? '')).filter(Boolean)
-        : normalizeFieldValue(currentValues.port_id)
-          ? [normalizeFieldValue(currentValues.port_id)]
-          : []
-      const isSelected = selectedPortIds.includes(normalizedPortId)
+      const normalizedOptionId = String(optionId ?? '')
+      const selectedOptionIds = getSelectedIds(currentValues[name])
+      const isSelected = selectedOptionIds.includes(normalizedOptionId)
 
       return {
         ...currentValues,
-        port_id: isSelected
-          ? selectedPortIds.filter((selectedPortId) => selectedPortId !== normalizedPortId)
-          : [...selectedPortIds, normalizedPortId],
+        [name]: isSelected
+          ? selectedOptionIds.filter((selectedOptionId) => selectedOptionId !== normalizedOptionId)
+          : [...selectedOptionIds, normalizedOptionId],
       }
     })
   }
@@ -996,35 +1082,17 @@ function DialogCreateParent({
     }))
   }
 
-  const handleSaveParentChange = (event) => {
-    const isChecked = event.target.checked
-
-    setErrorMessage('')
-    setIsSaveParentChecked(isChecked)
-
-    if (!isChecked) {
-      setIsCreateItemChecked(false)
-    }
-  }
-
-  const handleCreateItemChange = (event) => {
-    const isChecked = event.target.checked
-
-    setErrorMessage('')
-    setIsCreateItemChecked(isChecked)
-
-    if (isChecked) {
-      setIsSaveParentChecked(true)
-    }
-  }
-
   const handleDetailItemsChange = (nextDetailItems) => {
     setErrorMessage('')
     setDetailItems(nextDetailItems)
   }
 
   const buildPayload = () => {
-    const { port_id: portIds, ...parentValues } = formValues
+    const {
+      port_id: portIds,
+      variant_attribute_ids: variantAttributeIds,
+      ...parentValues
+    } = formValues
 
     return {
       ...Object.fromEntries(
@@ -1038,6 +1106,7 @@ function DialogCreateParent({
       parent_name: generatedParentName,
       status: 'active',
       ports: buildParentPorts(portIds),
+      variant_attributes: buildParentVariantAttributes(variantAttributeIds),
     }
   }
 
@@ -1051,31 +1120,58 @@ function DialogCreateParent({
       return Array.isArray(value) ? value.length === 0 : !value
     })
 
-    if (!isSaveParentChecked) {
-      setErrorMessage('Centang Save Parent terlebih dahulu sebelum membuat item parent.')
-      return
-    }
-
-    if (hasEmptyRequiredValue || !payload.parent_name) {
-      setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
-      return
-    }
-
-    if (isCreateItemChecked && hasIncompleteDetailVariantSelection(detailItems)) {
-      setErrorMessage('Lengkapi variant attribute dan variant value pada item detail terlebih dahulu.')
-      return
-    }
-
     setIsSubmitting(true)
     setErrorMessage('')
 
     try {
-      const createdParent = await api.itemParents.create(payload)
+      if (createdParent) {
+        const parentId = getCreatedParentId(createdParent)
 
-      onCreated?.(getResourceData(createdParent))
-      handleClose()
+        if (!parentId) {
+          setErrorMessage('Item parent berhasil dibuat, tetapi ID parent tidak ditemukan.')
+          return
+        }
+
+        if (!payload.item_name) {
+          setErrorMessage('Item name parent tidak ditemukan untuk membuat item.')
+          return
+        }
+
+        if (hasIncompleteDetailVariantSelection(detailItems, formValues.variant_attribute_ids)) {
+          setErrorMessage('Lengkapi variant value pada item detail terlebih dahulu.')
+          return
+        }
+
+        const itemPayloads = buildDetailItemPayloads(
+          detailItems,
+          payload.item_name,
+          parentId,
+          formValues.variant_attribute_ids,
+        )
+        const createdItems = await Promise.all(
+          itemPayloads.map((itemPayload) => api.items.create(itemPayload)),
+        )
+
+        onCreated?.({
+          parent: createdParent,
+          items: createdItems.map(getResourceData),
+        })
+        handleClose()
+        return
+      }
+
+      if (hasEmptyRequiredValue || !payload.parent_name) {
+        setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
+        return
+      }
+
+      const createdParentResponse = await api.itemParents.create(payload)
+      const parentData = getResourceData(createdParentResponse)
+
+      setCreatedParent(parentData)
+      onCreated?.(parentData)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat item parent.')
+      setErrorMessage(error?.message || (createdParent ? 'Gagal membuat item.' : 'Gagal membuat item parent.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -1097,20 +1193,10 @@ function DialogCreateParent({
       }`}
     >
       <label
-        className={`register-user-popup__label${
-          field.name === 'item_name' && isCreateItemChecked
-            ? ' parent-create-popup__label-with-status'
-            : ''
-        }`}
+        className="register-user-popup__label"
         htmlFor={`parent-${field.name}`}
       >
         <span>{field.label}</span>
-        {field.name === 'item_name' && isCreateItemChecked ? (
-          <span className="parent-create-popup__used-badge" title="Item name terpakai untuk create item">
-            <CheckSquare size={14} />
-            <span>Terpakai</span>
-          </span>
-        ) : null}
       </label>
       {field.type === 'checkbox-list' ? (
         <CheckboxSelect
@@ -1121,8 +1207,8 @@ function DialogCreateParent({
           placeholder={field.placeholder}
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters}
-          onToggle={handlePortToggle}
+          disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          onToggle={(nextValue) => handleCheckboxToggle(field.name, nextValue)}
         />
       ) : field.type === 'select' ? (
         <SearchableMasterSelect
@@ -1134,7 +1220,7 @@ function DialogCreateParent({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters}
+          disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
           onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
         />
       ) : field.type === 'subBrandSearch' ? (
@@ -1145,7 +1231,7 @@ function DialogCreateParent({
           placeholder={field.placeholder}
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
-          disabled={isSubmitting}
+          disabled={isSubmitting || Boolean(createdParent)}
           onChange={handleSubBrandChange}
         />
       ) : (
@@ -1160,7 +1246,7 @@ function DialogCreateParent({
           onChange={field.readOnly ? undefined : handleInputChange}
           readOnly={field.readOnly}
           aria-readonly={field.readOnly ? 'true' : undefined}
-          disabled={isSubmitting}
+          disabled={isSubmitting || Boolean(createdParent)}
         />
       )}
       {field.helperText ? (
@@ -1222,39 +1308,17 @@ function DialogCreateParent({
 
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
                     {parentDetailFields.map(renderField)}
-                    <div className="register-user-popup__field parent-create-popup__save-parent-field">
-                      <label className="parent-create-popup__save-parent">
-                        <input
-                          type="checkbox"
-                          className="parent-create-popup__save-parent-input"
-                          checked={isSaveParentChecked}
-                          onChange={handleSaveParentChange}
-                          disabled={isSubmitting}
-                        />
-                        <span>Save Parent</span>
-                      </label>
-                    </div>
-                    <div className="register-user-popup__field parent-create-popup__save-parent-field">
-                      <label className="parent-create-popup__save-parent">
-                        <input
-                          type="checkbox"
-                          className="parent-create-popup__save-parent-input"
-                          checked={isCreateItemChecked}
-                          onChange={handleCreateItemChange}
-                          disabled={isSubmitting}
-                        />
-                        <span>Create Item</span>
-                      </label>
-                    </div>
                   </div>
                 </div>
 
-                {isCreateItemChecked ? (
+                {createdParent ? (
                   <CreateDetailItem
                     itemName={formValues.item_name}
                     items={detailItems}
                     uomOptions={masterOptions.uoms}
-                    variantAttributeOptions={masterOptions.variantAttributes}
+                    variantAttributeOptions={masterOptions.variantAttributes.filter((attribute) =>
+                      getSelectedIds(formValues.variant_attribute_ids).includes(attribute.value),
+                    )}
                     getVariantValueOptions={(attributeId) =>
                       variantValueOptionsByAttributeId[String(attributeId ?? '')] || []
                     }
@@ -1279,12 +1343,26 @@ function DialogCreateParent({
         </div>
 
         <div className="dashboard-popup__actions">
+          {createdParent ? (
+            <button
+              type="button"
+              className="dashboard-popup__button dashboard-popup__button--secondary"
+              onClick={handleClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+          ) : null}
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting || !isSaveParentChecked}
+            disabled={isSubmitting}
           >
-            {isSubmitting ? 'Creating...' : 'Create'}
+            {isSubmitting
+              ? 'Creating...'
+              : createdParent
+                ? 'Create item'
+                : 'Create parent'}
           </button>
         </div>
       </form>

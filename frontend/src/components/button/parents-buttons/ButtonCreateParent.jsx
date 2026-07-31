@@ -5,7 +5,7 @@ import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateParent({
   className = '',
-  children = 'Create Parent',
+  children = 'Create parent',
   dialogProps = {},
   iconSize = 18,
   onClick,

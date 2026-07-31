@@ -6318,6 +6318,12 @@ select {
 
 .item-create-popup .register-user-popup__grid.item-create-popup__identity-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+}
+
+.item-create-popup__identity-grid > .register-user-popup__field {
+  align-self: start;
+  align-content: start;
 }
 
 .item-create-popup .register-user-popup__field--full {
@@ -6506,14 +6512,15 @@ select {
 }
 
 .item-create-popup__variant-attribute-field {
-  max-width: min(100%, 420px);
+  width: 100%;
+  max-width: none;
 }
 
 .item-create-popup__matrix-note {
-  margin: 0.35rem 0 0;
+  margin: 0.3rem 0 0;
   color: #5a6b88;
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .item-create-popup__variant-empty {

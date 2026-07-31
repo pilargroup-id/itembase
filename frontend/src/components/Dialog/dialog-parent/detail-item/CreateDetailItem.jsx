@@ -47,8 +47,7 @@ export function createInitialDetailItem() {
   return {
     id: createDetailItemId(),
     item_variant: '',
-    variant_attribute_id: '',
-    variant_value_id: '',
+    variant_values_by_attribute_id: {},
     uom_id: '',
     hwd: '',
     lead_time_days: '',
@@ -69,6 +68,19 @@ function CreateDetailItem({
 }) {
   const detailItems = items.length ? items : [createInitialDetailItem()]
   const DetailSearchableSelect = SearchableSelect
+
+  const buildSelectedVariantLabel = (nextValuesByAttributeId) =>
+    variantAttributeOptions
+      .map((attribute) => {
+        const selectedValueId = nextValuesByAttributeId[attribute.value]
+        const selectedValue = getVariantValueOptions(attribute.value).find(
+          (option) => option.value === String(selectedValueId ?? ''),
+        )
+
+        return selectedValue?.label || ''
+      })
+      .filter(Boolean)
+      .join(' ')
 
   const handleAddItem = () => {
     onChange?.([...detailItems, createInitialDetailItem()])
@@ -95,33 +107,25 @@ function CreateDetailItem({
     )
   }
 
-  const handleVariantAttributeChange = (id, value) => {
+  const handleVariantValueChange = (id, attributeId, value) => {
     onChange?.(
       detailItems.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              variant_attribute_id: value,
-              variant_value_id: '',
-              item_variant: '',
-            }
-          : item,
-      ),
-    )
-  }
+        (() => {
+          if (item.id !== id) {
+            return item
+          }
 
-  const handleVariantValueChange = (id, value, options) => {
-    const selectedValue = options.find((option) => option.value === String(value ?? ''))
+          const nextValuesByAttributeId = {
+            ...(item.variant_values_by_attribute_id || {}),
+            [attributeId]: value,
+          }
 
-    onChange?.(
-      detailItems.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              variant_value_id: value,
-              item_variant: selectedValue?.label || '',
-            }
-          : item,
+          return {
+            ...item,
+            variant_values_by_attribute_id: nextValuesByAttributeId,
+            item_variant: buildSelectedVariantLabel(nextValuesByAttributeId),
+          }
+        })(),
       ),
     )
   }
@@ -174,101 +178,53 @@ function CreateDetailItem({
             </div>
 
             <div className="parent-detail-item__grid">
-              <div className="register-user-popup__field parent-detail-item__field--variant-attribute">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-variant-attribute-${item.id}`}>
-                  Variant Attribute
-                </label>
-                {DetailSearchableSelect ? (
-                  <DetailSearchableSelect
-                    id={`parent-detail-variant-attribute-${item.id}`}
-                    label="Variant Attribute"
-                    value={item.variant_attribute_id}
-                    options={variantAttributeOptions}
-                    placeholder="Pilih Attribute"
-                    searchPlaceholder="Cari Attribute..."
-                    emptyMessage="Attribute tidak ditemukan."
-                    disabled={disabled}
-                    onChange={(nextValue) =>
-                      handleVariantAttributeChange(item.id, nextValue)
-                    }
-                  />
-                ) : (
-                  <select
-                    id={`parent-detail-variant-attribute-${item.id}`}
-                    className="register-user-popup__select"
-                    value={item.variant_attribute_id}
-                    onChange={(event) =>
-                      handleVariantAttributeChange(item.id, event.target.value)
-                    }
-                    disabled={disabled}
-                  >
-                    <option value="">Pilih Attribute</option>
-                    {variantAttributeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+              {variantAttributeOptions.map((attribute) => (
+                <div key={attribute.value} className="register-user-popup__field parent-detail-item__field--variant-value">
+                  <label className="register-user-popup__label" htmlFor={`parent-detail-variant-value-${attribute.value}-${item.id}`}>
+                    {attribute.label}
+                  </label>
+                  {(() => {
+                    const variantValueOptions = getVariantValueOptions(attribute.value)
+                    const loadingVariantValues = getLoadingVariantValues(attribute.value)
 
-              <div className="register-user-popup__field parent-detail-item__field--variant-value">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-variant-value-${item.id}`}>
-                  Variant Value
-                </label>
-                {(() => {
-                  const variantValueOptions = getVariantValueOptions(item.variant_attribute_id)
-                  const loadingVariantValues = getLoadingVariantValues(item.variant_attribute_id)
-
-                  return DetailSearchableSelect ? (
-                    <DetailSearchableSelect
-                      id={`parent-detail-variant-value-${item.id}`}
-                      label="Variant Value"
-                      value={item.variant_value_id}
-                      options={variantValueOptions}
-                      placeholder="Pilih Value"
-                      searchPlaceholder="Cari Value..."
-                      emptyMessage="Value tidak ditemukan."
-                      loading={loadingVariantValues}
-                      disabled={
-                        disabled ||
-                        !item.variant_attribute_id ||
-                        loadingVariantValues
-                      }
-                      onChange={(nextValue) =>
-                        handleVariantValueChange(item.id, nextValue, variantValueOptions)
-                      }
-                    />
-                  ) : (
-                    <select
-                      id={`parent-detail-variant-value-${item.id}`}
-                      className="register-user-popup__select"
-                      value={item.variant_value_id}
-                      onChange={(event) =>
-                        handleVariantValueChange(
-                          item.id,
-                          event.target.value,
-                          variantValueOptions,
-                        )
-                      }
-                      disabled={
-                        disabled ||
-                        !item.variant_attribute_id ||
-                        loadingVariantValues
-                      }
-                    >
-                      <option value="">
-                        {loadingVariantValues ? 'Memuat value...' : 'Pilih Value'}
-                      </option>
-                      {variantValueOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
+                    return DetailSearchableSelect ? (
+                      <DetailSearchableSelect
+                        id={`parent-detail-variant-value-${attribute.value}-${item.id}`}
+                        label={attribute.label}
+                        value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
+                        options={variantValueOptions}
+                        placeholder={`Pilih ${attribute.label}`}
+                        searchPlaceholder={`Cari ${attribute.label}...`}
+                        emptyMessage="Value tidak ditemukan."
+                        loading={loadingVariantValues}
+                        disabled={disabled || loadingVariantValues}
+                        onChange={(nextValue) =>
+                          handleVariantValueChange(item.id, attribute.value, nextValue)
+                        }
+                      />
+                    ) : (
+                      <select
+                        id={`parent-detail-variant-value-${attribute.value}-${item.id}`}
+                        className="register-user-popup__select"
+                        value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
+                        onChange={(event) =>
+                          handleVariantValueChange(item.id, attribute.value, event.target.value)
+                        }
+                        disabled={disabled || loadingVariantValues}
+                      >
+                        <option value="">
+                          {loadingVariantValues ? 'Memuat value...' : `Pilih ${attribute.label}`}
                         </option>
-                      ))}
-                    </select>
-                  )
-                })()}
-              </div>
+                        {variantValueOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    )
+                  })()}
+                </div>
+              ))}
 
               <div className="register-user-popup__field parent-detail-item__field--uom">
                 <label className="register-user-popup__label" htmlFor={`parent-detail-uom-${item.id}`}>
