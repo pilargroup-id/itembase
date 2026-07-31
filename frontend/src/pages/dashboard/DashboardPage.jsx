@@ -129,7 +129,8 @@ function DashboardPage({ activePage }) {
     inactiveItems: 0,
     activeItems: 0,
   })
-  const [activeMetricKey, setActiveMetricKey] = useState('')
+  const [itemRows, setItemRows] = useState([])
+  const [activeMetricKey, setActiveMetricKey] = useState('sku')
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -203,6 +204,7 @@ function DashboardPage({ activePage }) {
 
         const itemRows = itemResult.rows
 
+        setItemRows(itemRows)
         setSummary({
           totalParents: parentMeta.total,
           totalSku: itemResult.total,
@@ -217,6 +219,7 @@ function DashboardPage({ activePage }) {
           return
         }
 
+        setItemRows([])
         setErrorMessage(error?.message || 'Dashboard belum bisa dimuat')
       } finally {
         if (isCurrent) {
@@ -257,7 +260,13 @@ function DashboardPage({ activePage }) {
         ))}
       </div>
 
-      <CanvasDashboard selectedKey={activeMetricKey} />
+      <CanvasDashboard
+        selectedKey={activeMetricKey}
+        summary={summary}
+        itemRows={itemRows}
+        monthLabel={monthLabel}
+        isLoading={isLoading}
+      />
     </section>
   )
 }
