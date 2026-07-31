@@ -25,6 +25,12 @@ function VariantPage({ activePage, searchQuery }) {
 
         <div className="users-table-card__actions">
           <ButtonCreateVariant
+            variantType={activeVariantTab}
+            children={
+              activeVariantTab === 'attributes'
+                ? 'Create Attribute'
+                : 'Create Value'
+            }
             onCreated={() => setUomRefreshKey((currentKey) => currentKey + 1)}
           />
         </div>

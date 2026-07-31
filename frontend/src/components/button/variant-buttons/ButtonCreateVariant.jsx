@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import DialogCreateUom from '../../Dialog/dialog-uoms/DialogCreateUom.jsx'
+import DialogCreateVariantAttributes from '../../Dialog/dialogvariant/DialogCreateVariantAttributes.jsx'
+import DialogCreateVariantValue from '../../Dialog/dialogvariant/DialogCreateVariantValue.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateVariant({
   className = '',
   children = 'Create Variant',
   dialogProps = {},
+  variantType = 'attributes',
   iconSize = 18,
   onClick,
   onCreated,
@@ -29,10 +31,13 @@ function ButtonCreateVariant({
     setIsDialogOpen(false)
   }
 
-  const handleCreated = (createdUom) => {
-    dialogProps.onCreated?.(createdUom)
-    onCreated?.(createdUom)
+  const handleCreated = (createdVariant) => {
+    dialogProps.onCreated?.(createdVariant)
+    onCreated?.(createdVariant)
   }
+
+  const DialogComponent =
+    variantType === 'value' ? DialogCreateVariantValue : DialogCreateVariantAttributes
 
   return (
     <>
@@ -47,7 +52,7 @@ function ButtonCreateVariant({
         <span>{children}</span>
       </button>
 
-      <DialogCreateUom
+      <DialogComponent
         {...dialogProps}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}

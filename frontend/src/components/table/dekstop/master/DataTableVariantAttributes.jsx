@@ -1,36 +1,15 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
-import DialogDeleteUom from "../../../Dialog/dialog-uoms/DialogDeleteUom.jsx"
-import DialogEditUom from "../../../Dialog/dialog-uoms/DialogEditUom.jsx"
-import ButtonDeleteUom from "../../../button/uoms-buttons/ButtonDeleteUom.jsx"
-import ButtonEditUom from "../../../button/uoms-buttons/ButtonEditUom.jsx"
-import FilterDropdownUom from "../../../dropdown/filter-uoms/FilterDropdownUom.jsx"
-import { uomFilterConfig } from "../../../dropdown/filter-uoms/FilterDropdownUom.config.js"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
 } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
-const ALL_FILTER_VALUE = "all"
 const DEFAULT_UOM_PAGE_SIZE = 50
 const UOM_PAGE_SIZE_OPTIONS = [50, 100, 250]
 const DEFAULT_UOM_SORT = "date-desc"
-const uomSortOptions = [
-    { value: "date-desc", label: "Date Desc" },
-    { value: "date-asc", label: "Date Asc" },
-    { value: "name-asc", label: "Name Asc" },
-    { value: "name-desc", label: "Name Desc" },
-]
-
-const defaultUomFilters = uomFilterConfig.reduce(
-    (filters, filterConfig) => ({
-        ...filters,
-        [filterConfig.key]: ALL_FILTER_VALUE,
-    }),
-    {},
-)
 
 function normalizeUomRows(responseData) {
     if (Array.isArray(responseData)) {
@@ -134,45 +113,6 @@ function matchesSearch(uom, searchQuery) {
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
-function normalizeFilterValue(value) {
-    return String(value ?? "").trim()
-}
-
-function createFilterOptions(rows, filterConfig) {
-    if (Array.isArray(filterConfig.options)) {
-        return [
-            { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
-            ...filterConfig.options,
-        ]
-    }
-
-    const uniqueOptions = new Map()
-
-    rows.forEach((uom) => {
-        const customOption = filterConfig.getOption?.(uom)
-
-        if (customOption?.value) {
-            uniqueOptions.set(String(customOption.value), {
-                value: String(customOption.value),
-                label: String(customOption.label ?? customOption.value),
-            })
-            return
-        }
-
-        const value = normalizeFilterValue(filterConfig.getValue(uom))
-
-        if (value) {
-            uniqueOptions.set(value, { value, label: value })
-        }
-    })
-
-    const options = Array.from(uniqueOptions.values()).sort((firstOption, secondOption) =>
-        firstOption.label.localeCompare(secondOption.label),
-    )
-
-    return [{ value: ALL_FILTER_VALUE, label: filterConfig.placeholder }, ...options]
-}
-
 function getUomDateValue(uom) {
     const dateValue =
         uom.created_at ??
@@ -216,18 +156,6 @@ function sortUomRows(rows, sortValue) {
     })
 }
 
-function matchesUomFilters(uom, filters) {
-    return uomFilterConfig.every((filterConfig) => {
-        const selectedValue = filters[filterConfig.key]
-
-        if (!selectedValue || selectedValue === ALL_FILTER_VALUE) {
-            return true
-        }
-
-        return normalizeFilterValue(filterConfig.getValue(uom)) === selectedValue
-    })
-}
-
 function getPageRows(filteredRows, currentPage, pageSize) {
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
     const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -259,7 +187,7 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
 const columns = [
     {
         key: "identity",
-        header: "UOM",
+        header: "Attribute",
         headerStyle: { width: "36%" },
         cellStyle: { width: "36%" },
         render: (uom) => (
@@ -272,8 +200,8 @@ const columns = [
     {
         key: "code",
         header: "Code",
-        headerStyle: { width: "22%" },
-        cellStyle: { width: "22%" },
+        headerStyle: { width: "28%" },
+        cellStyle: { width: "28%" },
         render: (uom) => renderUomValue(uom.code || uom.uom_code),
     },
 ]
@@ -284,17 +212,13 @@ function DataTableVariantAttributes({
     refreshKey = 0,
 }) {
     const [uomRows, setUomRows] = useState([])
-    const [filters, setFilters] = useState(defaultUomFilters)
-    const [sortValue, setSortValue] = useState(DEFAULT_UOM_SORT)
+    const [sortValue] = useState(DEFAULT_UOM_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_UOM_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
-    const [activeActionDialog, setActiveActionDialog] = useState(null)
-    const [selectedUom, setSelectedUom] = useState(null)
-    const [reloadKey, setReloadKey] = useState(0)
     const filterResetKey = useMemo(
-        () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
-        [filters, pageSize, searchQuery, sortValue],
+        () => JSON.stringify({ pageSize, searchQuery, sortValue }),
+        [pageSize, searchQuery, sortValue],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -303,23 +227,9 @@ function DataTableVariantAttributes({
     const currentPage =
         paginationState.resetKey === filterResetKey ? paginationState.currentPage : 1
 
-    const filterOptions = useMemo(
-        () =>
-            uomFilterConfig.reduce(
-                (options, filterConfig) => ({
-                    ...options,
-                    [filterConfig.key]: createFilterOptions(uomRows, filterConfig),
-                }),
-                {},
-            ),
-        [uomRows],
-    )
     const filteredRows = useMemo(
-        () =>
-            uomRows.filter(
-                (uom) => matchesSearch(uom, searchQuery) && matchesUomFilters(uom, filters),
-            ),
-        [uomRows, filters, searchQuery],
+        () => uomRows.filter((uom) => matchesSearch(uom, searchQuery)),
+        [uomRows, searchQuery],
     )
     const sortedRows = useMemo(
         () => sortUomRows(filteredRows, sortValue),
@@ -329,9 +239,6 @@ function DataTableVariantAttributes({
         () => getPageRows(sortedRows, currentPage, pageSize),
         [currentPage, pageSize, sortedRows],
     )
-
-    const selectedUomName =
-        selectedUom?.name || selectedUom?.uom_name || selectedUom?.code || "uom ini"
 
     useEffect(() => {
         let isMounted = true
@@ -354,7 +261,7 @@ function DataTableVariantAttributes({
                 }
 
                 setUomRows([])
-                setErrorMessage(error?.message || "Gagal memuat data uom.")
+                setErrorMessage(error?.message || "Gagal memuat data variant attribute.")
             } finally {
                 if (isMounted) {
                     setIsLoading(false)
@@ -367,17 +274,7 @@ function DataTableVariantAttributes({
         return () => {
             isMounted = false
         }
-    }, [refreshKey, reloadKey])
-
-    const closeActionDialog = () => {
-        setActiveActionDialog(null)
-        setSelectedUom(null)
-    }
-
-    const openActionDialog = (dialogType, uom) => {
-        setSelectedUom(uom)
-        setActiveActionDialog(dialogType)
-    }
+    }, [refreshKey])
 
     const toggleUomStatus = async (uom) => {
         const uomId = getUomId(uom)
@@ -394,10 +291,10 @@ function DataTableVariantAttributes({
         )
 
         try {
-            await api.uoms.updateStatus(uomId, newStatus)
+            await api.variantAttributes.updateStatus(uomId, newStatus)
         } catch (error) {
             setUomRows(previousUomRows)
-            setErrorMessage(error?.message || "Gagal mengubah status uom.")
+            setErrorMessage(error?.message || "Gagal mengubah status variant attribute.")
         }
     }
 
@@ -406,8 +303,8 @@ function DataTableVariantAttributes({
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "18%" },
-            cellStyle: { width: "18%" },
+            headerStyle: { width: "36%" },
+            cellStyle: { width: "36%" },
             render: (uom) => (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <input
@@ -418,7 +315,7 @@ function DataTableVariantAttributes({
                             toggleUomStatus(uom)
                         }}
                         style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                        title={`Tandai ${uom.name || uom.uom_name || "uom"} sebagai ${getUomStatusValue(uom) === "1" ? "non-aktif" : "aktif"}`}
+                        title={`Tandai ${uom.name || uom.uom_name || "attribute"} sebagai ${getUomStatusValue(uom) === "1" ? "non-aktif" : "aktif"}`}
                     />
                     <DataTableStatus inline variant={getUomStatusVariant(uom)}>
                         {getUomStatusLabel(uom)}
@@ -426,59 +323,7 @@ function DataTableVariantAttributes({
                 </div>
             ),
         },
-        {
-            key: "action",
-            header: "Action",
-            headerClassName: "users-table__action-header",
-            cellClassName: "users-table__action-cell",
-            headerStyle: { width: "24%" },
-            cellStyle: { width: "24%", whiteSpace: "nowrap" },
-            render: (uom) => (
-                <div className="parent-action-buttons">
-                    <ButtonEditUom
-                        title="Edit"
-                        aria-label={`Edit ${uom.name || uom.uom_name || "uom"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("edit", uom)
-                        }}
-                    />
-                    <ButtonDeleteUom
-                        title="Delete"
-                        aria-label={`Delete ${uom.name || uom.uom_name || "uom"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("delete", uom)
-                        }}
-                    />
-                </div>
-            ),
-        },
     ]
-
-    const handleEditConfirm = () => {
-        setReloadKey((currentKey) => currentKey + 1)
-        closeActionDialog()
-    }
-
-    const handleDeleteConfirm = (deletedUom = selectedUom) => {
-        const deletedUomId = getUomId(deletedUom)
-
-        if (deletedUomId) {
-            setUomRows((currentRows) =>
-                currentRows.filter((uom) => getUomId(uom) !== deletedUomId),
-            )
-        }
-
-        closeActionDialog()
-    }
-
-    const handleFilterChange = (filterKey, nextValue) => {
-        setFilters((currentFilters) => ({
-            ...currentFilters,
-            [filterKey]: nextValue,
-        }))
-    }
 
     const setPaginationPage = (nextPage) => {
         setPaginationState({
@@ -491,7 +336,7 @@ function DataTableVariantAttributes({
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery, sortValue }),
+            resetKey: JSON.stringify({ pageSize: nextPageSize, searchQuery, sortValue }),
         })
     }
 
@@ -506,8 +351,8 @@ function DataTableVariantAttributes({
         pageSizeSuffix: "baris",
         previousLabel: "Sebelumnya",
         nextLabel: "Berikutnya",
-        ariaLabel: "Uom pagination",
-        pageSizeAriaLabel: "Jumlah data uom per halaman",
+        ariaLabel: "Variant attribute pagination",
+        pageSizeAriaLabel: "Jumlah data variant attribute per halaman",
         onPrevious: () => setPaginationPage(Math.max(1, safeCurrentPage - 1)),
         onNext: () => setPaginationPage(Math.min(totalPages, safeCurrentPage + 1)),
         onSelect: setPaginationPage,
@@ -515,38 +360,11 @@ function DataTableVariantAttributes({
     }
 
     const emptyMessage = isLoading
-        ? "Memuat data uom..."
-        : errorMessage || "Belum ada data uom untuk ditampilkan."
+        ? "Memuat data variant attribute..."
+        : errorMessage || "Belum ada data variant attribute untuk ditampilkan."
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter uom">
-                    {/* <FilterDropdownUom
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={uomSortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Date Desc"
-                        searchable={false}
-                        onChange={setSortValue}
-                    /> */}
-                    {/* {uomFilterConfig.map((filterConfig) => (
-                        <FilterDropdownUom
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key]}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))} */}
-                </div>
-            </div>
-
             <DataTable
                 className="mtickets-table"
                 rows={rows}
@@ -557,25 +375,6 @@ function DataTableVariantAttributes({
                 pagination={pagination}
             />
 
-            <DialogEditUom
-                key={`edit-uom-${getUomId(selectedUom) ?? "empty"}`}
-                isOpen={activeActionDialog === "edit"}
-                eyebrow="Edit Uom"
-                title={`Edit ${selectedUomName}`}
-                uom={selectedUom}
-                onClose={closeActionDialog}
-                onEdited={handleEditConfirm}
-            />
-
-            <DialogDeleteUom
-                key={`delete-uom-${getUomId(selectedUom) ?? "empty"}`}
-                isOpen={activeActionDialog === "delete"}
-                eyebrow="Delete Uom"
-                title={`Delete ${selectedUomName}`}
-                uom={selectedUom}
-                onClose={closeActionDialog}
-                onDeleted={handleDeleteConfirm}
-            />
         </div>
     )
 }
