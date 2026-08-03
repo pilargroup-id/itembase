@@ -4,6 +4,9 @@ import Box from '@mui/material/Box'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 
+import ButtonExportDashboard from '../../components/button/dashboard-buttons/ButtonExportDashboard.jsx'
+import { Export01 } from '../../components/template/TemplateIcons.jsx'
+
 const NUMBER_FORMATTER = new Intl.NumberFormat('id-ID')
 const PERCENT_FORMATTER = new Intl.NumberFormat('id-ID', {
   maximumFractionDigits: 1,
@@ -62,11 +65,23 @@ function getMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-function getLastMonths(count) {
-  const now = new Date()
+function getMonthDate(monthKey) {
+  const [year, month] = String(monthKey ?? '').split('-').map(Number)
 
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return new Date()
+  }
+
+  return new Date(year, month - 1, 1)
+}
+
+function getLastMonths(count, anchorDate = new Date()) {
   return Array.from({ length: count }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (count - 1 - index), 1)
+    const date = new Date(
+      anchorDate.getFullYear(),
+      anchorDate.getMonth() - (count - 1 - index),
+      1,
+    )
 
     return {
       key: getMonthKey(date),
@@ -139,8 +154,8 @@ function getTopCounts(rows, getLabels, limit = 5) {
     .slice(0, limit)
 }
 
-function buildMonthlyDataset(rows) {
-  const months = getLastMonths(6)
+function buildMonthlyDataset(rows, anchorMonthKey) {
+  const months = getLastMonths(6, getMonthDate(anchorMonthKey))
   const totalsByMonth = new Map(months.map((month) => [month.key, 0]))
 
   rows.forEach((item) => {
@@ -209,6 +224,7 @@ function CanvasDashboard({
   summary,
   itemRows = [],
   monthLabel,
+  selectedMonthKey,
   isLoading = false,
 }) {
   const chartData = useMemo(() => {
@@ -217,7 +233,7 @@ function CanvasDashboard({
     const inactiveItems = summary?.inactiveItems ?? 0
     const activeRate = formatPercent(activeItems, totalSku)
     const inactiveRate = formatPercent(inactiveItems, totalSku)
-    const monthlyDataset = buildMonthlyDataset(itemRows)
+    const monthlyDataset = buildMonthlyDataset(itemRows, selectedMonthKey)
     const topBrands = getTopCounts(itemRows, getBrandName)
     const topCategories = getTopCounts(itemRows, getCategoryName)
     const topChannels = getTopCounts(itemRows, getChannels, 4)
@@ -238,10 +254,9 @@ function CanvasDashboard({
         { id: 'sku', label: 'SKU', value: totalSku, color: COLORS.sku },
       ].filter((item) => item.value > 0),
     }
-  }, [itemRows, summary])
+  }, [itemRows, selectedMonthKey, summary])
 
   const focus = FOCUS_COPY[selectedKey] ?? FOCUS_COPY.sku
-  const totalSku = summary?.totalSku ?? 0
 
   return (
     <section className="dashboard-canvas dashboard-canvas--charts" aria-label="Dashboard charts">
@@ -251,31 +266,107 @@ function CanvasDashboard({
           <h2>{focus.title}</h2>
           <p className="dashboard-canvas__description">{focus.description}</p>
         </div>
-        <div className="dashboard-canvas__summary">
-          <span>Total SKU</span>
-          <strong>{isLoading ? '...' : formatNumber(totalSku)}</strong>
-        </div>
+        <ButtonExportDashboard
+          variant="action"
+          className="dashboard-canvas__export"
+          dialogEyebrow="Export Dashboard"
+          dialogTitle="Export Dashboard"
+          aria-label="Export dashboard"
+        >
+          <Export01 size={18} aria-hidden="true" />
+          <span>Export</span>
+        </ButtonExportDashboard>
       </div>
 
-      <div className="dashboard-chart-grid">
-        <ChartCard
-          title="Status SKU"
-          meta={`${chartData.activeRate} active`}
-          className="dashboard-chart-card--status"
-        >
-          {isLoading ? (
-            <EmptyChart>Memuat chart...</EmptyChart>
-          ) : chartData.statusData.length > 0 ? (
-            <div className="dashboard-status-chart">
+      <div className="dashboard-chart-scroll">
+        <div className="dashboard-chart-grid">
+          <ChartCard
+            title="Status SKU"
+            meta={`${chartData.activeRate} active`}
+            className="dashboard-chart-card--status"
+          >
+            {isLoading ? (
+              <EmptyChart>Memuat chart...</EmptyChart>
+            ) : chartData.statusData.length > 0 ? (
+              <div className="dashboard-status-chart">
+                <Box sx={{ width: '100%', height: 250 }}>
+                  <PieChart
+                    series={[
+                      {
+                        data: chartData.statusData,
+                        innerRadius: 58,
+                        outerRadius: 98,
+                        paddingAngle: 3,
+                        cornerRadius: 6,
+                        arcLabel: (item) => formatNumber(item.value),
+                      },
+                    ]}
+                    hideLegend
+                    margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  />
+                </Box>
+                <div className="dashboard-status-chart__legend">
+                  <span>
+                    <i style={{ backgroundColor: COLORS.active }} />
+                    Active {chartData.activeRate}
+                  </span>
+                  <span>
+                    <i style={{ backgroundColor: COLORS.inactive }} />
+                    Inactive {chartData.inactiveRate}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <EmptyChart />
+            )}
+          </ChartCard>
+
+          <ChartCard title="New Item 6 Bulan" meta={monthLabel} className="dashboard-chart-card--wide">
+            {isLoading ? (
+              <EmptyChart>Memuat chart...</EmptyChart>
+            ) : (
+              <Box sx={{ width: '100%', height: 280 }}>
+                <BarChart
+                  dataset={chartData.monthlyDataset}
+                  xAxis={[{ scaleType: 'band', dataKey: 'label' }]}
+                  yAxis={[{ width: 42 }]}
+                  series={[
+                    {
+                      dataKey: 'total',
+                      label: 'New Item',
+                      color: COLORS.newItem,
+                      valueFormatter: (value) => `${formatNumber(value)} item`,
+                    },
+                  ]}
+                  grid={{ horizontal: true }}
+                  borderRadius={7}
+                  hideLegend
+                  margin={{ top: 18, right: 18, bottom: 34, left: 0 }}
+                  slotProps={{
+                    tooltip: {
+                      trigger: 'axis',
+                      anchor: 'pointer',
+                      placement: 'top-end',
+                    },
+                  }}
+                />
+              </Box>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Parent vs SKU" meta={`${formatNumber(summary?.totalParents)} parent`}>
+            {isLoading ? (
+              <EmptyChart>Memuat chart...</EmptyChart>
+            ) : chartData.compositionData.length > 0 ? (
               <Box sx={{ width: '100%', height: 250 }}>
                 <PieChart
                   series={[
                     {
-                      data: chartData.statusData,
-                      innerRadius: 58,
-                      outerRadius: 98,
-                      paddingAngle: 3,
-                      cornerRadius: 6,
+                      data: chartData.compositionData,
+                      innerRadius: 0,
+                      outerRadius: 92,
+                      paddingAngle: 2,
+                      cornerRadius: 5,
                       arcLabel: (item) => formatNumber(item.value),
                     },
                   ]}
@@ -283,91 +374,23 @@ function CanvasDashboard({
                   margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 />
               </Box>
-              <div className="dashboard-status-chart__legend">
-                <span>
-                  <i style={{ backgroundColor: COLORS.active }} />
-                  Active {chartData.activeRate}
-                </span>
-                <span>
-                  <i style={{ backgroundColor: COLORS.inactive }} />
-                  Inactive {chartData.inactiveRate}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <EmptyChart />
-          )}
-        </ChartCard>
+            ) : (
+              <EmptyChart />
+            )}
+          </ChartCard>
 
-        <ChartCard title="New Item 6 Bulan" meta={monthLabel} className="dashboard-chart-card--wide">
-          {isLoading ? (
-            <EmptyChart>Memuat chart...</EmptyChart>
-          ) : (
-            <Box sx={{ width: '100%', height: 280 }}>
-              <BarChart
-                dataset={chartData.monthlyDataset}
-                xAxis={[{ scaleType: 'band', dataKey: 'label' }]}
-                yAxis={[{ width: 42 }]}
-                series={[
-                  {
-                    dataKey: 'total',
-                    label: 'New Item',
-                    color: COLORS.newItem,
-                    valueFormatter: (value) => `${formatNumber(value)} item`,
-                  },
-                ]}
-                grid={{ horizontal: true }}
-                borderRadius={7}
-                hideLegend
-                margin={{ top: 18, right: 18, bottom: 34, left: 0 }}
-                slotProps={{
-                  tooltip: {
-                    trigger: 'axis',
-                    anchor: 'pointer',
-                    placement: 'top-end',
-                  },
-                }}
-              />
-            </Box>
-          )}
-        </ChartCard>
+          <ChartCard title="Top Brand" meta="berdasarkan SKU">
+            <RankingList items={isLoading ? [] : chartData.topBrands} />
+          </ChartCard>
 
-        <ChartCard title="Parent vs SKU" meta={`${formatNumber(summary?.totalParents)} parent`}>
-          {isLoading ? (
-            <EmptyChart>Memuat chart...</EmptyChart>
-          ) : chartData.compositionData.length > 0 ? (
-            <Box sx={{ width: '100%', height: 250 }}>
-              <PieChart
-                series={[
-                  {
-                    data: chartData.compositionData,
-                    innerRadius: 0,
-                    outerRadius: 92,
-                    paddingAngle: 2,
-                    cornerRadius: 5,
-                    arcLabel: (item) => formatNumber(item.value),
-                  },
-                ]}
-                hideLegend
-                margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-              />
-            </Box>
-          ) : (
-            <EmptyChart />
-          )}
-        </ChartCard>
+          <ChartCard title="Top Category" meta="berdasarkan SKU">
+            <RankingList items={isLoading ? [] : chartData.topCategories} />
+          </ChartCard>
 
-        <ChartCard title="Top Brand" meta="berdasarkan SKU">
-          <RankingList items={isLoading ? [] : chartData.topBrands} />
-        </ChartCard>
-
-        <ChartCard title="Top Category" meta="berdasarkan SKU">
-          <RankingList items={isLoading ? [] : chartData.topCategories} />
-        </ChartCard>
-
-        <ChartCard title="Top Channel" meta="berdasarkan SKU">
-          <RankingList items={isLoading ? [] : chartData.topChannels} />
-        </ChartCard>
+          <ChartCard title="Top Channel" meta="berdasarkan SKU">
+            <RankingList items={isLoading ? [] : chartData.topChannels} />
+          </ChartCard>
+        </div>
       </div>
     </section>
   )

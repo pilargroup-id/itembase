@@ -20,43 +20,19 @@ function CardDashboard({
   detail,
   tone = 'blue',
   isLoading,
-  href,
-  onNavigate,
-  onSelect,
-  isActive = false,
+  control,
 }) {
-  const isInteractive = Boolean(href || onSelect)
   const accentColor = TONE_COLORS[tone] ?? '#6c757d'
   const className = [
     'dashboard-card',
-    isInteractive ? 'clickable' : '',
     'mtickets-status-card',
-    isActive ? 'active' : '',
+    control ? 'dashboard-card--with-control' : '',
   ]
     .filter(Boolean)
     .join(' ')
 
-  const handleClick = (event) => {
-    onSelect?.()
-
-    if (
-      !href ||
-      !onNavigate ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey ||
-      event.button !== 0
-    ) {
-      return
-    }
-
-    event.preventDefault()
-    onNavigate(href)
-  }
-
-  const content = (
-    <>
+  return (
+    <article className={className}>
       <div className="card-accent-bar" style={{ backgroundColor: accentColor }} />
 
       <div className="dashboard-card__badge-row">
@@ -70,45 +46,12 @@ function CardDashboard({
         {isLoading ? '...' : formatNumber(value)}
       </strong>
 
-      <div className="dashboard-card__footer-text">{detail}</div>
-    </>
-  )
-
-  if (href) {
-    return (
-      <a
-        className={className}
-        href={href}
-        onClick={handleClick}
-        style={isActive ? { borderColor: accentColor } : undefined}
-        aria-label={`Buka ${label}`}
-      >
-        {content}
-      </a>
-    )
-  }
-
-  if (isInteractive) {
-    return (
-      <button
-        className={className}
-        type="button"
-        onClick={handleClick}
-        style={isActive ? { borderColor: accentColor } : undefined}
-        aria-label={`Buka ${label}`}
-        aria-pressed={isActive}
-      >
-        {content}
-      </button>
-    )
-  }
-
-  return (
-    <article
-      className={className}
-      style={isActive ? { borderColor: accentColor } : undefined}
-    >
-      {content}
+      {control || detail ? (
+        <div className="dashboard-card__bottom">
+          {control ? <div className="dashboard-card__control">{control}</div> : null}
+          {detail ? <div className="dashboard-card__footer-text">{detail}</div> : null}
+        </div>
+      ) : null}
     </article>
   )
 }

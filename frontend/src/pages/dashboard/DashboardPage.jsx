@@ -12,6 +12,12 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat('id-ID', {
 
 const MAX_PAGE_SIZE = 250
 
+const PARENT_METRIC_OPTIONS = [
+  { value: 'bundles', label: 'Bundle', cardLabel: 'Total Bundle' },
+  { value: 'items', label: 'Item', cardLabel: 'Total Item' },
+  { value: 'parents', label: 'Parent', cardLabel: 'Total Parent' },
+]
+
 function normalizeRows(responseData) {
   if (Array.isArray(responseData)) {
     return responseData
@@ -65,18 +71,52 @@ function normalizeMeta(responseData, rows) {
   }
 }
 
-function isDateInCurrentMonth(value, now = new Date()) {
+function getDate(value) {
   if (!value) {
-    return false
+    return null
   }
 
   const date = new Date(value)
 
-  return (
-    !Number.isNaN(date.getTime()) &&
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth()
-  )
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function getMonthLabel(monthKey) {
+  const [year, month] = String(monthKey ?? '').split('-').map(Number)
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return MONTH_FORMATTER.format(new Date())
+  }
+
+  return MONTH_FORMATTER.format(new Date(year, month - 1, 1))
+}
+
+function isDateInMonth(value, monthKey) {
+  const date = getDate(value)
+
+  return Boolean(date && getMonthKey(date) === monthKey)
+}
+
+function isDateInCurrentMonth(value, now = new Date()) {
+  return isDateInMonth(value, getMonthKey(now))
+}
+
+function getItemKind(item) {
+  return String(item?.item_kind ?? item?.itemKind ?? item?.kind ?? '')
+    .trim()
+    .toLowerCase()
+}
+
+function isBundleItem(item) {
+  return getItemKind(item) === 'bundle'
+}
+
+function isRegularItem(item) {
+  return !isBundleItem(item)
 }
 
 function isInactiveItem(item) {
@@ -121,7 +161,25 @@ async function loadAllPages(resource, params, signal) {
   }
 }
 
+function DashboardCardSelect({ ariaLabel, options, value, onChange }) {
+  return (
+    <select
+      className="dashboard-card__select"
+      value={value}
+      onChange={(event) => onChange?.(event.target.value)}
+      aria-label={ariaLabel}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 function DashboardPage({ activePage }) {
+  const currentMonthKey = useMemo(() => getMonthKey(new Date()), [])
   const [summary, setSummary] = useState({
     totalParents: 0,
     totalSku: 0,
@@ -130,19 +188,60 @@ function DashboardPage({ activePage }) {
     activeItems: 0,
   })
   const [itemRows, setItemRows] = useState([])
-  const [activeMetricKey, setActiveMetricKey] = useState('sku')
+  const [selectedNewItemMonth, setSelectedNewItemMonth] = useState(currentMonthKey)
+  const [selectedParentMetric, setSelectedParentMetric] = useState('parents')
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
-  const monthLabel = useMemo(() => MONTH_FORMATTER.format(new Date()), [])
+  const monthOptions = useMemo(() => {
+    const monthKeys = new Set([currentMonthKey, selectedNewItemMonth])
+
+    itemRows.forEach((item) => {
+      const date = getDate(item?.created_at ?? item?.createdAt)
+
+      if (date) {
+        monthKeys.add(getMonthKey(date))
+      }
+    })
+
+    return Array.from(monthKeys)
+      .sort((firstMonth, secondMonth) => secondMonth.localeCompare(firstMonth))
+      .map((monthKey) => ({
+        value: monthKey,
+        label: getMonthLabel(monthKey),
+      }))
+  }, [currentMonthKey, itemRows, selectedNewItemMonth])
+  const monthLabel = useMemo(() => getMonthLabel(selectedNewItemMonth), [selectedNewItemMonth])
+  const selectedNewItems = useMemo(
+    () => itemRows.filter((item) => isDateInMonth(item?.created_at ?? item?.createdAt, selectedNewItemMonth)).length,
+    [itemRows, selectedNewItemMonth],
+  )
+  const parentMetricCounts = useMemo(
+    () => ({
+      bundles: itemRows.filter(isBundleItem).length,
+      items: itemRows.filter(isRegularItem).length,
+      parents: summary.totalParents,
+    }),
+    [itemRows, summary.totalParents],
+  )
+  const selectedParentMetricOption =
+    PARENT_METRIC_OPTIONS.find((option) => option.value === selectedParentMetric) ??
+    PARENT_METRIC_OPTIONS[PARENT_METRIC_OPTIONS.length - 1]
   const metricCards = useMemo(
     () => [
       {
         key: 'parents',
         icon: Boxes01,
-        label: 'Total Parent',
-        value: summary.totalParents,
-        // detail: 'Semua parent item terdaftar',
+        label: selectedParentMetricOption.cardLabel,
+        value: parentMetricCounts[selectedParentMetric] ?? 0,
+        control: (
+          <DashboardCardSelect
+            ariaLabel="Pilih data parent"
+            options={PARENT_METRIC_OPTIONS}
+            value={selectedParentMetric}
+            onChange={setSelectedParentMetric}
+          />
+        ),
         tone: 'blue',
       },
       {
@@ -157,8 +256,15 @@ function DashboardPage({ activePage }) {
         key: 'newItems',
         icon: Calendar01,
         label: 'New Item',
-        value: summary.newItemsThisMonth,
-        detail: `Dibuat pada ${monthLabel}`,
+        value: selectedNewItems,
+        control: (
+          <DashboardCardSelect
+            ariaLabel="Pilih bulan new item"
+            options={monthOptions}
+            value={selectedNewItemMonth}
+            onChange={setSelectedNewItemMonth}
+          />
+        ),
         tone: 'gold',
       },
       {
@@ -178,7 +284,15 @@ function DashboardPage({ activePage }) {
         tone: 'green',
       },
     ],
-    [monthLabel, summary],
+    [
+      monthOptions,
+      parentMetricCounts,
+      selectedNewItemMonth,
+      selectedNewItems,
+      selectedParentMetric,
+      selectedParentMetricOption,
+      summary,
+    ],
   )
 
   useEffect(() => {
@@ -209,7 +323,7 @@ function DashboardPage({ activePage }) {
           totalParents: parentMeta.total,
           totalSku: itemResult.total,
           newItemsThisMonth: itemRows.filter((item) =>
-            isDateInCurrentMonth(item.created_at, now),
+            isDateInCurrentMonth(item.created_at ?? item.createdAt, now),
           ).length,
           inactiveItems: itemRows.filter(isInactiveItem).length,
           activeItems: itemRows.filter(isActiveItem).length,
@@ -254,17 +368,16 @@ function DashboardPage({ activePage }) {
             detail={card.detail}
             tone={card.tone}
             isLoading={isLoading}
-            isActive={activeMetricKey === card.key}
-            onSelect={() => setActiveMetricKey(card.key)}
+            control={card.control}
           />
         ))}
       </div>
 
       <CanvasDashboard
-        selectedKey={activeMetricKey}
         summary={summary}
         itemRows={itemRows}
         monthLabel={monthLabel}
+        selectedMonthKey={selectedNewItemMonth}
         isLoading={isLoading}
       />
     </section>

@@ -9,7 +9,7 @@ function sendFile(res,result){
   res.setHeader('Content-Length',result.buffer.length);
   return res.send(result.buffer);
 }
-async function exportData(req,res,next){try{return sendFile(res,await ExportService.exportType(req.params.type));}catch(err){return next(err);}}
+async function exportData(req,res,next){try{return sendFile(res,await ExportService.exportType(req.params.type,req.query));}catch(err){return next(err);}}
 async function template(req,res,next){try{return sendFile(res,await TemplateService.generate(req.params.type));}catch(err){return next(err);}}
 async function preview(req,res,next){try{if(!req.file)return response.badRequest(res,'Excel file is required');const result=await ImportService.preview(req.params.type,req.file.buffer,req.user.id);return response.ok(res,result,'Import preview generated');}catch(err){return next(err);}}
 async function commit(req,res,next){try{const result=await ImportService.commit(req.body.preview_token,req.user.id);return response.ok(res,result,'Import committed');}catch(err){return next(err);}}

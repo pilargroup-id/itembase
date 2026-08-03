@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogDownloadSelect from '../../Dialog/dialog-dashboard/DialogDownload.jsx'
+import DialogDownloadSelect from '../../Dialog/dialog-dashboard/DialogExportDashboard.jsx'
 
 const buttonClassNames = {
   action: 'users-table-card__action',

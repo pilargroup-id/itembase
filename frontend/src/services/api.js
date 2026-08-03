@@ -316,6 +316,10 @@ const api = {
     exports: {
       parents: (options) =>
         api.get('/item-data/exports/parents', { ...options, responseType: 'blob' }),
+      items: (options) =>
+        api.get('/item-data/exports/items', { ...options, responseType: 'blob' }),
+      bundles: (options) =>
+        api.get('/item-data/exports/bundles', { ...options, responseType: 'blob' }),
     },
     imports: {
       parentsPreview: (data, options) =>
