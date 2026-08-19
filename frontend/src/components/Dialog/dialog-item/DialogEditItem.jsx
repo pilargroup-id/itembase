@@ -46,6 +46,12 @@ const itemFields = [
     half: true,
   },
   {
+    name: 'is_active',
+    label: 'Status',
+    type: 'status',
+    half: true,
+  },
+  {
     name: 'uom_id',
     label: 'UOM',
     placeholder: 'Pilih UOM',
@@ -542,7 +548,19 @@ function DialogEditItem({
         {field.label}
         {field.required && <span style={{ color: 'red', marginLeft: '4px' }}>*</span>}
       </label>
-      {field.type === 'select' ? (
+      {field.type === 'status' ? (
+        <select
+          id={`item-${field.name}`}
+          name={field.name}
+          className="register-user-popup__select"
+          value={formValues[field.name]}
+          onChange={handleInputChange}
+          disabled={isSubmitting}
+        >
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      ) : field.type === 'select' ? (
         <SearchableItemSelect
           id={`item-${field.name}`}
           label={field.label}
@@ -633,6 +651,7 @@ function DialogEditItem({
                           'parent_id',
                           'item_name',
                           'selling_name',
+                          'is_active',
                         ].includes(field.name),
                       )
                       .map(renderField)}

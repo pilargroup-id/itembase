@@ -10,6 +10,7 @@ import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdow
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
     DataTableIdentity,
+    DataTableStatus,
 } from "../DataTable.jsx"
 import {
     DEFAULT_PAGE_SIZE,
@@ -35,6 +36,56 @@ const visibleBundleFilterConfigs = itemFilterConfig.filter(
     (filterConfig) =>
         !["itemCode", "barcode", "itemKind", "skuStatus", "uom"].includes(filterConfig.key),
 )
+
+function getItemId(item) {
+    return item?.id ?? item?.item_id ?? null
+}
+
+function getItemStatusValue(item) {
+    if (item?.is_active !== undefined && item?.is_active !== null) {
+        return Number(item.is_active) === 1 ? "1" : "0"
+    }
+
+    const normalizedStatus = String(item?.status ?? "").toLowerCase()
+
+    if (normalizedStatus === "active") {
+        return "1"
+    }
+
+    if (normalizedStatus === "inactive") {
+        return "0"
+    }
+
+    return ""
+}
+
+function getItemStatusLabel(item) {
+    const statusValue = getItemStatusValue(item)
+
+    if (statusValue === "1") {
+        return "active"
+    }
+
+    if (statusValue === "0") {
+        return "inactive"
+    }
+
+    return "-"
+}
+
+function getItemStatusVariant(item) {
+    const statusValue = getItemStatusValue(item)
+
+    if (statusValue === "1") {
+        return "active"
+    }
+
+    if (statusValue === "0") {
+        return "inactive"
+    }
+
+    return "pending"
+}
 
 function formatDisplayValue(value) {
     const displayValue = String(value ?? "").trim()
@@ -467,8 +518,53 @@ function DataTableBundles({
         setActiveActionDialog(dialogType)
     }
 
+    const toggleItemStatus = async (item) => {
+        const itemId = getItemId(item)
+        const currentStatus = getItemStatusValue(item) === "1" ? 1 : 0
+        const newStatus = currentStatus === 1 ? 0 : 1
+        const previousItemRows = [...itemRows]
+
+        setItemRows((currentRows) =>
+            currentRows.map((row) =>
+                getItemId(row) === itemId
+                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    : row,
+            ),
+        )
+
+        try {
+            await api.items.updateStatus(itemId, newStatus)
+        } catch (error) {
+            setItemRows(previousItemRows)
+            setErrorMessage(error?.message || "Gagal mengubah status bundle.")
+        }
+    }
+
     const tableColumns = [
         ...columns,
+        {
+            key: "status",
+            header: "Status",
+            headerStyle: { width: "8%" },
+            cellStyle: { width: "8%" },
+            render: (item) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                        type="checkbox"
+                        checked={getItemStatusValue(item) === "1"}
+                        onChange={(event) => {
+                            event.stopPropagation()
+                            toggleItemStatus(item)
+                        }}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        title={`Tandai ${item.item_name || item.item_code || "bundle"} sebagai ${getItemStatusValue(item) === "1" ? "non-aktif" : "aktif"}`}
+                    />
+                    <DataTableStatus inline variant={getItemStatusVariant(item)}>
+                        {getItemStatusLabel(item)}
+                    </DataTableStatus>
+                </div>
+            ),
+        },
         {
             key: "action",
             header: "Action",
