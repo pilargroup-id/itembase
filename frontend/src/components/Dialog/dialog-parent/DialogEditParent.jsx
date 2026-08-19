@@ -14,7 +14,6 @@ const initialFormValues = {
   item_type_id: '',
   port_id: [],
   parent_name: '',
-  status: 'active',
 }
 
 const parentFormulaFields = [
@@ -151,7 +150,6 @@ function createFormValuesFromParent(parent) {
     item_type_id: String(getNestedId(parent, 'item_type')),
     port_id: getPortIds(parent),
     parent_name: parent.parent_name ?? '',
-    status: parent.status ?? 'active',
   }
 }
 
@@ -1097,22 +1095,6 @@ function DialogEditParent({
                 <div className="parent-create-popup__section">
                   <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
                     {parentDetailFields.map(renderField)}
-                    <div className="register-user-popup__field">
-                      <label className="register-user-popup__label" htmlFor="parent-status">
-                        Status Parent
-                      </label>
-                      <select
-                        id="parent-status"
-                        name="status"
-                        className="register-user-popup__select"
-                        value={formValues.status}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      >
-                        <option value="active">active</option>
-                        <option value="inactive">inactive</option>
-                      </select>
-                    </div>
                   </div>
                 </div>
 
