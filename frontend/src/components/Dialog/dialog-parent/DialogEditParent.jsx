@@ -1099,7 +1099,7 @@ function DialogEditParent({
                     {parentDetailFields.map(renderField)}
                     <div className="register-user-popup__field">
                       <label className="register-user-popup__label" htmlFor="parent-status">
-                        Status
+                        Status Parent
                       </label>
                       <select
                         id="parent-status"

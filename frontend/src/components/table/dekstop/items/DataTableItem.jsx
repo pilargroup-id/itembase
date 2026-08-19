@@ -740,18 +740,28 @@ function DataTableItem({
             cellClassName: "users-table__action-cell",
             headerStyle: { width: "7%" },
             cellStyle: { width: "7%", whiteSpace: "nowrap" },
-            render: (item) => (
-                <div className="parent-action-buttons">
-                    <ButtonEditItem
-                        title="Edit"
-                        aria-label={`Edit ${item.item_name || item.item_code || "item"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("edit", item)
-                        }}
-                    />
-                </div>
-            ),
+            render: (item) => {
+                const isItemInactive = getItemStatusValue(item) === "0"
+
+                return (
+                    <div className="parent-action-buttons">
+                        <ButtonEditItem
+                            title={isItemInactive ? "Item non-aktif tidak dapat diedit" : "Edit"}
+                            aria-label={`Edit ${item.item_name || item.item_code || "item"}`}
+                            disabled={isItemInactive}
+                            onClick={(event) => {
+                                event.stopPropagation()
+
+                                if (isItemInactive) {
+                                    return
+                                }
+
+                                openActionDialog("edit", item)
+                            }}
+                        />
+                    </div>
+                )
+            },
         },
     ]
 

@@ -45,12 +45,13 @@ function validateImmutableItemKind(existing, payload = {}) {
   }
 }
 
-function validatePayload(payload = {}) {
+function validatePayload(payload = {}, options = {}) {
+  const { requireParent = true, requireItemName = true } = options;
   const errors = { ...validateGeneratedFields(payload) };
   if (!validateRequired(payload.item_kind)) errors.item_kind = 'Item kind is required';
   else if (!ALLOWED_ITEM_KIND.includes(payload.item_kind)) errors.item_kind = 'Item kind must be regular or bundle';
-  if (!validateRequired(payload.parent_id)) errors.parent_id = 'Parent item is required';
-  if (payload.item_kind === 'regular' && !validateRequired(payload.item_name)) errors.item_name = 'Item name is required for regular item';
+  if (requireParent && !validateRequired(payload.parent_id)) errors.parent_id = 'Parent item is required';
+  if (requireItemName && payload.item_kind === 'regular' && !validateRequired(payload.item_name)) errors.item_name = 'Item name is required for regular item';
   if (hasValue(payload.is_active) && !isValidBoolean(payload.is_active)) errors.is_active = 'Is active must be 0 or 1';
 
   [['item_name', 255], ['selling_name', 255], ['parent_id', 36], ['uom_id', 36]].forEach(([field, max]) => {
@@ -231,7 +232,10 @@ async function update(id, payload, userId, req = null) {
     production_time_days: payload.production_time_days ?? existing.production_time_days,
     is_active: payload.is_active ?? existing.is_active,
   };
-  const errors = validatePayload(merged);
+  const errors = validatePayload(merged, {
+    requireParent: payload.parent_id !== undefined || hasValue(existing.parent_id),
+    requireItemName: payload.item_name !== undefined || hasValue(existing.item_name),
+  });
   if (Object.keys(errors).length) throw makeError('Validation failed', 422, 'VALIDATION_ERROR', errors);
   const shouldReplaceComponents = payload.components !== undefined;
   const shouldReplaceVariants = payload.variants !== undefined;
@@ -243,9 +247,10 @@ async function update(id, payload, userId, req = null) {
       const withItems = await validateBundleComponents(components, connection);
       finalPayload.item_name = buildBundleItemName(withItems);
     }
+    const shouldRevalidateVariants = shouldReplaceVariants || payload.parent_id !== undefined;
     const variants=shouldReplaceVariants?normalizeVariants(payload.variants):(await ItemModel.findVariantsByItemIds([id],connection))[id]?.map(v=>({attribute_id:v.attribute.id,value_id:v.value.id}))||[];
     if(merged.item_kind==='bundle'&&variants.length)throw makeError('Variants are only allowed for regular items',422,'VALIDATION_ERROR');
-    if(merged.item_kind==='regular')await validateVariants(merged.parent_id,variants,connection,id);
+    if(merged.item_kind==='regular'&&shouldRevalidateVariants)await validateVariants(merged.parent_id,variants,connection,id);
     const itemData = normalizeItemData(finalPayload, userId, null, existing);
     await ItemModel.update(id, itemData, connection);
     if (merged.item_kind === 'bundle' && shouldReplaceComponents) await ItemModel.replaceComponents(id, components, connection);
