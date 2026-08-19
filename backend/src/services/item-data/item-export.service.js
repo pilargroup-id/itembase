@@ -75,21 +75,21 @@ function selectedColumns(query = {}) {
   ];
 }
 
-function dateOnly(value) {
+function dateOnlyJakarta(value) {
   if (!value) return '';
 
-  if (typeof value === 'string') {
-    const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (match) return match[1];
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
   }
 
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 }
 
 function joinDirectoryNames(csvIds, directoryRows) {
@@ -124,8 +124,8 @@ function mapExportRow(row, businessUnits, users) {
     'Sub Category': row.sub_category || '',
     'Brand Category': row.brand_category || '',
     PIC: joinDirectoryNames(row.pic_user_ids, users),
-    'Item Created Date': dateOnly(row.created_at),
-    'Item Updated Date': dateOnly(row.updated_at),
+    'Item Created Date': dateOnlyJakarta(row.created_at),
+    'Item Updated Date': dateOnlyJakarta(row.updated_at),
     Port: splitValues(row.port_names).join(','),
     'Item Source': row.item_type_name || row.item_type_code || '',
     'Selling Name': row.selling_name || '',
