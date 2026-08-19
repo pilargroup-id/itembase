@@ -6974,6 +6974,10 @@ select {
   row-gap: 12px;
 }
 
+.bundle-create-popup__meta-grid--with-status.register-user-popup__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 @media (max-width: 768px) {
   .bundle-create-popup__meta-grid.register-user-popup__grid {
     grid-template-columns: 1fr;

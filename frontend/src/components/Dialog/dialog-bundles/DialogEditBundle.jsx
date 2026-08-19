@@ -811,7 +811,8 @@ function DialogEditBundle({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
-                  <div className="register-user-popup__grid bundle-create-popup__meta-grid">
+                  <div className="register-user-popup__grid bundle-create-popup__meta-grid bundle-create-popup__meta-grid--with-status">
+                    {bundleFields.map(renderField)}
                     <div className="register-user-popup__field">
                       <label
                         className="register-user-popup__label"
@@ -831,7 +832,6 @@ function DialogEditBundle({
                         <option value="0">inactive</option>
                       </select>
                     </div>
-                    {bundleFields.map(renderField)}
                   </div>
                 </div>
 
