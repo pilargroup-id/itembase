@@ -313,14 +313,8 @@ const api = {
       bundles: (options) =>
         api.get('/item-data/templates/bundles', { ...options, responseType: 'blob' }),
     },
-    exports: {
-      parents: (options) =>
-        api.get('/item-data/exports/parents', { ...options, responseType: 'blob' }),
-      items: (options) =>
-        api.get('/item-data/exports/items', { ...options, responseType: 'blob' }),
-      bundles: (options) =>
-        api.get('/item-data/exports/bundles', { ...options, responseType: 'blob' }),
-    },
+    export: (params, options) =>
+      api.get('/item-data/export', { ...options, params, responseType: 'blob' }),
     imports: {
       parentsPreview: (data, options) =>
         api.post('/item-data/imports/parents/preview', data, options),
