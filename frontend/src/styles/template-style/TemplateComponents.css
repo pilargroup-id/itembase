@@ -2636,6 +2636,73 @@ select {
   color: var(--primary-blue);
 }
 
+/* Colored variants for the parent table toolbar (download/import) */
+.parent-table-tool-button.parent-table-tool-button--download,
+.parent-table-tool-button.parent-table-tool-button--import {
+  box-shadow: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.parent-table-tool-button.parent-table-tool-button--download {
+  border-color: rgba(26, 42, 87, 0.16);
+  background: rgba(26, 42, 87, 0.06);
+  color: var(--primary-blue);
+}
+
+.parent-table-tool-button.parent-table-tool-button--download svg,
+.parent-table-tool-button.parent-table-tool-button--download span {
+  color: var(--primary-blue);
+}
+
+.parent-table-tool-button.parent-table-tool-button--download:hover {
+  background: rgba(26, 42, 87, 0.1);
+  box-shadow: 0 6px 14px rgba(26, 42, 87, 0.1);
+}
+
+.parent-table-tool-button.parent-table-tool-button--download:focus-visible {
+  box-shadow: 0 0 0 4px rgba(26, 42, 87, 0.14);
+}
+
+.parent-table-tool-button.parent-table-tool-button--import {
+  border-color: rgba(42, 157, 143, 0.24);
+  background: rgba(42, 157, 143, 0.08);
+  color: var(--accent-teal-dark);
+}
+
+.parent-table-tool-button.parent-table-tool-button--import svg,
+.parent-table-tool-button.parent-table-tool-button--import span {
+  color: var(--accent-teal-dark);
+}
+
+.parent-table-tool-button.parent-table-tool-button--import:hover {
+  background: rgba(42, 157, 143, 0.14);
+  box-shadow: 0 6px 14px rgba(42, 157, 143, 0.14);
+}
+
+.parent-table-tool-button.parent-table-tool-button--import:focus-visible {
+  box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.16);
+}
+
+.parent-table-tool-button.parent-table-tool-button--download:disabled,
+.parent-table-tool-button.parent-table-tool-button--import:disabled {
+  border-color: rgba(100, 116, 139, 0.16);
+  background: rgba(100, 116, 139, 0.08);
+  color: #8291a8;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.parent-table-tool-button.parent-table-tool-button--download:disabled svg,
+.parent-table-tool-button.parent-table-tool-button--download:disabled span,
+.parent-table-tool-button.parent-table-tool-button--import:disabled svg,
+.parent-table-tool-button.parent-table-tool-button--import:disabled span {
+  color: #8291a8;
+}
+
 .parent-table-import-input {
   display: none;
 }
@@ -7061,9 +7128,8 @@ select {
 .bundle-create-popup__component-actions {
   display: flex;
   align-items: center;
-  align-self: end;
   gap: 0.5rem;
-  min-height: 42px;
+  min-height: 44px;
 }
 
 .bundle-create-popup__component-action-spacer {
@@ -7109,6 +7175,40 @@ select {
 
 .bundle-create-popup__component-add:disabled,
 .bundle-create-popup__component-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.bundle-create-popup__add-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: auto;
+  margin-top: 0.85rem;
+  margin-right: auto;
+  padding: 0.65rem 1rem;
+  border: 1px dashed rgba(42, 157, 143, 0.35);
+  border-radius: 12px;
+  background: rgba(42, 157, 143, 0.05);
+  color: var(--primary-blue);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.bundle-create-popup__add-item:hover:not(:disabled) {
+  border-color: rgba(42, 157, 143, 0.55);
+  background: rgba(42, 157, 143, 0.1);
+  transform: translateY(-1px);
+}
+
+.bundle-create-popup__add-item:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }

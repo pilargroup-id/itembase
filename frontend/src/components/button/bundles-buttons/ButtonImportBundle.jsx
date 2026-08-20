@@ -12,7 +12,10 @@ function ButtonImportBundle({
   ...buttonProps
 }) {
   const inputRef = useRef(null)
-  const buttonClassName = ['users-table-card__action parent-table-tool-button', className]
+  const buttonClassName = [
+    'users-table-card__action parent-table-tool-button parent-table-tool-button--import',
+    className,
+  ]
     .filter(Boolean)
     .join(' ')
 

@@ -24,7 +24,10 @@ function ButtonDownloadBundle({
   ...buttonProps
 }) {
   const [isDownloading, setIsDownloading] = useState(false)
-  const buttonClassName = ['users-table-card__action parent-table-tool-button', className]
+  const buttonClassName = [
+    'users-table-card__action parent-table-tool-button parent-table-tool-button--download',
+    className,
+  ]
     .filter(Boolean)
     .join(' ')
 

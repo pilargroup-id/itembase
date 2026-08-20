@@ -655,41 +655,39 @@ function DialogCreateBundle({
                             </div>
                           </div>
 
-                          <div className="bundle-create-popup__component-actions">
-                            {index === components.length - 1 &&
-                            components.length < BUNDLE_MAX_COMPONENTS ? (
+                          <div className="register-user-popup__field">
+                            <span className="register-user-popup__label" aria-hidden="true">
+                              &nbsp;
+                            </span>
+                            <div className="bundle-create-popup__component-actions">
                               <button
                                 type="button"
-                                className="bundle-create-popup__component-add"
-                                onClick={handleAddComponent}
-                                disabled={isSubmitting}
-                                title="Tambah item"
-                                aria-label="Tambah item bundle"
+                                className="bundle-create-popup__component-remove"
+                                onClick={() => handleRemoveComponent(index)}
+                                disabled={
+                                  isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS
+                                }
+                                title="Hapus component"
+                                aria-label={`Hapus item bundle ${index + 1}`}
                               >
-                                <Plus size={16} />
+                                <Trash03 size={16} />
                               </button>
-                            ) : (
-                              <span
-                                className="bundle-create-popup__component-action-spacer"
-                                aria-hidden="true"
-                              />
-                            )}
-
-                            <button
-                              type="button"
-                              className="bundle-create-popup__component-remove"
-                              onClick={() => handleRemoveComponent(index)}
-                              disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
-                              title="Hapus component"
-                              aria-label={`Hapus item bundle ${index + 1}`}
-                            >
-                              <Trash03 size={16} />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  <button
+                    type="button"
+                    className="bundle-create-popup__add-item"
+                    onClick={handleAddComponent}
+                    disabled={isSubmitting || components.length >= BUNDLE_MAX_COMPONENTS}
+                  >
+                    <Plus size={16} />
+                    Tambah Item
+                  </button>
 
                   <div className="bundle-create-popup__footer">
                     <p className="register-user-popup__hint">
