@@ -11,7 +11,7 @@ function buildDetailItemTitle(itemName, variant, index) {
   const normalizedVariant = normalizeDetailItemText(variant)
 
   if (!normalizedItemName) {
-    return `Item Detail #${index + 1}`
+    return `SKU #${index + 1}`
   }
 
   return normalizedVariant
@@ -42,6 +42,9 @@ function buildHwdValue(currentValue, partIndex, nextPartValue) {
 
   return parts.map((part) => part.trim()).join(' x ')
 }
+
+const hwdFieldLabels = ['Height', 'Width', 'Depth']
+const hwdFieldNames = ['height', 'width', 'depth']
 
 export function createInitialDetailItem() {
   return {
@@ -134,203 +137,206 @@ function CreateDetailItem({
     <div className="parent-create-popup__section parent-detail-item">
       <div className="parent-detail-item__top">
         <div className="parent-create-popup__section-header">
-          <h3 className="parent-create-popup__section-title">Item Detail</h3>
+          <h3 className="parent-create-popup__section-title">
+            SKU Detail
+            <span className="parent-detail-item__count">
+              ({detailItems.length} SKU)
+            </span>
+          </h3>
         </div>
 
         <div className="parent-detail-item__actions">
-          <span className="parent-detail-item__count">
-            {detailItems.length} item
-          </span>
+          <button
+            type="button"
+            className="parent-detail-item__add"
+            onClick={handleAddItem}
+            disabled={disabled}
+            title="Create Item"
+            aria-label="Create Item"
+          >
+            <Plus size={18} />
+            <span>Create Item</span>
+          </button>
         </div>
       </div>
 
-      <div className="parent-detail-item__items">
-        {detailItems.map((item, index) => (
-          <div key={item.id} className="parent-detail-item__row">
-            <div className="parent-detail-item__row-header">
-              <p className="parent-detail-item__row-title">
-                {buildDetailItemTitle(itemName, item.item_variant, index)}
-              </p>
-              <div className="parent-detail-item__row-actions">
-                {index === detailItems.length - 1 ? (
+      <div className="parent-detail-item__table-wrapper">
+        <table className="parent-detail-item__table" aria-label="SKU detail">
+          <thead>
+            <tr>
+              <th scope="col" className="parent-detail-item__table-title-header">
+                SKU
+              </th>
+              {variantAttributeOptions.map((attribute) => (
+                <th key={attribute.value} scope="col">
+                  {attribute.label}
+                </th>
+              ))}
+              <th scope="col">Uom</th>
+              {hwdFieldLabels.map((fieldLabel) => (
+                <th key={fieldLabel} scope="col" className="parent-detail-item__table-hwd-header">
+                  {fieldLabel} (cm)
+                </th>
+              ))}
+              <th scope="col">Lead Time (Day)</th>
+              <th scope="col" className="parent-detail-item__table-action-header">
+                Aksi
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {detailItems.map((item, index) => (
+              <tr key={item.id}>
+                <td className="parent-detail-item__table-title-cell">
+                  <span className="parent-detail-item__row-index">{index + 1}</span>
+                  <p className="parent-detail-item__row-title">
+                    {buildDetailItemTitle(itemName, item.item_variant, index)}
+                  </p>
+                </td>
+
+                {variantAttributeOptions.map((attribute) => {
+                  const variantValueOptions = getVariantValueOptions(attribute.value)
+                  const loadingVariantValues = getLoadingVariantValues(attribute.value)
+                  const fieldId = `parent-detail-variant-value-${attribute.value}-${item.id}`
+
+                  return (
+                    <td key={attribute.value} className="parent-detail-item__field--variant-value">
+                      {DetailSearchableSelect ? (
+                        <DetailSearchableSelect
+                          id={fieldId}
+                          label={attribute.label}
+                          value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
+                          options={variantValueOptions}
+                          placeholder={`Pilih ${attribute.label}`}
+                          searchPlaceholder={`Cari ${attribute.label}...`}
+                          emptyMessage="Value tidak ditemukan."
+                          loading={loadingVariantValues}
+                          disabled={disabled || loadingVariantValues}
+                          onChange={(nextValue) =>
+                            handleVariantValueChange(item.id, attribute.value, nextValue)
+                          }
+                        />
+                      ) : (
+                        <select
+                          id={fieldId}
+                          className="register-user-popup__select"
+                          value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
+                          onChange={(event) =>
+                            handleVariantValueChange(item.id, attribute.value, event.target.value)
+                          }
+                          disabled={disabled || loadingVariantValues}
+                        >
+                          <option value="">
+                            {loadingVariantValues ? 'Memuat value...' : `Pilih ${attribute.label}`}
+                          </option>
+                          {variantValueOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                  )
+                })}
+
+                <td className="parent-detail-item__field--uom">
+                  {DetailSearchableSelect ? (
+                    <DetailSearchableSelect
+                      id={`parent-detail-uom-${item.id}`}
+                      label="Uom"
+                      value={item.uom_id}
+                      options={uomOptions}
+                      placeholder="Pilih UOM"
+                      searchPlaceholder="Cari UOM..."
+                      emptyMessage="UOM tidak ditemukan."
+                      loading={loadingUoms}
+                      disabled={disabled || loadingUoms}
+                      onChange={(nextValue) =>
+                        handleFieldChange(item.id, 'uom_id', nextValue)
+                      }
+                    />
+                  ) : (
+                    <select
+                      id={`parent-detail-uom-${item.id}`}
+                      className="register-user-popup__select"
+                      value={item.uom_id}
+                      onChange={(event) =>
+                        handleFieldChange(item.id, 'uom_id', event.target.value)
+                      }
+                      disabled={disabled || loadingUoms}
+                    >
+                      <option value="">
+                        {loadingUoms ? 'Memuat UOM...' : 'Pilih UOM'}
+                      </option>
+                      {uomOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </td>
+
+                {getHwdParts(item.hwd).map((partValue, partIndex) => (
+                  <td
+                    key={hwdFieldLabels[partIndex]}
+                    className="parent-detail-item__field--hwd"
+                  >
+                    <input
+                      id={`parent-detail-hwd-${hwdFieldNames[partIndex]}-${item.id}`}
+                      className="register-user-popup__input parent-detail-item__hwd-input"
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      value={partValue}
+                      placeholder="0"
+                      aria-label={`${hwdFieldLabels[partIndex]} (cm)`}
+                      onChange={(event) =>
+                        handleFieldChange(
+                          item.id,
+                          'hwd',
+                          buildHwdValue(item.hwd, partIndex, event.target.value),
+                        )
+                      }
+                      disabled={disabled}
+                    />
+                  </td>
+                ))}
+
+                <td className="parent-detail-item__field--lead-time">
+                  <input
+                    id={`parent-detail-lead-time-${item.id}`}
+                    className="register-user-popup__input"
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={item.lead_time_days}
+                    placeholder="10"
+                    onChange={(event) =>
+                      handleFieldChange(item.id, 'lead_time_days', event.target.value)
+                    }
+                    disabled={disabled}
+                  />
+                </td>
+
+                <td className="parent-detail-item__table-action-cell">
                   <button
                     type="button"
-                    className="parent-detail-item__add"
-                    onClick={handleAddItem}
-                    disabled={disabled}
-                    title="Tambah item detail"
-                    aria-label="Tambah item detail"
+                    className="users-table__icon-button users-table__icon-button--danger parent-detail-item__remove"
+                    onClick={() => handleRemoveItem(item.id)}
+                    disabled={disabled || detailItems.length <= 1}
+                    title="Hapus SKU"
+                    aria-label={`Hapus SKU ${index + 1}`}
                   >
-                    <Plus size={16} />
+                    <Trash03 size={16} />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="parent-detail-item__remove"
-                  onClick={() => handleRemoveItem(item.id)}
-                  disabled={disabled || detailItems.length <= 1}
-                  title="Hapus item detail"
-                  aria-label={`Hapus item detail ${index + 1}`}
-                >
-                  <Trash03 size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div className="parent-detail-item__grid">
-              {variantAttributeOptions.map((attribute) => (
-                <div key={attribute.value} className="register-user-popup__field parent-detail-item__field--variant-value">
-                  <label className="register-user-popup__label" htmlFor={`parent-detail-variant-value-${attribute.value}-${item.id}`}>
-                    {attribute.label}
-                  </label>
-                  {(() => {
-                    const variantValueOptions = getVariantValueOptions(attribute.value)
-                    const loadingVariantValues = getLoadingVariantValues(attribute.value)
-
-                    return DetailSearchableSelect ? (
-                      <DetailSearchableSelect
-                        id={`parent-detail-variant-value-${attribute.value}-${item.id}`}
-                        label={attribute.label}
-                        value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
-                        options={variantValueOptions}
-                        placeholder={`Pilih ${attribute.label}`}
-                        searchPlaceholder={`Cari ${attribute.label}...`}
-                        emptyMessage="Value tidak ditemukan."
-                        loading={loadingVariantValues}
-                        disabled={disabled || loadingVariantValues}
-                        onChange={(nextValue) =>
-                          handleVariantValueChange(item.id, attribute.value, nextValue)
-                        }
-                      />
-                    ) : (
-                      <select
-                        id={`parent-detail-variant-value-${attribute.value}-${item.id}`}
-                        className="register-user-popup__select"
-                        value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
-                        onChange={(event) =>
-                          handleVariantValueChange(item.id, attribute.value, event.target.value)
-                        }
-                        disabled={disabled || loadingVariantValues}
-                      >
-                        <option value="">
-                          {loadingVariantValues ? 'Memuat value...' : `Pilih ${attribute.label}`}
-                        </option>
-                        {variantValueOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    )
-                  })()}
-                </div>
-              ))}
-
-              <div className="register-user-popup__field parent-detail-item__field--uom">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-uom-${item.id}`}>
-                  Uom
-                </label>
-                {DetailSearchableSelect ? (
-                  <DetailSearchableSelect
-                    id={`parent-detail-uom-${item.id}`}
-                    label="Uom"
-                    value={item.uom_id}
-                    options={uomOptions}
-                    placeholder="Pilih UOM"
-                    searchPlaceholder="Cari UOM..."
-                    emptyMessage="UOM tidak ditemukan."
-                    loading={loadingUoms}
-                    disabled={disabled || loadingUoms}
-                    onChange={(nextValue) =>
-                      handleFieldChange(item.id, 'uom_id', nextValue)
-                    }
-                  />
-                ) : (
-                  <select
-                    id={`parent-detail-uom-${item.id}`}
-                    className="register-user-popup__select"
-                    value={item.uom_id}
-                    onChange={(event) =>
-                      handleFieldChange(item.id, 'uom_id', event.target.value)
-                    }
-                    disabled={disabled || loadingUoms}
-                  >
-                    <option value="">
-                      {loadingUoms ? 'Memuat UOM...' : 'Pilih UOM'}
-                    </option>
-                    {uomOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div className="register-user-popup__field parent-detail-item__field--hwd">
-                <div className="parent-detail-item__hwd-inputs">
-                  {getHwdParts(item.hwd).map((partValue, partIndex) => {
-                    const fieldLabels = ['Height', 'Width', 'Depth']
-                    const fieldNames = ['height', 'width', 'depth']
-                    const inputId = `parent-detail-hwd-${fieldNames[partIndex]}-${item.id}`
-
-                    return (
-                      <div
-                        key={fieldLabels[partIndex]}
-                        className="parent-detail-item__hwd-field"
-                      >
-                        <label className="register-user-popup__label" htmlFor={inputId}>
-                          {fieldLabels[partIndex]}
-                        </label>
-                        <div className="parent-detail-item__input-with-unit">
-                          <input
-                            id={inputId}
-                            className="register-user-popup__input parent-detail-item__hwd-input parent-detail-item__input--with-unit"
-                            type="number"
-                            step="any"
-                            inputMode="decimal"
-                            value={partValue}
-                            placeholder="0"
-                            onChange={(event) =>
-                              handleFieldChange(
-                                item.id,
-                                'hwd',
-                                buildHwdValue(item.hwd, partIndex, event.target.value),
-                              )
-                            }
-                            disabled={disabled}
-                          />
-                          <span className="parent-detail-item__unit" aria-hidden="true">
-                            cm
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="register-user-popup__field parent-detail-item__field--lead-time">
-                <label className="register-user-popup__label" htmlFor={`parent-detail-lead-time-${item.id}`}>
-                  Lead Time (Day)
-                </label>
-                <input
-                  id={`parent-detail-lead-time-${item.id}`}
-                  className="register-user-popup__input"
-                  type="number"
-                  min="0"
-                  inputMode="numeric"
-                  value={item.lead_time_days}
-                  placeholder="10"
-                  onChange={(event) =>
-                    handleFieldChange(item.id, 'lead_time_days', event.target.value)
-                  }
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

@@ -118,7 +118,6 @@ const emptyMasterOptions = {
   uoms: [],
   businessUnits: [],
   departments: [],
-  variantAttributes: [],
 }
 
 function normalizeListResponse(responseData) {
@@ -245,7 +244,6 @@ function normalizeParentOptions(responseData) {
       return {
         ...option,
         itemName: String(parent.item_name ?? ''),
-        variantAttributes: normalizeVariantAttributes(parent.variant_attributes),
       }
     })
     .filter((option) => option.value && option.label)
@@ -652,14 +650,16 @@ function DialogCreateItem({
   const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [isPreviewingMatrix, setIsPreviewingMatrix] = useState(false)
+  const [isLoadingParentConfig, setIsLoadingParentConfig] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [itemOptionRows, setItemOptionRows] = useState([])
   const [parentSearchQuery, setParentSearchQuery] = useState('')
-  const [selectedVariantAttributeIds, setSelectedVariantAttributeIds] = useState([])
+  const [parentVariantAttributes, setParentVariantAttributes] = useState([])
   const [variantSelections, setVariantSelections] = useState({})
   const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
   const [matrixRows, setMatrixRows] = useState([])
+  const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
@@ -672,7 +672,7 @@ function DialogCreateItem({
       parents: [],
       departments: [],
     }))
-    setSelectedVariantAttributeIds([])
+    setParentVariantAttributes([])
     setVariantSelections({})
     setVariantValueOptionsByAttributeId({})
     setLoadingVariantValuesByAttributeId({})
@@ -702,22 +702,10 @@ function DialogCreateItem({
           api.items.list({}, { signal: controller.signal }),
         ])
         let businessUnits = []
-        let variantAttributes = []
 
         try {
           businessUnits = await api.businessUnits.list(
             { active: 1 },
-            { signal: controller.signal },
-          )
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            throw error
-          }
-        }
-
-        try {
-          variantAttributes = await api.variants.attributes(
-            { is_active: 1 },
             { signal: controller.signal },
           )
         } catch (error) {
@@ -738,7 +726,6 @@ function DialogCreateItem({
           uoms: normalizeMasterOptions(uoms),
           businessUnits: normalizeBusinessUnitOptions(businessUnits, itemRows),
           departments: [],
-          variantAttributes: normalizeMasterOptions(variantAttributes),
         }))
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -819,6 +806,51 @@ function DialogCreateItem({
   }, [isOpen, parentSearchQuery])
 
   useEffect(() => {
+    if (!isOpen || !formValues.parent_id) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadParentConfig = async () => {
+      setIsLoadingParentConfig(true)
+
+      try {
+        const response = await api.itemParents.itemConfig(formValues.parent_id, {
+          signal: controller.signal,
+        })
+
+        if (!isMounted) {
+          return
+        }
+
+        const parentConfig = getResourceData(response)
+
+        setParentVariantAttributes(normalizeVariantAttributes(parentConfig?.variant_attributes))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setParentVariantAttributes([])
+        setErrorMessage(error?.message || 'Gagal memuat konfigurasi parent.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingParentConfig(false)
+        }
+      }
+    }
+
+    loadParentConfig()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [isOpen, formValues.parent_id])
+
+  useEffect(() => {
     if (!isOpen || !formValues.business_unit_id) {
       return undefined
     }
@@ -882,14 +914,22 @@ function DialogCreateItem({
     }
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
-  const selectedVariantAttributeKey = useMemo(
-    () => selectedVariantAttributeIds.join('|'),
-    [selectedVariantAttributeIds],
+  const selectedParentOption = useMemo(
+    () =>
+      masterOptions.parents.find(
+        (option) => option.value === String(formValues.parent_id ?? ''),
+      ),
+    [masterOptions.parents, formValues.parent_id],
+  )
+  const activeVariantAttributes = parentVariantAttributes
+  const activeVariantAttributeKey = useMemo(
+    () => activeVariantAttributes.map((attribute) => attribute.value).join('|'),
+    [activeVariantAttributes],
   )
 
   useEffect(() => {
-    const attributeIds = selectedVariantAttributeKey
-      ? selectedVariantAttributeKey.split('|').filter(Boolean)
+    const attributeIds = activeVariantAttributeKey
+      ? activeVariantAttributeKey.split('|').filter(Boolean)
       : []
 
     if (!isOpen || attributeIds.length === 0) {
@@ -960,8 +1000,94 @@ function DialogCreateItem({
     }
   }, [
     isOpen,
-    selectedVariantAttributeKey,
+    activeVariantAttributeKey,
     variantValueOptionsByAttributeId,
+  ])
+
+  const isLoadingAnyVariantValue = useMemo(
+    () => Object.values(loadingVariantValuesByAttributeId).some(Boolean),
+    [loadingVariantValuesByAttributeId],
+  )
+
+  useEffect(() => {
+    if (
+      !isOpen ||
+      !formValues.parent_id ||
+      activeVariantAttributes.length === 0 ||
+      isLoadingParentConfig ||
+      isLoadingAnyVariantValue ||
+      hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)
+    ) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const generateMatrixPreview = async () => {
+      setIsPreviewingMatrix(true)
+      setErrorMessage('')
+
+      try {
+        const response = await api.items.matrixPreview(
+          {
+            item_parent_id: formValues.parent_id,
+            attributes: activeVariantAttributes.map((attribute) => ({
+              attribute_id: attribute.value,
+              value_ids: getSelectedIds(variantSelections[attribute.value]),
+            })),
+          },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        const previewData = getResourceData(response)
+        const combinations = Array.isArray(previewData?.combinations)
+          ? previewData.combinations
+          : []
+
+        setMatrixRows(
+          combinations.map((combination, index) => ({
+            id: `${combination.row_no ?? index + 1}-${combination.variant_summary ?? index}`,
+            create: true,
+            row_no: combination.row_no ?? index + 1,
+            variant_summary: combination.variant_summary ?? '',
+            item_name: combination.suggested_item_name ?? '',
+            selling_name: combination.suggested_selling_name ?? '',
+            variants: Array.isArray(combination.variants) ? combination.variants : [],
+          })),
+        )
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setMatrixRows([])
+        setErrorMessage(error?.message || 'Gagal membuat preview matrix.')
+      } finally {
+        if (isMounted) {
+          setIsPreviewingMatrix(false)
+        }
+      }
+    }
+
+    generateMatrixPreview()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [
+    isOpen,
+    formValues.parent_id,
+    activeVariantAttributes,
+    variantSelections,
+    isLoadingParentConfig,
+    isLoadingAnyVariantValue,
+    previewRefreshToken,
   ])
 
   const handleFieldChange = (name, value) => {
@@ -997,7 +1123,7 @@ function DialogCreateItem({
     }
 
     if (name === 'parent_id') {
-      setSelectedVariantAttributeIds([])
+      setParentVariantAttributes([])
       setVariantSelections({})
     }
   }
@@ -1024,19 +1150,6 @@ function DialogCreateItem({
     })
   }
 
-  const handleVariantAttributeToggle = (attributeId) => {
-    setErrorMessage('')
-    setMatrixRows([])
-    setSelectedVariantAttributeIds((currentIds) => {
-      const normalizedAttributeId = String(attributeId ?? '')
-      const isSelected = currentIds.includes(normalizedAttributeId)
-
-      return isSelected
-        ? currentIds.filter((selectedId) => selectedId !== normalizedAttributeId)
-        : [...currentIds, normalizedAttributeId]
-    })
-  }
-
   const handleVariantValueToggle = (attributeId, valueId) => {
     setErrorMessage('')
     setMatrixRows([])
@@ -1055,19 +1168,14 @@ function DialogCreateItem({
     })
   }
 
-  const handlePreviewMatrix = async () => {
+  const handlePreviewMatrix = () => {
     if (!formValues.parent_id) {
       setErrorMessage('Pilih parent terlebih dahulu sebelum membuat matrix.')
       return
     }
 
-    const activeVariantAttributes = getSelectedOptionsInOrder(
-      selectedVariantAttributeIds,
-      masterOptions.variantAttributes,
-    )
-
     if (activeVariantAttributes.length === 0) {
-      setErrorMessage('Pilih minimal satu variant attribute untuk membuat matrix.')
+      setErrorMessage('Parent ini tidak memiliki variant attribute.')
       return
     }
 
@@ -1076,39 +1184,7 @@ function DialogCreateItem({
       return
     }
 
-    setIsPreviewingMatrix(true)
-    setErrorMessage('')
-
-    try {
-      const response = await api.items.matrixPreview({
-        item_parent_id: formValues.parent_id,
-        attributes: activeVariantAttributes.map((attribute) => ({
-          attribute_id: attribute.value,
-          value_ids: getSelectedIds(variantSelections[attribute.value]),
-        })),
-      })
-      const previewData = getResourceData(response)
-      const combinations = Array.isArray(previewData?.combinations)
-        ? previewData.combinations
-        : []
-
-      setMatrixRows(
-        combinations.map((combination, index) => ({
-          id: `${combination.row_no ?? index + 1}-${combination.variant_summary ?? index}`,
-          create: true,
-          row_no: combination.row_no ?? index + 1,
-          variant_summary: combination.variant_summary ?? '',
-          item_name: combination.suggested_item_name ?? '',
-          selling_name: combination.suggested_selling_name ?? '',
-          variants: Array.isArray(combination.variants) ? combination.variants : [],
-        })),
-      )
-    } catch (error) {
-      setMatrixRows([])
-      setErrorMessage(error?.message || 'Gagal membuat preview matrix.')
-    } finally {
-      setIsPreviewingMatrix(false)
-    }
+    setPreviewRefreshToken((currentToken) => currentToken + 1)
   }
 
   const handleMatrixRowChange = (rowId, fieldName, value) => {
@@ -1151,11 +1227,6 @@ function DialogCreateItem({
     setErrorMessage('')
 
     try {
-      const activeVariantAttributes = getSelectedOptionsInOrder(
-        selectedVariantAttributeIds,
-        masterOptions.variantAttributes,
-      )
-
       if (activeVariantAttributes.length > 0) {
         const payload = buildMatrixPayload(formValues, matrixRows)
         const hasInvalidMatrixRow = payload.items.some(
@@ -1207,21 +1278,15 @@ function DialogCreateItem({
   }
 
   const headerTitle = formValues.item_name || title
-  const activeVariantAttributes = getSelectedOptionsInOrder(
-    selectedVariantAttributeIds,
-    masterOptions.variantAttributes,
-  )
   const selectedMatrixRows = matrixRows.filter((row) => row.create)
   const isMatrixMode = activeVariantAttributes.length > 0
-  const isLoadingAnyVariantValue = Object.values(loadingVariantValuesByAttributeId).some(Boolean)
-  const selectedParentItemName = masterOptions.parents.find(
-    (option) => option.value === String(formValues.parent_id ?? ''),
-  )?.itemName
+  const selectedParentItemName = selectedParentOption?.itemName
   const canPreviewMatrix =
     isMatrixMode &&
     Boolean(formValues.parent_id) &&
     !isSubmitting &&
     !isPreviewingMatrix &&
+    !isLoadingParentConfig &&
     !isLoadingAnyVariantValue &&
     !hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)
 
@@ -1231,45 +1296,30 @@ function DialogCreateItem({
       Boolean(formValues.parent_id) &&
       Boolean(selectedParentItemName))
 
-  const renderVariantAttributeField = () => (
-    <div className="register-user-popup__field item-create-popup__variant-attribute-field item-create-popup__field--half">
-      <label
-        className="register-user-popup__label"
-        htmlFor="item-variant-attributes"
-      >
-        Variant Attribute
-      </label>
-      <ChannelCheckboxSelect
-        id="item-variant-attributes"
-        label="Variant Attribute"
-        value={selectedVariantAttributeIds}
-        options={masterOptions.variantAttributes}
-        placeholder="Pilih Attribute"
-        emptyMessage="Attribute tidak ditemukan."
-        loading={isLoadingMasters}
-        disabled={
-          isSubmitting ||
-          isLoadingMasters ||
-          !formValues.parent_id
-        }
-        onToggle={handleVariantAttributeToggle}
-      />
-      {!formValues.parent_id ? (
-        <p className="item-create-popup__matrix-note">
-          Pilih parent terlebih dahulu untuk membuat matrix item.
-        </p>
-      ) : null}
-    </div>
-  )
-
   const renderVariantMatrix = () => {
+    if (!formValues.parent_id) {
+      return null
+    }
+
+    if (isLoadingParentConfig && activeVariantAttributes.length === 0) {
+      return (
+        <div className="parent-create-popup__section item-create-popup__matrix-panel">
+          <p className="register-user-popup__hint">Memuat variant attribute parent...</p>
+        </div>
+      )
+    }
+
+    if (activeVariantAttributes.length === 0) {
+      return null
+    }
+
     return (
       <div className="parent-create-popup__section item-create-popup__matrix-panel">
         <div className="parent-create-popup__section-header item-create-popup__matrix-header">
           <div>
             <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
             <p className="parent-create-popup__section-description">
-              Pilih attribute dan value untuk membuat beberapa item berbeda variant.
+              Pilih value untuk tiap variant attribute dari parent ini untuk membuat beberapa item sekaligus.
             </p>
           </div>
 
@@ -1285,7 +1335,7 @@ function DialogCreateItem({
         </div>
 
         <div className="item-create-popup__variant-grid">
-          {activeVariantAttributes.length > 0 ? activeVariantAttributes.map((attribute) => (
+          {activeVariantAttributes.map((attribute) => (
             <div key={attribute.value} className="register-user-popup__field">
               <label
                 className="register-user-popup__label"
@@ -1305,11 +1355,7 @@ function DialogCreateItem({
                 onToggle={(valueId) => handleVariantValueToggle(attribute.value, valueId)}
               />
             </div>
-          )) : (
-            <p className="register-user-popup__hint item-create-popup__variant-empty">
-              Pilih variant attribute untuk menampilkan value.
-            </p>
-          )}
+          ))}
         </div>
 
         <div className="item-create-popup__matrix-preview">
@@ -1531,12 +1577,9 @@ function DialogCreateItem({
                       .filter((field) =>
                         [
                           'parent_id',
-                          'item_name',
-                          'selling_name',
                         ].includes(field.name),
                       )
                       .map(renderField)}
-                    {renderVariantAttributeField()}
                   </div>
                 </div>
 

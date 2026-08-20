@@ -1149,12 +1149,12 @@ function DialogCreateParent({
         }
 
         if (!payload.item_name) {
-          setErrorMessage('Item name parent tidak ditemukan untuk membuat item.')
+          setErrorMessage('Item name parent tidak ditemukan untuk membuat SKU.')
           return
         }
 
         if (hasIncompleteDetailVariantSelection(detailItems, formValues.variant_attribute_ids)) {
-          setErrorMessage('Lengkapi variant value pada item detail terlebih dahulu.')
+          setErrorMessage('Lengkapi variant value pada SKU detail terlebih dahulu.')
           return
         }
 
@@ -1187,7 +1187,7 @@ function DialogCreateParent({
       setCreatedParent(parentData)
       onCreated?.(parentData)
     } catch (error) {
-      setErrorMessage(error?.message || (createdParent ? 'Gagal membuat item.' : 'Gagal membuat item parent.'))
+      setErrorMessage(error?.message || (createdParent ? 'Gagal membuat SKU.' : 'Gagal membuat item parent.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -1403,7 +1403,7 @@ function DialogCreateParent({
             {isSubmitting
               ? 'Creating...'
               : createdParent
-                ? 'Create item'
+                ? 'Create SKU'
                 : 'Create parent'}
           </button>
         </div>
