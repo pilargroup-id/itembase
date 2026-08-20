@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Barcode, Boxes01, Calendar01, CheckSquare, LayoutDashboard } from '../../components/template/TemplateIcons.jsx'
+import { Barcode, Boxes01, Calendar01, Check, CheckSquare, DotsVertical, LayoutDashboard } from '../../components/template/TemplateIcons.jsx'
 import api from '../../services/api.js'
 import CardDashboard from './CardDashboard.jsx'
 import CanvasDashboard from './CanvasDashboard.jsx'
@@ -13,9 +13,8 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat('id-ID', {
 const MAX_PAGE_SIZE = 250
 
 const PARENT_METRIC_OPTIONS = [
+  { value: 'sku', label: 'SKU', cardLabel: 'Total SKU' },
   { value: 'bundles', label: 'Bundle', cardLabel: 'Total Bundle' },
-  { value: 'items', label: 'Item', cardLabel: 'Total Item' },
-  { value: 'parents', label: 'Parent', cardLabel: 'Total Parent' },
 ]
 
 function normalizeRows(responseData) {
@@ -115,10 +114,6 @@ function isBundleItem(item) {
   return getItemKind(item) === 'bundle'
 }
 
-function isRegularItem(item) {
-  return !isBundleItem(item)
-}
-
 function isInactiveItem(item) {
   const skuStatusText = [
     item?.sku_status?.code,
@@ -161,20 +156,81 @@ async function loadAllPages(resource, params, signal) {
   }
 }
 
-function DashboardCardSelect({ ariaLabel, options, value, onChange }) {
+function DashboardCardMoreOptions({ ariaLabel, options, value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const rootRef = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const handleSelect = (nextValue) => {
+    onChange?.(nextValue)
+    setIsOpen(false)
+  }
+
   return (
-    <select
-      className="dashboard-card__select"
-      value={value}
-      onChange={(event) => onChange?.(event.target.value)}
-      aria-label={ariaLabel}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <div ref={rootRef} className="dashboard-card__more">
+      <button
+        type="button"
+        className={`dashboard-card__more-trigger${isOpen ? ' dashboard-card__more-trigger--open' : ''}`}
+        onClick={() => setIsOpen((currentState) => !currentState)}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={ariaLabel}
+      >
+        <DotsVertical size={22} aria-hidden="true" />
+      </button>
+
+      {isOpen ? (
+        <div className="dashboard-card__more-menu" role="menu" aria-label={ariaLabel}>
+          {options.map((option) => {
+            const isSelected = option.value === value
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={isSelected}
+                className={[
+                  'dashboard-card__more-option',
+                  isSelected ? 'dashboard-card__more-option--selected' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => handleSelect(option.value)}
+              >
+                <span>{option.label}</span>
+                {isSelected ? <Check size={14} aria-hidden="true" /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -189,7 +245,7 @@ function DashboardPage({ activePage }) {
   })
   const [itemRows, setItemRows] = useState([])
   const [selectedNewItemMonth, setSelectedNewItemMonth] = useState(currentMonthKey)
-  const [selectedParentMetric, setSelectedParentMetric] = useState('parents')
+  const [selectedParentMetric, setSelectedParentMetric] = useState('sku')
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -218,11 +274,10 @@ function DashboardPage({ activePage }) {
   )
   const parentMetricCounts = useMemo(
     () => ({
+      sku: summary.totalSku,
       bundles: itemRows.filter(isBundleItem).length,
-      items: itemRows.filter(isRegularItem).length,
-      parents: summary.totalParents,
     }),
-    [itemRows, summary.totalParents],
+    [itemRows, summary.totalSku],
   )
   const selectedParentMetricOption =
     PARENT_METRIC_OPTIONS.find((option) => option.value === selectedParentMetric) ??
@@ -232,23 +287,23 @@ function DashboardPage({ activePage }) {
       {
         key: 'parents',
         icon: Boxes01,
-        label: selectedParentMetricOption.cardLabel,
-        value: parentMetricCounts[selectedParentMetric] ?? 0,
-        control: (
-          <DashboardCardSelect
-            ariaLabel="Pilih data parent"
-            options={PARENT_METRIC_OPTIONS}
-            value={selectedParentMetric}
-            onChange={setSelectedParentMetric}
-          />
-        ),
+        label: 'Total Parent',
+        value: summary.totalParents,
         tone: 'blue',
       },
       {
         key: 'sku',
         icon: Barcode,
-        label: 'Total SKU',
-        value: summary.totalSku,
+        label: selectedParentMetricOption.cardLabel,
+        value: parentMetricCounts[selectedParentMetric] ?? 0,
+        control: (
+          <DashboardCardMoreOptions
+            ariaLabel="Pilih tampilan Total SKU"
+            options={PARENT_METRIC_OPTIONS}
+            value={selectedParentMetric}
+            onChange={setSelectedParentMetric}
+          />
+        ),
         // detail: 'Semua SKU item terdaftar',
         tone: 'purple',
       },
@@ -258,7 +313,7 @@ function DashboardPage({ activePage }) {
         label: 'New Item',
         value: selectedNewItems,
         control: (
-          <DashboardCardSelect
+          <DashboardCardMoreOptions
             ariaLabel="Pilih bulan new item"
             options={monthOptions}
             value={selectedNewItemMonth}

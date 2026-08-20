@@ -870,6 +870,8 @@ function DialogCreateParent({
   const [detailItems, setDetailItems] = useState(() => [createInitialDetailItem()])
   const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
+  const [isParentSectionOpen, setIsParentSectionOpen] = useState(true)
+  const [previousCreatedParent, setPreviousCreatedParent] = useState(null)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -879,6 +881,8 @@ function DialogCreateParent({
     setDetailItems([createInitialDetailItem()])
     setVariantValueOptionsByAttributeId({})
     setLoadingVariantValuesByAttributeId({})
+    setIsParentSectionOpen(true)
+    setPreviousCreatedParent(null)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -940,6 +944,14 @@ function DialogCreateParent({
       controller.abort()
     }
   }, [isOpen])
+
+  if (createdParent !== previousCreatedParent) {
+    setPreviousCreatedParent(createdParent)
+
+    if (createdParent) {
+      setIsParentSectionOpen(false)
+    }
+  }
 
   const selectedDetailVariantAttributeIds = useMemo(
     () => getSelectedIds(formValues.variant_attribute_ids),
@@ -1085,6 +1097,10 @@ function DialogCreateParent({
   const handleDetailItemsChange = (nextDetailItems) => {
     setErrorMessage('')
     setDetailItems(nextDetailItems)
+  }
+
+  const handleToggleParentSection = () => {
+    setIsParentSectionOpen((currentValue) => !currentValue)
   }
 
   const buildPayload = () => {
@@ -1291,45 +1307,71 @@ function DialogCreateParent({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="parent-create-popup__section">
-                  <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
-                    {parentFormulaFields.map(renderField)}
-                  </div>
-                </div>
+                <div className="parent-create-popup__parent-info">
+                  {createdParent ? (
+                    <button
+                      type="button"
+                      className="parent-create-popup__collapse-toggle"
+                      onClick={handleToggleParentSection}
+                      aria-expanded={isParentSectionOpen}
+                      aria-controls="parent-create-popup-parent-fields"
+                    >
+                      <span className="parent-create-popup__collapse-toggle-title">
+                        {dialogTitle}
+                      </span>
+                      <ChevronDown
+                        size={18}
+                        aria-hidden="true"
+                        className={`parent-create-popup__collapse-chevron${
+                          isParentSectionOpen ? ' parent-create-popup__collapse-chevron--open' : ''
+                        }`}
+                      />
+                    </button>
+                  ) : null}
 
-                <div className="parent-create-popup__section">
-                  {/* <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Lengkapi Detail</h3>
-                    <p className="parent-create-popup__section-description">
-                      Setelah nama parent terbentuk, lanjutkan dengan category, item type, dan
-                      port.
-                    </p>
-                  </div> */}
+                  <div
+                    id="parent-create-popup-parent-fields"
+                    className={`parent-create-popup__collapsible${
+                      isParentSectionOpen ? '' : ' parent-create-popup__collapsible--collapsed'
+                    }`}
+                  >
+                    <div className="parent-create-popup__collapsible-inner">
+                      <div className="parent-create-popup__section">
+                        <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
+                          {parentFormulaFields.map(renderField)}
+                        </div>
+                      </div>
 
-                  <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
-                    {parentDetailFields.map(renderField)}
+                      <div className="parent-create-popup__section">
+                        <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--detail">
+                          {parentDetailFields.map(renderField)}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {createdParent ? (
-                  <CreateDetailItem
-                    itemName={formValues.item_name}
-                    items={detailItems}
-                    uomOptions={masterOptions.uoms}
-                    variantAttributeOptions={masterOptions.variantAttributes.filter((attribute) =>
-                      getSelectedIds(formValues.variant_attribute_ids).includes(attribute.value),
-                    )}
-                    getVariantValueOptions={(attributeId) =>
-                      variantValueOptionsByAttributeId[String(attributeId ?? '')] || []
-                    }
-                    getLoadingVariantValues={(attributeId) =>
-                      Boolean(loadingVariantValuesByAttributeId[String(attributeId ?? '')])
-                    }
-                    loadingUoms={isLoadingMasters}
-                    SearchableSelect={SearchableMasterSelect}
-                    disabled={isSubmitting}
-                    onChange={handleDetailItemsChange}
-                  />
+                  <div className="parent-create-popup__detail-reveal">
+                    <CreateDetailItem
+                      itemName={formValues.item_name}
+                      items={detailItems}
+                      uomOptions={masterOptions.uoms}
+                      variantAttributeOptions={masterOptions.variantAttributes.filter((attribute) =>
+                        getSelectedIds(formValues.variant_attribute_ids).includes(attribute.value),
+                      )}
+                      getVariantValueOptions={(attributeId) =>
+                        variantValueOptionsByAttributeId[String(attributeId ?? '')] || []
+                      }
+                      getLoadingVariantValues={(attributeId) =>
+                        Boolean(loadingVariantValuesByAttributeId[String(attributeId ?? '')])
+                      }
+                      loadingUoms={isLoadingMasters}
+                      SearchableSelect={SearchableMasterSelect}
+                      disabled={isSubmitting}
+                      onChange={handleDetailItemsChange}
+                    />
+                  </div>
                 ) : null}
 
                 {errorMessage ? (

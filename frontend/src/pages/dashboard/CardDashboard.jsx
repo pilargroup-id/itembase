@@ -40,16 +40,16 @@ function CardDashboard({
           <Icon size={16} aria-hidden="true" style={{ color: accentColor }} />
           <span className="dashboard-card__label">{label}</span>
         </div>
+        {control ? <div className="dashboard-card__control">{control}</div> : null}
       </div>
 
       <strong className="dashboard-card__value mtickets-status-card__value">
         {isLoading ? '...' : formatNumber(value)}
       </strong>
 
-      {control || detail ? (
+      {detail ? (
         <div className="dashboard-card__bottom">
-          {control ? <div className="dashboard-card__control">{control}</div> : null}
-          {detail ? <div className="dashboard-card__footer-text">{detail}</div> : null}
+          <div className="dashboard-card__footer-text">{detail}</div>
         </div>
       ) : null}
     </article>

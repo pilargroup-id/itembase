@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import Box from '@mui/material/Box'
 import { BarChart } from '@mui/x-charts/BarChart'
@@ -121,18 +121,30 @@ function getCategoryName(item) {
   )
 }
 
-function getChannels(item) {
-  const channels = Array.isArray(item?.parent?.brand?.channels) && item.parent.brand.channels.length > 0
-    ? item.parent.brand.channels
-    : item?.channels
+function getBusinessUnitName(item) {
+  const channels = Array.isArray(item?.channels) && item.channels.length > 0
+    ? item.channels
+    : item?.parent?.brand?.channels
 
-  if (!Array.isArray(channels) || channels.length === 0) {
-    return ['Tidak terisi']
-  }
+  const channelBusinessUnit = Array.isArray(channels)
+    ? channels
+        .map(
+          (channel) =>
+            channel?.business_unit?.name ??
+            channel?.business_unit?.code ??
+            channel?.business_unit_name ??
+            channel?.business_unit_code,
+        )
+        .find(Boolean)
+    : null
 
-  return channels
-    .map((channel) => getDisplayValue(channel.channel_code ?? channel.channel_name ?? channel.name))
-    .filter(Boolean)
+  return getDisplayValue(
+    channelBusinessUnit ??
+      item?.business_unit?.name ??
+      item?.business_unit?.code ??
+      item?.business_unit_name ??
+      item?.business_unit_code,
+  )
 }
 
 function getTopCounts(rows, getLabels, limit = 5) {
@@ -227,6 +239,22 @@ function CanvasDashboard({
   selectedMonthKey,
   isLoading = false,
 }) {
+  const [disabledBusinessUnits, setDisabledBusinessUnits] = useState(() => new Set())
+
+  const toggleBusinessUnit = (id) => {
+    setDisabledBusinessUnits((previous) => {
+      const next = new Set(previous)
+
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+
+      return next
+    })
+  }
+
   const chartData = useMemo(() => {
     const totalSku = summary?.totalSku ?? 0
     const activeItems = summary?.activeItems ?? 0
@@ -236,7 +264,15 @@ function CanvasDashboard({
     const monthlyDataset = buildMonthlyDataset(itemRows, selectedMonthKey)
     const topBrands = getTopCounts(itemRows, getBrandName)
     const topCategories = getTopCounts(itemRows, getCategoryName)
-    const topChannels = getTopCounts(itemRows, getChannels, 4)
+    const topBusinessUnits = getTopCounts(itemRows, getBusinessUnitName, 6)
+    const businessUnitColors = [
+      COLORS.parent,
+      COLORS.sku,
+      COLORS.category,
+      COLORS.channel,
+      COLORS.newItem,
+      COLORS.muted,
+    ]
 
     return {
       activeRate,
@@ -244,19 +280,20 @@ function CanvasDashboard({
       monthlyDataset,
       topBrands,
       topCategories,
-      topChannels,
       statusData: [
         { id: 'active', label: 'Active', value: activeItems, color: COLORS.active },
         { id: 'inactive', label: 'Inactive', value: inactiveItems, color: COLORS.inactive },
       ].filter((item) => item.value > 0),
-      compositionData: [
-        { id: 'parents', label: 'Parent', value: summary?.totalParents ?? 0, color: COLORS.parent },
-        { id: 'sku', label: 'SKU', value: totalSku, color: COLORS.sku },
-      ].filter((item) => item.value > 0),
+      businessUnitData: topBusinessUnits.map((item, index) => ({
+        id: item.name,
+        label: item.name,
+        value: item.value,
+        color: businessUnitColors[index % businessUnitColors.length],
+      })),
     }
   }, [itemRows, selectedMonthKey, summary])
 
-  const focus = FOCUS_COPY[selectedKey] ?? FOCUS_COPY.sku
+const focus = FOCUS_COPY[selectedKey] ?? FOCUS_COPY.sku
 
   return (
     <section className="dashboard-canvas dashboard-canvas--charts" aria-label="Dashboard charts">
@@ -354,26 +391,53 @@ function CanvasDashboard({
             )}
           </ChartCard>
 
-          <ChartCard title="Parent vs SKU" meta={`${formatNumber(summary?.totalParents)} parent`}>
+          <ChartCard title="Business Unit" meta="berdasarkan SKU">
             {isLoading ? (
               <EmptyChart>Memuat chart...</EmptyChart>
-            ) : chartData.compositionData.length > 0 ? (
-              <Box sx={{ width: '100%', height: 250 }}>
-                <PieChart
-                  series={[
-                    {
-                      data: chartData.compositionData,
-                      innerRadius: 0,
-                      outerRadius: 92,
-                      paddingAngle: 2,
-                      cornerRadius: 5,
-                      arcLabel: (item) => formatNumber(item.value),
-                    },
-                  ]}
-                  hideLegend
-                  margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                />
-              </Box>
+            ) : chartData.businessUnitData.length > 0 ? (
+              <div className="dashboard-pie-chart">
+                <Box sx={{ width: '100%', height: 250 }}>
+                  <PieChart
+                    series={[
+                      {
+                        data: chartData.businessUnitData.filter(
+                          (item) => !disabledBusinessUnits.has(item.id),
+                        ),
+                        innerRadius: 0,
+                        outerRadius: 92,
+                        paddingAngle: 2,
+                        cornerRadius: 5,
+                        arcLabel: (item) => formatNumber(item.value),
+                      },
+                    ]}
+                    hideLegend
+                    margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  />
+                </Box>
+                <div className="dashboard-chart-legend">
+                  {chartData.businessUnitData.map((item) => {
+                    const isDisabled = disabledBusinessUnits.has(item.id)
+
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        className={[
+                          'dashboard-chart-legend__item',
+                          isDisabled ? 'dashboard-chart-legend__item--disabled' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-pressed={!isDisabled}
+                        onClick={() => toggleBusinessUnit(item.id)}
+                      >
+                        <i style={{ backgroundColor: item.color }} />
+                        {item.label} {formatNumber(item.value)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             ) : (
               <EmptyChart />
             )}
@@ -385,10 +449,6 @@ function CanvasDashboard({
 
           <ChartCard title="Top Category" meta="berdasarkan SKU">
             <RankingList items={isLoading ? [] : chartData.topCategories} />
-          </ChartCard>
-
-          <ChartCard title="Top Channel" meta="berdasarkan SKU">
-            <RankingList items={isLoading ? [] : chartData.topChannels} />
           </ChartCard>
         </div>
       </div>
