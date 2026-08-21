@@ -43,6 +43,7 @@ function baseSelectSql() {
     SELECT ip.id, ip.subbrand_id, ip.parent_code, ip.brand_id, ip.sub_brand, ip.item_name,
            ip.category_id, ip.item_type_id, ip.parent_name, ip.status, ip.created_by,
            ip.updated_by, ip.created_at, ip.updated_at,
+           (SELECT COUNT(*) FROM items ci WHERE ci.parent_id = ip.id) AS item_count,
            ms.name AS subbrand_name, ms.normalized_name AS subbrand_normalized_name,
            ms.is_active AS subbrand_is_active, mb.code AS brand_code, mb.name AS brand_name,
            mc.detail_category AS category_detail_category, mc.sub_category AS category_sub_category,
@@ -62,7 +63,7 @@ function mapRow(row) {
     id: row.id, parent_code: row.parent_code, subbrand_id: row.subbrand_id,
     sub_brand: row.sub_brand, item_name: row.item_name, parent_name: row.parent_name,
     status: row.status, created_by: row.created_by, updated_by: row.updated_by,
-    created_at: row.created_at, updated_at: row.updated_at,
+    created_at: row.created_at, updated_at: row.updated_at, item_count: Number(row.item_count || 0),
     subbrand: row.subbrand_id ? { id: row.subbrand_id, name: row.subbrand_name, normalized_name: row.subbrand_normalized_name, is_active: row.subbrand_is_active } : null,
     brand: row.brand_id ? { id: row.brand_id, code: row.brand_code, name: row.brand_name } : null,
     category: { id: row.category_id, detail_category: row.category_detail_category, sub_category: row.category_sub_category, main_category: row.category_main_category, brand_category: row.category_brand_category },
@@ -226,7 +227,24 @@ async function findVariantAttributesByIds(ids=[],connection=db){if(!ids.length)r
 
 async function countChildItems(parentId,connection=db){const[r]=await connection.query('SELECT COUNT(*) total FROM items WHERE parent_id=?',[parentId]);return Number(r[0]?.total||0);}
 
-async function deactivateChildItems(parentId, connection=db) { await connection.query('UPDATE items SET is_active=0 WHERE parent_id=?',[parentId]); }
+async function findBrandById(id,connection=db){const [rows]=await connection.query('SELECT id,code,name,is_active FROM master_brands WHERE id=? LIMIT 1',[id]);return rows[0]||null;}
+async function findDuplicateCombination(brandId,subBrand,itemName,excludeId=null,connection=db){
+  const params=[brandId,String(subBrand||'').trim(),String(itemName||'').trim()];
+  let sql=`SELECT id,parent_code,parent_name FROM item_parents WHERE brand_id=? AND UPPER(TRIM(COALESCE(sub_brand,'')))=UPPER(TRIM(?)) AND UPPER(TRIM(COALESCE(item_name,'')))=UPPER(TRIM(?))`;
+  if(excludeId){sql+=' AND id<>?';params.push(excludeId);}
+  sql+=' LIMIT 1';
+  const [rows]=await connection.query(sql,params);return rows[0]||null;
+}
+async function remove(id,connection=db){
+  await connection.query('DELETE FROM item_parent_ports WHERE item_parent_id=?',[id]);
+  await connection.query('DELETE FROM item_parent_variant_attributes WHERE item_parent_id=?',[id]);
+  await connection.query('DELETE FROM master_subbrand_items WHERE item_parent_id=?',[id]);
+  const [result]=await connection.query('DELETE FROM item_parents WHERE id=?',[id]);
+  return result;
+}
+
+async function findActiveChildItems(parentId,connection=db){const [rows]=await connection.query('SELECT * FROM items WHERE parent_id=? AND is_active=1',[parentId]);return rows;}
+async function deactivateChildItems(parentId, connection=db) { await connection.query('UPDATE items SET is_active=0,updated_at=NOW() WHERE parent_id=? AND is_active<>0',[parentId]); }
 async function existsInTable(tableName,id,connection=db) { const allowed=['master_subbrands','master_brands','master_categories','master_item_types','master_ports']; if(!allowed.includes(tableName)) throw new Error('Invalid reference table'); const [rows]=await connection.query(`SELECT id FROM ${tableName} WHERE id=? LIMIT 1`,[id]); return rows.length>0; }
 async function findSubbrandById(id,connection=db){const [rows]=await connection.query('SELECT id,name,normalized_name,is_active,created_at,updated_at FROM master_subbrands WHERE id=? LIMIT 1',[id]);return rows[0]||null;}
 async function findSubbrandByName(name,connection=db){const [rows]=await connection.query('SELECT id,name,normalized_name,is_active,created_at,updated_at FROM master_subbrands WHERE name=? LIMIT 1',[name]);return rows[0]||null;}
@@ -235,4 +253,4 @@ async function upsertSubbrandItem(data,connection=db){await connection.query(`IN
 async function findSubbrandSuggestionCandidates(connection=db){const [rows]=await connection.query(`SELECT ms.id AS subbrand_id,ms.name AS sub_brand,msi.item_name AS parent_name FROM master_subbrand_items msi INNER JOIN master_subbrands ms ON ms.id=msi.subbrand_id WHERE ms.is_active=1 AND msi.is_active=1 ORDER BY ms.name,msi.item_name`);return rows;}
 async function transaction(callback){const connection=await db.getConnection();try{await connection.beginTransaction();const result=await callback(connection);await connection.commit();return result;}catch(error){await connection.rollback();throw error;}finally{connection.release();}}
 
-module.exports={findOptions,findAll,findById,findRawById,findLastParentCode,create,update,replacePorts,findVariantAttributesByParentIds,replaceVariantAttributes,findVariantAttributesByIds,countChildItems,deactivateChildItems,existsInTable,findSubbrandById,findSubbrandByName,createSubbrand,upsertSubbrandItem,findSubbrandSuggestionCandidates,transaction};
+module.exports={findOptions,findAll,findById,findRawById,findLastParentCode,create,update,replacePorts,findVariantAttributesByParentIds,replaceVariantAttributes,findVariantAttributesByIds,countChildItems,findBrandById,findDuplicateCombination,remove,findActiveChildItems,deactivateChildItems,existsInTable,findSubbrandById,findSubbrandByName,createSubbrand,upsertSubbrandItem,findSubbrandSuggestionCandidates,transaction};

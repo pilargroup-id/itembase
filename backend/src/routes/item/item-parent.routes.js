@@ -54,4 +54,12 @@ router.put(
   ItemParentController.update
 );
 
+
+router.delete(
+  '/:id',
+  authenticate,
+  requireApp('itembase'),
+  ItemParentController.destroy
+);
+
 module.exports = router;

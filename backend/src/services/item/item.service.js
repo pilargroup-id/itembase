@@ -85,12 +85,88 @@ function validateComponents(components = [], itemKind, isProvided = false) {
 }
 
 
-function normalizeVariants(source) {
+function normalizeVariantInputs(source) {
   if (source === undefined || source === null) return null;
-  if (!Array.isArray(source)) throw makeError('Variants must be an array',422,'VALIDATION_ERROR');
-  const attributes=new Set(), values=new Set();
-  return source.map((entry,index)=>{const attribute_id=String(entry?.attribute_id||entry?.attribute?.id||'').trim();const value_id=String(entry?.value_id||entry?.variant_value_id||entry?.value?.id||'').trim();if(!attribute_id||!value_id)throw makeError(`Variant is invalid at index ${index}`,422,'VALIDATION_ERROR');if(attributes.has(attribute_id))throw makeError('Each variant attribute can only be used once',422,'VALIDATION_ERROR');if(values.has(value_id))throw makeError('Duplicate variant value in request',422,'VALIDATION_ERROR');attributes.add(attribute_id);values.add(value_id);return{attribute_id,value_id};});
+  if (!Array.isArray(source)) throw makeError('Variants must be an array', 422, 'VALIDATION_ERROR');
+
+  const attributes = new Set();
+  return source.map((entry, index) => {
+    const attribute_id = String(entry?.attribute_id || entry?.attribute?.id || '').trim();
+    const value_id = String(entry?.value_id || entry?.variant_value_id || entry?.value?.id || '').trim();
+    const rawValueName = typeof entry?.value === 'string' ? entry.value : (entry?.value_name || entry?.value?.name || '');
+    const value_name = String(rawValueName || '').trim();
+
+    if (!attribute_id || (!value_id && !value_name)) {
+      throw makeError(`Variant is invalid at index ${index}`, 422, 'VALIDATION_ERROR');
+    }
+    if (attributes.has(attribute_id)) {
+      throw makeError('Each variant attribute can only be used once', 422, 'VALIDATION_ERROR');
+    }
+    attributes.add(attribute_id);
+    return { attribute_id, value_id: value_id || null, value_name: value_name || null };
+  });
 }
+
+function variantCode(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+async function resolveVariantInputs(inputs, connection, userId = null, req = null) {
+  const resolved = [];
+  for (const input of (inputs || [])) {
+    if (input.value_id) {
+      resolved.push({ attribute_id: input.attribute_id, value_id: input.value_id });
+      continue;
+    }
+
+    const valueName = String(input.value_name || '').trim().toUpperCase();
+    if (!valueName) throw makeError('Variant value name is required', 422, 'VALIDATION_ERROR');
+
+    let existing = await ItemModel.findVariantValueByNameOrCode(input.attribute_id, valueName, connection);
+    if (existing) {
+      if (!Number(existing.is_active)) {
+        throw makeError(`Variant value ${valueName} exists but is inactive`, 422, 'VALIDATION_ERROR');
+      }
+      resolved.push({ attribute_id: input.attribute_id, value_id: existing.id });
+      continue;
+    }
+
+    const code = variantCode(valueName);
+    if (!code) throw makeError('Variant value cannot generate a valid code', 422, 'VALIDATION_ERROR');
+    const codeConflict = await ItemModel.findVariantValueByCode(input.attribute_id, code, connection);
+    if (codeConflict) {
+      throw makeError(`Variant value code ${code} already exists for this attribute`, 409, 'VARIANT_VALUE_CODE_CONFLICT');
+    }
+
+    const created = await ItemModel.createVariantValue({
+      attribute_id: input.attribute_id,
+      code,
+      name: valueName,
+      sort_order: await ItemModel.nextVariantValueSortOrder(input.attribute_id, connection),
+    }, connection);
+
+    await ActivityLogService.log({
+      user_id: userId,
+      action: 'CREATE',
+      entity_type: 'master_variant_values',
+      entity_id: created.id,
+      description: `Created variant value ${created.name}`,
+      before_data: null,
+      after_data: created,
+      metadata: { source: 'ITEM_SUGGESTION_FIELD', attribute_id: input.attribute_id, code: created.code },
+      req,
+      connection,
+    });
+
+    resolved.push({ attribute_id: input.attribute_id, value_id: created.id });
+  }
+  return resolved;
+}
+
 async function validateVariants(parentId, variants, connection, excludeItemId=null, options = {}) {
   const { requireAllParentAttributes = false } = options;
   const parentAttrs=await ItemModel.findParentVariantAttributes(parentId,connection);
@@ -202,7 +278,8 @@ async function store(payload, userId, req = null) {
       if (generatedName.length > STRING_LIMITS.item_name) throw makeError('Generated bundle item name cannot be longer than 255 characters', 422, 'VALIDATION_ERROR');
       finalPayload.item_name = generatedName;
     }
-    const variants=normalizeVariants(payload.variants)||[];
+    const variantInputs=normalizeVariantInputs(payload.variants)||[];
+    const variants=await resolveVariantInputs(variantInputs,connection,userId,req);
     if(payload.item_kind==='bundle'&&variants.length)throw makeError('Variants are only allowed for regular items',422,'VALIDATION_ERROR');
     if(payload.item_kind==='regular')await validateVariants(payload.parent_id,variants,connection);
     const itemData = normalizeItemData(finalPayload, userId, generatedCode);
@@ -248,7 +325,7 @@ async function update(id, payload, userId, req = null) {
       finalPayload.item_name = buildBundleItemName(withItems);
     }
     const shouldRevalidateVariants = shouldReplaceVariants || payload.parent_id !== undefined;
-    const variants=shouldReplaceVariants?normalizeVariants(payload.variants):(await ItemModel.findVariantsByItemIds([id],connection))[id]?.map(v=>({attribute_id:v.attribute.id,value_id:v.value.id}))||[];
+    const variants=shouldReplaceVariants?await resolveVariantInputs(normalizeVariantInputs(payload.variants)||[],connection,userId,req):(await ItemModel.findVariantsByItemIds([id],connection))[id]?.map(v=>({attribute_id:v.attribute.id,value_id:v.value.id}))||[];
     if(merged.item_kind==='bundle'&&variants.length)throw makeError('Variants are only allowed for regular items',422,'VALIDATION_ERROR');
     if(merged.item_kind==='regular'&&shouldRevalidateVariants)await validateVariants(merged.parent_id,variants,connection,id);
     const itemData = normalizeItemData(finalPayload, userId, null, existing);
@@ -275,7 +352,7 @@ async function previewMatrix(payload={}){
 async function createMatrix(payload,userId,req=null){
   const parentId=String(payload.item_parent_id||payload.parent_id||'').trim();if(!parentId)throw makeError('Item parent is required',422,'VALIDATION_ERROR');if(!Array.isArray(payload.items)||!payload.items.length)throw makeError('Items must be a non-empty array',422,'VALIDATION_ERROR');if(payload.items.length>250)throw makeError('Maximum 250 items per matrix request',422,'VALIDATION_ERROR');
   return ItemModel.transaction(async connection=>{const parent=await ItemModel.findParentById(parentId,connection);if(!parent)throw makeError('Parent item not found',404,'PARENT_NOT_FOUND');let last=await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2),connection);const created=[];
-    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=normalizeVariants(row.variants)||[];await validateReferences(merged,connection);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);created.push(await ItemModel.findById(data.id,connection));}
+    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=await resolveVariantInputs(normalizeVariantInputs(row.variants)||[],connection,userId,req);await validateReferences(merged,connection);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);created.push(await ItemModel.findById(data.id,connection));}
     await enrichItems(created);await ActivityLogService.log({user_id:userId,action:'CREATE',entity_type:'items',entity_id:null,description:`Created ${created.length} items from variant matrix`,after_data:created,metadata:{item_parent_id:parentId,total_items:created.length},req,connection});return{total_created:created.length,items:created};});
 }
 

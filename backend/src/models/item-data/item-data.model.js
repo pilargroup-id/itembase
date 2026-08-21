@@ -37,6 +37,23 @@ async function findByCode(table, code, connection = db) {
   return one(`SELECT * FROM ${tableName} WHERE ${column} = ? LIMIT 1`, [code], connection);
 }
 
+
+async function findBrandByNameOrCode(value, connection = db) {
+  return one('SELECT * FROM master_brands WHERE UPPER(TRIM(name))=UPPER(TRIM(?)) OR UPPER(TRIM(code))=UPPER(TRIM(?)) LIMIT 1', [value, value], connection);
+}
+
+async function findItemTypeByNameOrCode(value, connection = db) {
+  return one('SELECT * FROM master_item_types WHERE UPPER(TRIM(name))=UPPER(TRIM(?)) OR UPPER(TRIM(code))=UPPER(TRIM(?)) LIMIT 1', [value, value], connection);
+}
+
+async function findParentDuplicateCombination(brandId, subBrand, itemName, excludeId = null, connection = db) {
+  const params = [brandId, String(subBrand || '').trim(), String(itemName || '').trim()];
+  let sql = `SELECT id,parent_code,parent_name FROM item_parents WHERE brand_id=? AND UPPER(TRIM(COALESCE(sub_brand,'')))=UPPER(TRIM(?)) AND UPPER(TRIM(COALESCE(item_name,'')))=UPPER(TRIM(?))`;
+  if (excludeId) { sql += ' AND id<>?'; params.push(excludeId); }
+  sql += ' LIMIT 1';
+  return one(sql, params, connection);
+}
+
 async function findSubbrandByName(name, connection = db) {
   return one('SELECT * FROM master_subbrands WHERE name = ? LIMIT 1', [name], connection);
 }
@@ -155,7 +172,7 @@ async function transaction(callback) {
 }
 
 module.exports = {
-  findParentByCode, findItemByCode, findLastParentCode, findByCode, findSubbrandByName,
+  findParentByCode, findItemByCode, findLastParentCode, findByCode, findBrandByNameOrCode, findItemTypeByNameOrCode, findParentDuplicateCombination, findSubbrandByName,
   createSubbrand, findVariantValue, listReferences, insertParent, patchParent,
   replaceParentPorts, replaceParentAttributes, insertItem, patchItem, replaceItemVariants,
   replaceBundleComponents, transaction,
