@@ -80,6 +80,7 @@ const parentDetailFields = [
     optionsKey: 'variantAttributes',
     searchPlaceholder: 'Cari attribute...',
     emptyMessage: 'Attribute tidak ditemukan.',
+    showOrder: true,
   },
 ]
 
@@ -1057,7 +1058,7 @@ function DialogCreateParent({
     setErrorMessage('')
     setFormValues((currentValues) => ({
       ...currentValues,
-      [name]: value,
+      [name]: name === 'item_name' ? value.toUpperCase() : value,
     }))
   }
 
@@ -1224,6 +1225,7 @@ function DialogCreateParent({
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
           disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          showOrder={field.showOrder}
           onToggle={(nextValue) => handleCheckboxToggle(field.name, nextValue)}
         />
       ) : field.type === 'select' ? (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, RefreshCw05, Trash03, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, RefreshCw05, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
@@ -53,6 +53,7 @@ const itemFields = [
     optionsKey: 'uoms',
     searchPlaceholder: 'Cari UOM...',
     emptyMessage: 'UOM tidak ditemukan.',
+    forceOpenDown: true,
   },
   {
     name: 'qty_per_pack',
@@ -101,6 +102,16 @@ const itemFields = [
     compactDimension: true,
     unitSuffix: 'day',
   },
+]
+
+const dimensionFieldNames = [
+  'uom_id',
+  'qty_per_pack',
+  'height',
+  'width',
+  'depth',
+  'gross_weight_pack',
+  'production_time_days',
 ]
 
 const numericFields = new Set([
@@ -424,6 +435,8 @@ function hasRequiredValues(payload) {
   return true
 }
 
+const MAX_VARIANT_VALUES_PER_ATTRIBUTE = 5
+
 function hasIncompleteMatrixSelection(variantAttributes, variantSelections) {
   return variantAttributes.some(
     (attribute) => getSelectedIds(variantSelections[attribute.value]).length === 0,
@@ -439,6 +452,7 @@ function ChannelCheckboxSelect({
   emptyMessage = 'Data tidak ditemukan.',
   loading = false,
   disabled = false,
+  maxSelectable,
   onToggle,
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -566,6 +580,11 @@ function ChannelCheckboxSelect({
               ) : options.length > 0 ? (
                 options.map((option) => {
                   const isChecked = selectedIds.includes(option.value)
+                  const isLimitReached =
+                    !isChecked &&
+                    typeof maxSelectable === 'number' &&
+                    selectedIds.length >= maxSelectable
+                  const isOptionDisabled = disabled || isLimitReached
 
                   return (
                     <label
@@ -574,19 +593,21 @@ function ChannelCheckboxSelect({
                         'parent-master-select__option',
                         'item-create-popup__channel-option',
                         isChecked ? 'parent-master-select__option--selected' : '',
+                        isLimitReached ? 'parent-master-select__option--disabled' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
                       htmlFor={`${id}-${option.value}`}
                       role="option"
                       aria-selected={isChecked}
+                      aria-disabled={isOptionDisabled || undefined}
                     >
                       <input
                         id={`${id}-${option.value}`}
                         type="checkbox"
                         className="register-user-popup__dropdown-checkbox"
                         checked={isChecked}
-                        disabled={disabled}
+                        disabled={isOptionDisabled}
                         onChange={() => onToggle?.(option.value)}
                       />
                       <span>{option.label}</span>
@@ -1151,19 +1172,31 @@ function DialogCreateItem({
   }
 
   const handleVariantValueToggle = (attributeId, valueId) => {
+    const normalizedAttributeId = String(attributeId ?? '')
+    const normalizedValueId = String(valueId ?? '')
+    const selectedValueIds = getSelectedIds(variantSelections[normalizedAttributeId])
+    const isSelected = selectedValueIds.includes(normalizedValueId)
+
+    if (!isSelected && selectedValueIds.length >= MAX_VARIANT_VALUES_PER_ATTRIBUTE) {
+      setErrorMessage(
+        `Maksimal ${MAX_VARIANT_VALUES_PER_ATTRIBUTE} value untuk setiap variant attribute.`,
+      )
+      return
+    }
+
     setErrorMessage('')
     setMatrixRows([])
     setVariantSelections((currentSelections) => {
-      const normalizedAttributeId = String(attributeId ?? '')
-      const normalizedValueId = String(valueId ?? '')
-      const selectedValueIds = getSelectedIds(currentSelections[normalizedAttributeId])
-      const isSelected = selectedValueIds.includes(normalizedValueId)
+      const currentSelectedValueIds = getSelectedIds(currentSelections[normalizedAttributeId])
+      const isCurrentlySelected = currentSelectedValueIds.includes(normalizedValueId)
 
       return {
         ...currentSelections,
-        [normalizedAttributeId]: isSelected
-          ? selectedValueIds.filter((selectedValueId) => selectedValueId !== normalizedValueId)
-          : [...selectedValueIds, normalizedValueId],
+        [normalizedAttributeId]: isCurrentlySelected
+          ? currentSelectedValueIds.filter(
+              (selectedValueId) => selectedValueId !== normalizedValueId,
+            )
+          : [...currentSelectedValueIds, normalizedValueId],
       }
     })
   }
@@ -1213,11 +1246,6 @@ function DialogCreateItem({
           : row,
       ),
     )
-  }
-
-  const handleMatrixRowRemove = (rowId) => {
-    setErrorMessage('')
-    setMatrixRows((currentRows) => currentRows.filter((row) => row.id !== rowId))
   }
 
   const handleSubmit = async (event) => {
@@ -1297,21 +1325,9 @@ function DialogCreateItem({
       Boolean(selectedParentItemName))
 
   const renderVariantMatrix = () => {
-    if (!formValues.parent_id) {
-      return null
-    }
-
-    if (isLoadingParentConfig && activeVariantAttributes.length === 0) {
-      return (
-        <div className="parent-create-popup__section item-create-popup__matrix-panel">
-          <p className="register-user-popup__hint">Memuat variant attribute parent...</p>
-        </div>
-      )
-    }
-
-    if (activeVariantAttributes.length === 0) {
-      return null
-    }
+    const hasParent = Boolean(formValues.parent_id)
+    const isLoadingAttributes = hasParent && isLoadingParentConfig && activeVariantAttributes.length === 0
+    const hasAttributes = hasParent && activeVariantAttributes.length > 0
 
     return (
       <div className="parent-create-popup__section item-create-popup__matrix-panel">
@@ -1323,119 +1339,111 @@ function DialogCreateItem({
             </p>
           </div>
 
-          <button
-            type="button"
-            className="dashboard-popup__button dashboard-popup__button--secondary item-create-popup__matrix-preview-button"
-            disabled={!canPreviewMatrix}
-            onClick={handlePreviewMatrix}
-          >
-            <RefreshCw05 size={16} aria-hidden="true" />
-            <span>{isPreviewingMatrix ? 'Previewing...' : 'Preview'}</span>
-          </button>
+          {hasAttributes ? (
+            <button
+              type="button"
+              className="dashboard-popup__button dashboard-popup__button--secondary item-create-popup__matrix-preview-button"
+              disabled={!canPreviewMatrix}
+              onClick={handlePreviewMatrix}
+            >
+              <RefreshCw05 size={16} aria-hidden="true" />
+              <span>{isPreviewingMatrix ? 'Previewing...' : 'Preview'}</span>
+            </button>
+          ) : null}
         </div>
 
-        <div className="item-create-popup__variant-grid">
-          {activeVariantAttributes.map((attribute) => (
-            <div key={attribute.value} className="register-user-popup__field">
-              <label
-                className="register-user-popup__label"
-                htmlFor={`item-variant-${attribute.value}`}
-              >
-                {attribute.label}
-              </label>
-              <ChannelCheckboxSelect
-                id={`item-variant-${attribute.value}`}
-                label={attribute.label}
-                value={variantSelections[attribute.value] || []}
-                options={variantValueOptionsByAttributeId[attribute.value] || []}
-                placeholder={`Pilih ${attribute.label}`}
-                emptyMessage="Value tidak ditemukan."
-                loading={Boolean(loadingVariantValuesByAttributeId[attribute.value])}
-                disabled={isSubmitting || Boolean(loadingVariantValuesByAttributeId[attribute.value])}
-                onToggle={(valueId) => handleVariantValueToggle(attribute.value, valueId)}
-              />
+        {!hasParent ? (
+          <p className="register-user-popup__hint">
+            Pilih parent terlebih dahulu untuk menampilkan variant matrix.
+          </p>
+        ) : isLoadingAttributes ? (
+          <p className="register-user-popup__hint">Memuat variant attribute parent...</p>
+        ) : !hasAttributes ? (
+          <p className="register-user-popup__hint">Parent ini tidak memiliki variant attribute.</p>
+        ) : (
+          <>
+            <div className="item-create-popup__variant-grid">
+              {activeVariantAttributes.map((attribute) => (
+                <div key={attribute.value} className="register-user-popup__field">
+                  <label
+                    className="register-user-popup__label"
+                    htmlFor={`item-variant-${attribute.value}`}
+                  >
+                    {attribute.label}
+                  </label>
+                  <ChannelCheckboxSelect
+                    id={`item-variant-${attribute.value}`}
+                    label={attribute.label}
+                    value={variantSelections[attribute.value] || []}
+                    options={variantValueOptionsByAttributeId[attribute.value] || []}
+                    placeholder={`Pilih ${attribute.label}`}
+                    emptyMessage="Value tidak ditemukan."
+                    loading={Boolean(loadingVariantValuesByAttributeId[attribute.value])}
+                    disabled={isSubmitting || Boolean(loadingVariantValuesByAttributeId[attribute.value])}
+                    maxSelectable={MAX_VARIANT_VALUES_PER_ATTRIBUTE}
+                    onToggle={(valueId) => handleVariantValueToggle(attribute.value, valueId)}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="item-create-popup__matrix-preview">
-          <div className="item-create-popup__matrix-summary">
-            <span>{matrixRows.length} preview item</span>
-            <span>{selectedMatrixRows.length} dipilih</span>
-          </div>
+            <div className="item-create-popup__matrix-preview">
+              <div className="item-create-popup__matrix-summary">
+                <span>{matrixRows.length} preview item</span>
+                <span>{selectedMatrixRows.length} dipilih</span>
+              </div>
 
-          {matrixRows.length > 0 ? (
-            <div className="item-create-popup__matrix-table-wrap">
-              <table className="item-create-popup__matrix-table">
-                <thead>
-                  <tr>
-                    <th>Create</th>
-                    <th>Variant</th>
-                    <th>Item Name</th>
-                    <th>Selling Name</th>
-                    <th aria-label="Aksi" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {matrixRows.map((row) => (
-                    <tr key={row.id} className={row.create ? '' : 'item-create-popup__matrix-row--muted'}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          className="register-user-popup__dropdown-checkbox"
-                          checked={row.create}
-                          disabled={isSubmitting}
-                          onChange={() => handleMatrixRowToggle(row.id)}
-                          aria-label={`Create ${row.variant_summary || row.row_no}`}
-                        />
-                      </td>
-                      <td>
-                        <span className="item-create-popup__matrix-variant">
-                          {row.variant_summary || '-'}
-                        </span>
-                      </td>
-                      <td>
-                        <input
-                          className="register-user-popup__input item-create-popup__matrix-input"
-                          value={row.item_name}
-                          disabled={isSubmitting || !row.create}
-                          onChange={(event) =>
-                            handleMatrixRowChange(row.id, 'item_name', event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="register-user-popup__input item-create-popup__matrix-input"
-                          value={row.selling_name}
-                          disabled={isSubmitting || !row.create}
-                          onChange={(event) =>
-                            handleMatrixRowChange(row.id, 'selling_name', event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="item-create-popup__matrix-delete"
-                          aria-label={`Hapus ${row.variant_summary || row.row_no}`}
-                          disabled={isSubmitting}
-                          onClick={() => handleMatrixRowRemove(row.id)}
-                        >
-                          <Trash03 size={16} aria-hidden="true" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {matrixRows.length > 0 ? (
+                <div className="item-create-popup__matrix-table-wrap">
+                  <table className="item-create-popup__matrix-table">
+                    <thead>
+                      <tr>
+                        <th>Create</th>
+                        <th>Variant</th>
+                        <th className="item-create-popup__matrix-th--name">Item Name</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matrixRows.map((row) => (
+                        <tr key={row.id} className={row.create ? '' : 'item-create-popup__matrix-row--muted'}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              className="register-user-popup__dropdown-checkbox"
+                              checked={row.create}
+                              disabled={isSubmitting}
+                              onChange={() => handleMatrixRowToggle(row.id)}
+                              aria-label={`Create ${row.variant_summary || row.row_no}`}
+                            />
+                          </td>
+                          <td>
+                            <span className="item-create-popup__matrix-variant">
+                              {row.variant_summary || '-'}
+                            </span>
+                          </td>
+                          <td className="item-create-popup__matrix-td--name">
+                            <input
+                              className="register-user-popup__input item-create-popup__matrix-input"
+                              value={row.item_name}
+                              disabled={isSubmitting || !row.create}
+                              onChange={(event) =>
+                                handleMatrixRowChange(row.id, 'item_name', event.target.value)
+                              }
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="register-user-popup__hint">
+                  Preview item akan muncul di sini setelah value dipilih.
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="register-user-popup__hint">
-              Preview item akan muncul di sini setelah value dipilih.
-            </p>
-          )}
-        </div>
+          </>
+        )}
       </div>
     )
   }
@@ -1535,6 +1543,65 @@ function DialogCreateItem({
     </div>
   )
 
+  const renderDimensionTable = () => {
+    const dimensionFields = itemFields.filter((field) => dimensionFieldNames.includes(field.name))
+
+    return (
+      <div className="item-create-popup__dimension-table-wrap">
+        <table className="item-create-popup__dimension-table" aria-label="Dimensi ukuran karton">
+          <thead>
+            <tr>
+              {dimensionFields.map((field) => (
+                <th key={field.name} scope="col">
+                  {field.label}
+                  {field.unitSuffix ? ` (${field.unitSuffix})` : ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {dimensionFields.map((field) => (
+                <td
+                  key={field.name}
+                  className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}`}
+                >
+                  {field.type === 'select' ? (
+                    <SearchableItemSelect
+                      id={`item-${field.name}`}
+                      label={field.label}
+                      value={formValues[field.name]}
+                      options={masterOptions[field.optionsKey]}
+                      placeholder={field.placeholder}
+                      searchPlaceholder={field.searchPlaceholder}
+                      emptyMessage={field.emptyMessage}
+                      loading={isLoadingMasters}
+                      disabled={isSubmitting || isLoadingMasters}
+                      forceOpenDown={Boolean(field.forceOpenDown)}
+                      onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+                    />
+                  ) : (
+                    <input
+                      id={`item-${field.name}`}
+                      name={field.name}
+                      className="register-user-popup__input item-create-popup__dimension-input"
+                      type="number"
+                      step="any"
+                      value={formValues[field.name]}
+                      placeholder={field.placeholder}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                    />
+                  )}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
   const dialogNode = (
     <div
       className="dashboard-popup-overlay"
@@ -1587,27 +1654,13 @@ function DialogCreateItem({
 
                 <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
                   <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Dimency Item</h3>
+                    <h3 className="parent-create-popup__section-title">Dimensi ukuran karton</h3>
                     <p className="parent-create-popup__section-description">
                       Lengkapi detail dimensi item mulai dari UOM sampai lead time.
                     </p>
                   </div>
 
-                  <div className="register-user-popup__grid item-create-popup__dimension-grid" style={{ rowGap: '12px' }}>
-                    {itemFields
-                      .filter((f) =>
-                        [
-                          'uom_id',
-                          'qty_per_pack',
-                          'height',
-                          'width',
-                          'depth',
-                          'gross_weight_pack',
-                          'production_time_days',
-                        ].includes(f.name)
-                      )
-                      .map(renderField)}
-                  </div>
+                  {renderDimensionTable()}
                 </div>
 
                 {errorMessage ? (

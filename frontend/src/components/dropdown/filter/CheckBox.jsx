@@ -20,8 +20,9 @@ function CheckboxSelect({
   options = [],
   placeholder = 'Pilih data',
   emptyMessage = 'Data tidak ditemukan.',
-  loading = false,  
+  loading = false,
   disabled = false,
+  showOrder = false,
   onToggle,
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -30,7 +31,9 @@ function CheckboxSelect({
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
   const selectedIds = getSelectedOptionIds(value)
-  const selectedOptions = options.filter((option) => selectedIds.includes(option.value))
+  const selectedOptions = selectedIds
+    .map((selectedId) => options.find((option) => option.value === selectedId))
+    .filter(Boolean)
 
   useEffect(() => {
     if (!isOpen) {
@@ -129,7 +132,9 @@ function CheckboxSelect({
   const displayValue = loading
     ? 'Memuat data...'
     : selectedOptions.length > 0
-      ? selectedOptions.map((option) => option.label).join(', ')
+      ? selectedOptions
+          .map((option, index) => (showOrder ? `${index + 1}. ${option.label}` : option.label))
+          .join(', ')
       : placeholder
 
   const menuNode =
@@ -149,6 +154,7 @@ function CheckboxSelect({
               ) : options.length > 0 ? (
                 options.map((option) => {
                   const isChecked = selectedIds.includes(option.value)
+                  const orderNumber = isChecked ? selectedIds.indexOf(option.value) + 1 : 0
 
                   return (
                     <label
@@ -173,6 +179,14 @@ function CheckboxSelect({
                         onChange={() => onToggle?.(option.value)}
                       />
                       <span>{option.label}</span>
+                      {showOrder && orderNumber > 0 ? (
+                        <span
+                          className="checkbox-select__order-badge"
+                          title={`Urutan ke-${orderNumber}`}
+                        >
+                          {orderNumber}
+                        </span>
+                      ) : null}
                     </label>
                   )
                 })

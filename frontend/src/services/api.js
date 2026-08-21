@@ -293,8 +293,8 @@ const api = {
   },
   items: {
     ...createResource('/item/items'),
-    updateStatus: (id, is_active, options) =>
-      api.put(`/item/items/${id}`, { is_active }, options),
+    updateStatus: (id, is_active, extraFields = {}, options) =>
+      api.put(`/item/items/${id}`, { is_active, ...extraFields }, options),
     matrixPreview: (data, options) =>
       api.post('/item/items/matrix/preview', data, options),
     createMatrix: (data, options) =>

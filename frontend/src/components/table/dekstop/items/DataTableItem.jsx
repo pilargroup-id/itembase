@@ -4,6 +4,7 @@ import api from "../../../../services/api.js"
 import DialogDeleteItem from "../../../Dialog/dialog-item/DialogDeleteItem.jsx"
 import DialogEditItem from "../../../Dialog/dialog-item/DialogEditItem.jsx"
 import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
+import DialogValidateChangeStatus from "../../../Dialog/dialog-item/DialogValidateChangeStatus.jsx"
 import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
 import ButtonImportItem from "../../../button/item-buttons/ButtonImportItem.jsx"
@@ -686,11 +687,8 @@ function DataTableItem({
         setReloadKey((currentKey) => currentKey + 1)
     }
 
-    const toggleItemStatus = async (item) => {
-        const itemId = getItemId(item)
-        const currentStatus = getItemStatusValue(item) === "1" ? 1 : 0
-        const newStatus = currentStatus === 1 ? 0 : 1
-        const previousItemRows = [...itemRows]
+    const handleStatusChanged = (changedItem, newStatus) => {
+        const itemId = getItemId(changedItem)
 
         setItemRows((currentRows) =>
             currentRows.map((row) =>
@@ -700,12 +698,7 @@ function DataTableItem({
             ),
         )
 
-        try {
-            await api.items.updateStatus(itemId, newStatus)
-        } catch (error) {
-            setItemRows(previousItemRows)
-            setErrorMessage(error?.message || "Gagal mengubah status item.")
-        }
+        closeActionDialog()
     }
 
     const tableColumns = [
@@ -716,17 +709,20 @@ function DataTableItem({
             headerStyle: { width: "8%" },
             cellStyle: { width: "8%" },
             render: (item) => (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                        type="checkbox"
-                        checked={getItemStatusValue(item) === "1"}
-                        onChange={(event) => {
-                            event.stopPropagation()
-                            toggleItemStatus(item)
-                        }}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label
+                        className="users-table__toggle item-table__status-toggle"
+                        onClick={(event) => event.stopPropagation()}
                         title={`Tandai ${item.item_name || item.item_code || "item"} sebagai ${getItemStatusValue(item) === "1" ? "non-aktif" : "aktif"}`}
-                    />
+                    >
+                        <input
+                            type="checkbox"
+                            checked={getItemStatusValue(item) === "1"}
+                            onChange={() => openActionDialog("status", item)}
+                        />
+                        <span className="users-table__toggle-track" aria-hidden="true" />
+                        <span className="users-table__toggle-thumb" aria-hidden="true" />
+                    </label>
                     <DataTableStatus inline variant={getItemStatusVariant(item)}>
                         {getItemStatusLabel(item)}
                     </DataTableStatus>
@@ -935,6 +931,16 @@ function DataTableItem({
                 user={dialogItem}
                 onClose={closeActionDialog}
                 onDeleted={handleDeleteConfirm}
+            />
+
+            <DialogValidateChangeStatus
+                key={`status-item-${selectedItem?.id ?? selectedItem?.item_code ?? "empty"}`}
+                isOpen={activeActionDialog === "status"}
+                eyebrow="Ubah Status Item"
+                title="Konfirmasi Perubahan Status"
+                item={selectedItem}
+                onClose={closeActionDialog}
+                onChanged={handleStatusChanged}
             />
 
             <DialogImportItem

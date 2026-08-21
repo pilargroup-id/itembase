@@ -14,6 +14,7 @@ function SearchableItemSelect({
   loading = false,
   disabled = false,
   remoteSearch = false,
+  forceOpenDown = false,
   onChange,
   onSearchChange,
 }) {
@@ -75,7 +76,7 @@ function SearchableItemSelect({
       )
       const spaceBelow = window.innerHeight - bounds.bottom - viewportMargin - gap
       const spaceAbove = bounds.top - viewportMargin - gap
-      const openUp = spaceBelow < 190 && spaceAbove > spaceBelow
+      const openUp = !forceOpenDown && spaceBelow < 190 && spaceAbove > spaceBelow
       const optionsHeight = Math.max(96, Math.min(220, (openUp ? spaceAbove : spaceBelow) - 72))
       const menuHeight = optionsHeight + 72
       const top = openUp
@@ -98,7 +99,7 @@ function SearchableItemSelect({
       window.removeEventListener('resize', updateMenuPosition)
       window.removeEventListener('scroll', updateMenuPosition, true)
     }
-  }, [isOpen])
+  }, [isOpen, forceOpenDown])
 
   useEffect(() => {
     if (!isOpen) {
