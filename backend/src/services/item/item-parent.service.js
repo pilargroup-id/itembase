@@ -116,13 +116,10 @@ function normalizeVariantAttributes(payload = {}) {
 function validatePayload(payload = {}, mode = 'create') {
   const errors = {};
 
-  if (!validateRequired(payload.category_id)) {
-    errors.category_id = 'Category is required';
-  }
-
-  if (!validateRequired(payload.parent_name)) {
-    errors.parent_name = 'Parent name is required';
-  }
+  if (!validateRequired(payload.category_id)) errors.category_id = 'Category is required';
+  if (!validateRequired(payload.brand_id)) errors.brand_id = 'Brand is required';
+  if (!validateRequired(payload.item_name)) errors.item_name = 'Item name is required';
+  if (!validateRequired(payload.subbrand_id) && !validateRequired(payload.sub_brand)) errors.sub_brand = 'Sub brand is required';
 
   if (payload.status && !ALLOWED_STATUS.includes(payload.status)) {
     errors.status = `Status must be one of: ${ALLOWED_STATUS.join(', ')}`;
@@ -151,6 +148,66 @@ function validatePayload(payload = {}, mode = 'create') {
 
 function hasErrors(errors) {
   return Object.keys(errors).length > 0;
+}
+
+function buildParentName(brandName, subBrand, itemName) {
+  return [brandName, subBrand, itemName]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' ')
+    .toUpperCase();
+}
+
+
+async function precheckDuplicateCombination(payload, connection, excludeId = null) {
+  let subBrand = payload.sub_brand;
+  if (!subBrand && payload.subbrand_id) {
+    const existingSubbrand = await ItemParentModel.findSubbrandById(payload.subbrand_id, connection);
+    subBrand = existingSubbrand?.name || null;
+  }
+  if (!payload.brand_id || !subBrand || !payload.item_name) return null;
+  return ItemParentModel.findDuplicateCombination(payload.brand_id, subBrand, payload.item_name, excludeId, connection);
+}
+
+async function resolveGeneratedParentIdentity(payload, resolvedSubbrand, connection, excludeId = null) {
+  const brand = await ItemParentModel.findBrandById(payload.brand_id, connection);
+  if (!brand) {
+    return { error: { type: 'validation', message: 'Validation failed', errors: { brand_id: 'Brand not found' } } };
+  }
+
+  const subBrand = resolvedSubbrand.data?.name || payload.sub_brand;
+  const duplicate = await ItemParentModel.findDuplicateCombination(
+    payload.brand_id,
+    subBrand,
+    payload.item_name,
+    excludeId,
+    connection
+  );
+
+  if (duplicate) {
+    return {
+      error: {
+        type: 'validation',
+        message: 'Validation failed',
+        errors: {
+          parent_name: `Parent combination already exists on ${duplicate.parent_code}`,
+        },
+      },
+    };
+  }
+
+  const parentName = buildParentName(brand.name, subBrand, payload.item_name);
+  if (parentName.length > STRING_LIMITS.parent_name) {
+    return { error: { type: 'validation', message: 'Validation failed', errors: { parent_name: `Generated parent name cannot be longer than ${STRING_LIMITS.parent_name} characters` } } };
+  }
+
+  return {
+    data: {
+      brand,
+      sub_brand: subBrand,
+      parent_name: parentName,
+    },
+  };
 }
 
 function generateNextParentCode(lastParentCode) {
@@ -502,7 +559,7 @@ async function create(payload, userId, req = null) {
     category_id: trimOrNull(payload.category_id),
     item_type_id: trimOrNull(payload.item_type_id),
     ports: normalizePorts(payload) || [],
-    parent_name: trimOrNull(payload.parent_name),
+    parent_name: null,
     status: trimOrNull(payload.status) || 'active',
     parent_code: payload.parent_code,
     variant_attributes: normalizeVariantAttributes(payload) || [],
@@ -533,11 +590,19 @@ async function create(payload, userId, req = null) {
       };
     }
 
+    const duplicateBeforeCreate = await precheckDuplicateCombination(normalizedPayload, connection);
+    if (duplicateBeforeCreate) {
+      return { error: { type: 'validation', message: 'Validation failed', errors: { parent_name: `Parent combination already exists on ${duplicateBeforeCreate.parent_code}` } } };
+    }
+
     const resolvedSubbrand = await resolveSubbrand(normalizedPayload, connection);
 
     if (resolvedSubbrand.error) {
       return resolvedSubbrand;
     }
+
+    const generatedIdentity = await resolveGeneratedParentIdentity(normalizedPayload, resolvedSubbrand, connection);
+    if (generatedIdentity.error) return generatedIdentity;
 
     const lastParentCode = await ItemParentModel.findLastParentCode(connection);
     const parentCode = generateNextParentCode(lastParentCode);
@@ -547,11 +612,11 @@ async function create(payload, userId, req = null) {
       subbrand_id: resolvedSubbrand.data?.id || null,
       parent_code: parentCode,
       brand_id: normalizedPayload.brand_id,
-      sub_brand: resolvedSubbrand.data?.name || normalizedPayload.sub_brand,
+      sub_brand: generatedIdentity.data.sub_brand,
       item_name: normalizedPayload.item_name,
       category_id: normalizedPayload.category_id,
       item_type_id: normalizedPayload.item_type_id,
-      parent_name: normalizedPayload.parent_name,
+      parent_name: generatedIdentity.data.parent_name,
       status: normalizedPayload.status,
       created_by: userId,
       updated_by: userId,
@@ -608,7 +673,7 @@ async function update(id, payload, userId, req = null) {
     ports: (hasOwn(payload, 'ports') || hasOwn(payload, 'port_ids'))
       ? normalizePorts(payload)
       : (existingFull?.ports || []).map((port) => ({ port_id: port.id, is_primary: port.is_primary, sort_order: port.sort_order })),
-    parent_name: hasOwn(payload, 'parent_name') ? trimOrNull(payload.parent_name) : existing.parent_name,
+    parent_name: existing.parent_name,
     status: hasOwn(payload, 'status') ? trimOrNull(payload.status) : existing.status,
     parent_code: payload.parent_code,
     variant_attributes: (hasOwn(payload, 'variant_attributes') || hasOwn(payload, 'variant_attribute_ids'))
@@ -649,18 +714,27 @@ async function update(id, payload, userId, req = null) {
       };
     }
 
+    const duplicateBeforeUpdate = await precheckDuplicateCombination(mergedPayload, connection, id);
+    if (duplicateBeforeUpdate) {
+      return { error: { type: 'validation', message: 'Validation failed', errors: { parent_name: `Parent combination already exists on ${duplicateBeforeUpdate.parent_code}` } } };
+    }
+
     const resolvedSubbrand = await resolveSubbrand(mergedPayload, connection);
 
     if (resolvedSubbrand.error) {
       return resolvedSubbrand;
     }
 
+    const generatedIdentity = await resolveGeneratedParentIdentity(mergedPayload, resolvedSubbrand, connection, id);
+    if (generatedIdentity.error) return generatedIdentity;
+
     await ItemParentModel.update(
       id,
       {
         ...mergedPayload,
         subbrand_id: resolvedSubbrand.data?.id || null,
-        sub_brand: resolvedSubbrand.data?.name || mergedPayload.sub_brand,
+        sub_brand: generatedIdentity.data.sub_brand,
+        parent_name: generatedIdentity.data.parent_name,
         updated_by: userId,
       },
       connection
@@ -672,8 +746,23 @@ async function update(id, payload, userId, req = null) {
 
     await syncSubbrandItem(updated, connection);
 
-    if (mergedPayload.status === 'inactive') {
+    if (existing.status !== 'inactive' && mergedPayload.status === 'inactive') {
+      const activeChildren = await ItemParentModel.findActiveChildItems(id, connection);
       await ItemParentModel.deactivateChildItems(id, connection);
+      for (const child of activeChildren) {
+        await ActivityLogService.log({
+          user_id: userId,
+          action: 'STATUS_CHANGE',
+          entity_type: 'items',
+          entity_id: child.id,
+          description: `Changed item ${child.item_code} status to inactive from parent ${updated.parent_code}`,
+          before_data: child,
+          after_data: { ...child, is_active: 0 },
+          metadata: { source: 'PARENT_STATUS_CHANGE', parent_id: id, parent_code: updated.parent_code },
+          req,
+          connection,
+        });
+      }
     }
 
     await ActivityLogService.log({
@@ -700,6 +789,42 @@ async function update(id, payload, userId, req = null) {
   });
 }
 
+async function destroy(id, userId, req = null) {
+  const existing = await ItemParentModel.findById(id);
+  if (!existing) {
+    return { error: { type: 'not_found', message: 'Item parent not found' } };
+  }
+
+  return ItemParentModel.transaction(async (connection) => {
+    const itemCount = await ItemParentModel.countChildItems(id, connection);
+    if (itemCount > 0) {
+      return {
+        error: {
+          type: 'validation',
+          message: 'Item parent cannot be deleted because it still has items',
+          errors: { item_count: itemCount },
+        },
+      };
+    }
+
+    await ItemParentModel.remove(id, connection);
+    await ActivityLogService.log({
+      user_id: userId,
+      action: 'DELETE',
+      entity_type: 'item_parents',
+      entity_id: id,
+      description: `Deleted item parent ${existing.parent_code}`,
+      before_data: existing,
+      after_data: null,
+      metadata: { parent_code: existing.parent_code, item_count: 0 },
+      req,
+      connection,
+    });
+
+    return { data: null };
+  });
+}
+
 module.exports = {
   getOptions,
   getItemConfig,
@@ -708,4 +833,5 @@ module.exports = {
   suggestSubbrands,
   create,
   update,
+  destroy,
 };

@@ -139,6 +139,21 @@ async function update(req, res, next) {
   }
 }
 
+
+async function destroy(req, res, next) {
+  try {
+    const result = await ItemParentService.destroy(req.params.id, req.user.id, req);
+
+    if (handleServiceError(res, result.error)) {
+      return;
+    }
+
+    return response.ok(res, null, 'Item parent deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   index,
   options,
@@ -147,4 +162,5 @@ module.exports = {
   suggestSubbrands,
   store,
   update,
+  destroy,
 };
