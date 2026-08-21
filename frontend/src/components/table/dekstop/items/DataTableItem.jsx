@@ -7,8 +7,10 @@ import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
 import DialogValidateChangeStatus from "../../../Dialog/dialog-item/DialogValidateChangeStatus.jsx"
 import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
+import ButtonExportItem from "../../../button/item-buttons/ButtonExportItem.jsx"
 import ButtonImportItem from "../../../button/item-buttons/ButtonImportItem.jsx"
 import FilterDropdownItem from "../../../dropdown/filter-item/FilterDropdownItem.jsx"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-item/FilterDropdownItem.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -657,6 +659,15 @@ function DataTableItem({
         setActiveActionDialog(dialogType)
     }
 
+    const openImportDialog = () => {
+        setImportDialogKey((currentKey) => currentKey + 1)
+        setImportFileName("")
+        setImportPreviewResponse(null)
+        setImportErrorMessage("")
+        setIsImportPreviewing(false)
+        setActiveActionDialog("import")
+    }
+
     const handleImportFileSelect = async (file) => {
         if (!file || isImportPreviewing) {
             return
@@ -665,11 +676,9 @@ function DataTableItem({
         const formData = new FormData()
 
         formData.append("file", file)
-        setImportDialogKey((currentKey) => currentKey + 1)
         setImportFileName(file.name)
         setImportPreviewResponse(null)
         setImportErrorMessage("")
-        setActiveActionDialog("import")
         setIsImportPreviewing(true)
 
         try {
@@ -864,10 +873,22 @@ function DataTableItem({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-backdrop" aria-label="Item table tools">
                 <div className="parent-table-actions">
-                    <ButtonDownloadItem aria-label="Download item data" />
+                    <ButtonExportItem
+                        variant="action"
+                        className="parent-table-tool-button parent-table-tool-button--download"
+                        dialogEyebrow="Export Item"
+                        dialogTitle="Export Item Management"
+                        aria-label="Export item data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportItem>
                     <ButtonImportItem
                         aria-label="Import item data"
-                        onFileSelect={handleImportFileSelect}
+                        onClick={(event) => {
+                            event.preventDefault()
+                            openImportDialog()
+                        }}
                         disabled={isImportPreviewing}
                         aria-busy={isImportPreviewing}
                     >
@@ -952,8 +973,10 @@ function DataTableItem({
                 previewResponse={importPreviewResponse}
                 errorMessage={importErrorMessage}
                 isPreviewing={isImportPreviewing}
+                templateButton={<ButtonDownloadItem aria-label="Download template item" />}
                 onClose={closeImportDialog}
                 onCommitted={handleImportCommitted}
+                onFileSelect={handleImportFileSelect}
             />
         </div>
     )

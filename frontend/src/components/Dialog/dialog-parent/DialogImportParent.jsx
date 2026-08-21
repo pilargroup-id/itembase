@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { XClose } from '../../template/TemplateIcons.jsx'
+import { FileText01, Upload01, XClose } from '../../template/TemplateIcons.jsx'
+import ButtonDownloadParent from '../../button/parents-buttons/ButtonDownloadParent.jsx'
 
 function getResponseData(response) {
   return response?.data && !Array.isArray(response.data) ? response.data : response
@@ -103,11 +104,14 @@ function DialogImportParent({
   isPreviewing = false,
   onClose,
   onCommitted,
+  onFileSelect,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCanceling, setIsCanceling] = useState(false)
   const [dialogError, setDialogError] = useState('')
   const [commitResponse, setCommitResponse] = useState(null)
+  const [isDragActive, setIsDragActive] = useState(false)
+  const fileInputRef = useRef(null)
 
   const previewData = useMemo(() => getResponseData(previewResponse), [previewResponse])
   const previewToken = previewData?.preview_token || ''
@@ -119,6 +123,7 @@ function DialogImportParent({
   const commitSummary = commitData?.summary ?? null
   const canCommit = Boolean(previewToken) && !isPreviewing && !isSubmitting && !commitResponse
   const isBusy = isPreviewing || isSubmitting || isCanceling
+  const canSelectFile = !isBusy && !commitResponse
 
   const handleClose = async () => {
     if (isBusy) {
@@ -159,6 +164,52 @@ function DialogImportParent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isBusy])
 
+  const handleBrowseClick = () => {
+    if (!canSelectFile) {
+      return
+    }
+
+    fileInputRef.current?.click()
+  }
+
+  const handleFileInputChange = (event) => {
+    const [file] = Array.from(event.target.files ?? [])
+
+    if (file) {
+      onFileSelect?.(file)
+    }
+
+    event.target.value = ''
+  }
+
+  const handleDragOver = (event) => {
+    event.preventDefault()
+
+    if (canSelectFile) {
+      setIsDragActive(true)
+    }
+  }
+
+  const handleDragLeave = (event) => {
+    event.preventDefault()
+    setIsDragActive(false)
+  }
+
+  const handleDrop = (event) => {
+    event.preventDefault()
+    setIsDragActive(false)
+
+    if (!canSelectFile) {
+      return
+    }
+
+    const [file] = Array.from(event.dataTransfer?.files ?? [])
+
+    if (file) {
+      onFileSelect?.(file)
+    }
+  }
+
   const handleCommit = async () => {
     if (!previewToken || isSubmitting) {
       return
@@ -180,9 +231,9 @@ function DialogImportParent({
         const errorFile = await api.itemData.imports.errors(data.error_file_token)
 
         saveBlob(errorFile, 'item-parent-import-errors.xlsx')
+      } else {
+        onClose?.()
       }
-
-      onClose?.()
     } catch (error) {
       setDialogError(error?.message || 'Gagal commit import parent.')
     } finally {
@@ -227,10 +278,73 @@ function DialogImportParent({
         </div>
 
         <div className="dashboard-popup__body parent-import-popup__body">
-          <div className="parent-import-file">
-            <span className="parent-import-file__label">File</span>
-            <strong className="parent-import-file__name">{fileName || '-'}</strong>
+          <div className="parent-import-template-actions">
+            <div className="parent-import-template-hint">
+              <span className="parent-import-template-hint__icon" aria-hidden="true">
+                <FileText01 size={18} />
+              </span>
+              <span className="parent-import-template-hint__text">
+                <strong>Gunakan template resmi</strong>
+                <span>Unduh template terlebih dahulu agar format data sesuai sebelum diupload.</span>
+              </span>
+            </div>
+            <ButtonDownloadParent aria-label="Download template item parent" />
           </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            className="parent-import-dropzone__input"
+            onChange={handleFileInputChange}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+
+          {fileName ? (
+            <div className="parent-import-file">
+              <span className="parent-import-file__label">File</span>
+              <strong className="parent-import-file__name">{fileName}</strong>
+              {canSelectFile ? (
+                <button
+                  type="button"
+                  className="parent-import-file__change"
+                  onClick={handleBrowseClick}
+                >
+                  Ganti File
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <div
+              className={[
+                'parent-import-dropzone',
+                isDragActive ? 'parent-import-dropzone--active' : '',
+                !canSelectFile ? 'parent-import-dropzone--disabled' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              role="button"
+              tabIndex={canSelectFile ? 0 : -1}
+              aria-disabled={!canSelectFile}
+              onClick={handleBrowseClick}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  handleBrowseClick()
+                }
+              }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <Upload01 size={26} className="parent-import-dropzone__icon" aria-hidden="true" />
+              <p className="parent-import-dropzone__title">
+                Klik untuk upload atau drag &amp; drop file di sini
+              </p>
+              <p className="parent-import-dropzone__hint">Format .xlsx</p>
+            </div>
+          )}
 
           {isPreviewing ? (
             <div className="parent-import-state" role="status">
@@ -302,9 +416,7 @@ function DialogImportParent({
                 </p>
               ) : null}
             </>
-          ) : (
-            <div className="parent-import-state">Pilih file .xlsx untuk membuat preview import.</div>
-          )}
+          ) : null}
 
           {commitSummary ? (
             <div className="parent-import-commit" role="status">

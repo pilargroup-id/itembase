@@ -4,7 +4,6 @@ import api from "../../../../services/api.js"
 import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent.jsx"
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
 import DialogImportParent from "../../../Dialog/dialog-parent/DialogImportParent.jsx"
-import ButtonDownloadParent from "../../../button/parents-buttons/ButtonDownloadParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
 import ButtonImportParent from "../../../button/parents-buttons/ButtonImportParent.jsx"
 import { Check, ChevronDown, FilterFunnel, SearchMd } from "../../../template/TemplateIcons.jsx"
@@ -705,6 +704,15 @@ function DataTableParents({
         setActiveActionDialog(dialogType)
     }
 
+    const openImportDialog = () => {
+        setImportDialogKey((currentKey) => currentKey + 1)
+        setImportFileName("")
+        setImportPreviewResponse(null)
+        setImportErrorMessage("")
+        setIsImportPreviewing(false)
+        setActiveActionDialog("import")
+    }
+
     const handleImportFileSelect = async (file) => {
         if (!file || isImportPreviewing) {
             return
@@ -713,11 +721,9 @@ function DataTableParents({
         const formData = new FormData()
 
         formData.append("file", file)
-        setImportDialogKey((currentKey) => currentKey + 1)
         setImportFileName(file.name)
         setImportPreviewResponse(null)
         setImportErrorMessage("")
-        setActiveActionDialog("import")
         setIsImportPreviewing(true)
 
         try {
@@ -881,15 +887,10 @@ function DataTableParents({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-backdrop" aria-label="Parent table tools">
                 <div className="parent-table-actions">
-                    <ButtonDownloadParent aria-label="Download parent data" />
                     <ButtonImportParent
                         aria-label="Import parent data"
-                        onFileSelect={handleImportFileSelect}
-                        disabled={isImportPreviewing}
-                        aria-busy={isImportPreviewing}
-                    >
-                        {isImportPreviewing ? "Previewing..." : "Import"}
-                    </ButtonImportParent>
+                        onClick={openImportDialog}
+                    />
                 </div>
 
                 <div className="parent-table-filters" aria-label="Filter item parent">
@@ -976,6 +977,7 @@ function DataTableParents({
                 isPreviewing={isImportPreviewing}
                 onClose={closeImportDialog}
                 onCommitted={handleImportCommitted}
+                onFileSelect={handleImportFileSelect}
             />
         </div>
     )

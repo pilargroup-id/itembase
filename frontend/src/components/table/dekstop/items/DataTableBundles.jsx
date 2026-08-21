@@ -3,11 +3,13 @@ import api from "../../../../services/api.js"
 
 import DialogEditBundle from "../../../Dialog/dialog-bundles/DialogEditBundle.jsx"
 import DialogValidateStatusBundle from "../../../Dialog/dialog-bundles/DialogValidateStatusBundle.jsx"
-import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
+import DialogImportBundle from "../../../Dialog/dialog-bundles/DialogImportBundle.jsx"
 import ButtonDownloadBundle from "../../../button/bundles-buttons/ButtonDownloadBundle.jsx"
 import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
+import ButtonExportBundle from "../../../button/bundles-buttons/ButtonExportBundle.jsx"
 import ButtonImportBundle from "../../../button/bundles-buttons/ButtonImportBundle.jsx"
 import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdownBundles.jsx"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -519,6 +521,15 @@ function DataTableBundles({
         setActiveActionDialog(dialogType)
     }
 
+    const openImportDialog = () => {
+        setImportDialogKey((currentKey) => currentKey + 1)
+        setImportFileName("")
+        setImportPreviewResponse(null)
+        setImportErrorMessage("")
+        setIsImportPreviewing(false)
+        setActiveActionDialog("import")
+    }
+
     const handleStatusChanged = (changedItem, newStatus) => {
         const itemId = getItemId(changedItem)
 
@@ -596,11 +607,9 @@ function DataTableBundles({
         const formData = new FormData()
 
         formData.append("file", file)
-        setImportDialogKey((currentKey) => currentKey + 1)
         setImportFileName(file.name)
         setImportPreviewResponse(null)
         setImportErrorMessage("")
-        setActiveActionDialog("import")
         setIsImportPreviewing(true)
 
         try {
@@ -704,10 +713,22 @@ function DataTableBundles({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-backdrop" aria-label="Bundle table tools">
                 <div className="parent-table-actions">
-                    <ButtonDownloadBundle aria-label="Download bundle data" />
+                    <ButtonExportBundle
+                        variant="action"
+                        className="parent-table-tool-button parent-table-tool-button--download"
+                        dialogEyebrow="Export Bundle"
+                        dialogTitle="Export Bundle Management"
+                        aria-label="Export bundle data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportBundle>
                     <ButtonImportBundle
                         aria-label="Import bundle data"
-                        onFileSelect={handleImportFileSelect}
+                        onClick={(event) => {
+                            event.preventDefault()
+                            openImportDialog()
+                        }}
                         disabled={isImportPreviewing}
                         aria-busy={isImportPreviewing}
                     >
@@ -772,7 +793,7 @@ function DataTableBundles({
                 onChanged={handleStatusChanged}
             />
 
-            <DialogImportItem
+            <DialogImportBundle
                 key={`import-bundle-${importDialogKey}`}
                 isOpen={activeActionDialog === "import"}
                 eyebrow="Import Bundle"
@@ -783,8 +804,10 @@ function DataTableBundles({
                 previewResponse={importPreviewResponse}
                 errorMessage={importErrorMessage}
                 isPreviewing={isImportPreviewing}
+                templateButton={<ButtonDownloadBundle aria-label="Download template bundle" />}
                 onClose={closeImportDialog}
                 onCommitted={handleImportCommitted}
+                onFileSelect={handleImportFileSelect}
             />
         </div>
     )
