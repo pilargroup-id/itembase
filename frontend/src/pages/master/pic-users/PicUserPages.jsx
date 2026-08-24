@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreatePicUser from '../../../components/button/pic-users-buttons/ButtonCreatePicUser.jsx'
+import SearchPicUser from '../../../components/search/SearchPicUser.jsx'
 import DataTablePicUser from '../../../components/table/dekstop/master/DataTablePicUser.jsx'
 
-function PicUserPages({ activePage, searchQuery }) {
+function PicUserPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [picUserRefreshKey, setPicUserRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function PicUserPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchPicUser value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreatePicUser
             onCreated={() => setPicUserRefreshKey((currentKey) => currentKey + 1)}
           />

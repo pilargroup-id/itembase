@@ -1,9 +1,61 @@
+import { useMemo } from 'react'
+
 import { Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
 
 function normalizeDetailItemText(value) {
   return String(value ?? '')
     .trim()
     .replace(/\s+/g, ' ')
+}
+
+function buildVariantDuplicateKey(itemName, variant) {
+  const normalizedItemName = normalizeDetailItemText(itemName).toLowerCase()
+  const normalizedVariant = normalizeDetailItemText(variant).toLowerCase()
+
+  return normalizedVariant ? `${normalizedItemName}__${normalizedVariant}` : ''
+}
+
+export function hasDuplicateVariantSelection(items = [], itemName = '') {
+  const seenKeys = new Set()
+
+  return items.some((item) => {
+    const key = buildVariantDuplicateKey(itemName, item.item_variant)
+
+    if (!key) {
+      return false
+    }
+
+    if (seenKeys.has(key)) {
+      return true
+    }
+
+    seenKeys.add(key)
+    return false
+  })
+}
+
+function getDuplicateDetailItemIds(items, itemName) {
+  const keyCounts = new Map()
+
+  items.forEach((item) => {
+    const key = buildVariantDuplicateKey(itemName, item.item_variant)
+
+    if (key) {
+      keyCounts.set(key, (keyCounts.get(key) || 0) + 1)
+    }
+  })
+
+  const duplicateIds = new Set()
+
+  items.forEach((item) => {
+    const key = buildVariantDuplicateKey(itemName, item.item_variant)
+
+    if (key && keyCounts.get(key) > 1) {
+      duplicateIds.add(item.id)
+    }
+  })
+
+  return duplicateIds
 }
 
 function buildDetailItemTitle(itemName, variant, index) {
@@ -73,6 +125,11 @@ function CreateDetailItem({
 }) {
   const detailItems = items.length ? items : [createInitialDetailItem()]
   const DetailSearchableSelect = SearchableSelect
+  const duplicateDetailItemIds = useMemo(
+    () => getDuplicateDetailItemIds(items, itemName),
+    [items, itemName],
+  )
+  const hasDuplicateVariant = duplicateDetailItemIds.size > 0
 
   const buildSelectedVariantLabel = (nextValuesByAttributeId) =>
     variantAttributeOptions
@@ -162,6 +219,12 @@ function CreateDetailItem({
         </div>
       </div>
 
+      {hasDuplicateVariant ? (
+        <p className="register-user-popup__hint parent-detail-item__duplicate-hint" role="alert">
+          Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah varian salah satu SKU agar tidak duplikat.
+        </p>
+      ) : null}
+
       <div className="parent-detail-item__table-wrapper">
         <table className="parent-detail-item__table" aria-label="SKU detail">
           <thead>
@@ -188,13 +251,28 @@ function CreateDetailItem({
           </thead>
 
           <tbody>
-            {detailItems.map((item, index) => (
-              <tr key={item.id}>
+            {detailItems.map((item, index) => {
+              const isDuplicateRow = duplicateDetailItemIds.has(item.id)
+
+              return (
+                <tr
+                  key={item.id}
+                  className={
+                    isDuplicateRow ? 'parent-detail-item__row--duplicate' : undefined
+                  }
+                >
                 <td className="parent-detail-item__table-title-cell">
                   <span className="parent-detail-item__row-index">{index + 1}</span>
-                  <p className="parent-detail-item__row-title">
-                    {buildDetailItemTitle(itemName, item.item_variant, index)}
-                  </p>
+                  <div className="parent-detail-item__row-title-group">
+                    <p className="parent-detail-item__row-title">
+                      {buildDetailItemTitle(itemName, item.item_variant, index)}
+                    </p>
+                    {isDuplicateRow ? (
+                      <p className="parent-detail-item__row-duplicate-note" role="alert">
+                        Varian duplikat
+                      </p>
+                    ) : null}
+                  </div>
                 </td>
 
                 {variantAttributeOptions.map((attribute) => {
@@ -344,7 +422,8 @@ function CreateDetailItem({
                   </button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

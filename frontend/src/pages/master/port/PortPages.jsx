@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreatePort from '../../../components/button/ports-buttons/ButtonCreatePort.jsx'
+import SearchPort from '../../../components/search/SearchPort.jsx'
 import DataTablePorts from '../../../components/table/dekstop/master/DataTablePorts.jsx'
 
-function PortsPages({ activePage, searchQuery }) {
+function PortsPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [portRefreshKey, setPortRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function PortsPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchPort value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreatePort
             onCreated={() => setPortRefreshKey((currentKey) => currentKey + 1)}
           />

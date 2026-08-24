@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateSubBrands from '../../../components/button/sub-brands-buttons/SubButtonCreateBrand.jsx'
+import SearchSubBrand from '../../../components/search/SearchSubBrand.jsx'
 import DataTableSubBrands from '../../../components/table/dekstop/master/DataTableSubBrands.jsx'
 
-function SubBrandsPage({ activePage, searchQuery }) {
+function SubBrandsPage({ activePage, searchQuery, onSearchQueryChange }) {
   const [brandRefreshKey, setBrandRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function SubBrandsPage({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchSubBrand value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateSubBrands
             onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
           />

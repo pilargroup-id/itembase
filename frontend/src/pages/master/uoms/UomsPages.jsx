@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import ButtonCreateUom from '../../../components/button/uoms-buttons/ButtonCreateUom.jsx'
+import SearchUom from '../../../components/search/SearchUom.jsx'
 import DataTableUom from '../../../components/table/dekstop/master/DataTableUom.jsx'
 
-function UomsPages({ activePage, searchQuery }) {
+function UomsPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [uomRefreshKey, setUomRefreshKey] = useState(0)
 
   return (
@@ -17,6 +18,7 @@ function UomsPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchUom value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateUom
             onCreated={() => setUomRefreshKey((currentKey) => currentKey + 1)}
           />

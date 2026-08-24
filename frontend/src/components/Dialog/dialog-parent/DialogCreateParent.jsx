@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { ChevronDown, Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
-import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
+import CreateDetailItem, {
+  createInitialDetailItem,
+  hasDuplicateVariantSelection,
+} from './detail-item/CreateDetailItem.jsx'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 
 const initialFormValues = {
@@ -1608,6 +1611,11 @@ function DialogCreateParent({
           return
         }
 
+        if (hasDuplicateVariantSelection(detailItems, payload.item_name)) {
+          setErrorMessage('Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah variant agar tidak duplikat.')
+          return
+        }
+
         const itemPayloads = buildDetailItemPayloads(
           detailItems,
           payload.item_name,
@@ -1868,7 +1876,9 @@ function DialogCreateParent({
             className="dashboard-popup__button dashboard-popup__button--primary"
             disabled={
               isSubmitting ||
-              (!createdParent && (isCheckingDuplicateParent || Boolean(duplicateParentMatch)))
+              (!createdParent && (isCheckingDuplicateParent || Boolean(duplicateParentMatch))) ||
+              (Boolean(createdParent) &&
+                hasDuplicateVariantSelection(detailItems, formValues.item_name))
             }
           >
             {isSubmitting

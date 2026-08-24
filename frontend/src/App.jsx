@@ -439,25 +439,65 @@ function App() {
                 onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
               />
             ) : isCategoriesPage ? (
-              <CategoriesPages activePage={activePage} searchQuery={searchQuery} />
+              <CategoriesPages
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isBrandsPage ? (
-              <BrandsPages activePage={activePage} searchQuery={searchQuery} />
+              <BrandsPages
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isSubBrandsPage ? (
-              <SubBrandsPage activePage={activePage} searchQuery={searchQuery} />
+              <SubBrandsPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isTypePage ? (
-              <TypePages activePage={activePage} searchQuery={searchQuery} />
+              <TypePages
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isPortsPage ? (
-              <PortsPage activePage={activePage} searchQuery={searchQuery} />
+              <PortsPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isUomsPage ? (
-              <UomsPages activePage={activePage} searchQuery={searchQuery} />
+              <UomsPages
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isPicsPage ? (
-              <PicsPages activePage={activePage} searchQuery={searchQuery} />
+              <PicsPages
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isPicUsersPage ? (
-              <PicUsersPage activePage={activePage} searchQuery={searchQuery} />
+              <PicUsersPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isSkuStatusesPage ? (
-              <SkuStatusesPage activePage={activePage} searchQuery={searchQuery} />
+              <SkuStatusesPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isVariantPage ? (
-              <VariantPage activePage={activePage} searchQuery={searchQuery} />
+              <VariantPage
+                activePage={activePage}
+                searchQuery={searchQuery}
+                onSearchQueryChange={(event) => setSearchQuery(event.target.value)}
+              />
             ) : isActivityLogsPage ? (
               <ActivityLogs activePage={activePage} searchQuery={searchQuery} />
             ) : (

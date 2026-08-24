@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import ButtonCreateVariant from '../../../components/button/variant-buttons/ButtonCreateVariant.jsx'
+import SearchVariant from '../../../components/search/SearchVariant.jsx'
 import DataTableVariantAttributes from '../../../components/table/dekstop/master/DataTableVariantAttributes.jsx'
 import DataTableVariantValue from '../../../components/table/dekstop/master/DataTableVariantValue.jsx'
 
-function VariantPage({ activePage, searchQuery }) {
+function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
   const [uomRefreshKey, setUomRefreshKey] = useState(0)
   const [activeVariantTab, setActiveVariantTab] = useState('attributes')
 
@@ -24,6 +25,7 @@ function VariantPage({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchVariant value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateVariant
             variantType={activeVariantTab}
             children={

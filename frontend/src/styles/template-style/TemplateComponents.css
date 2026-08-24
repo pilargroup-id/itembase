@@ -6895,6 +6895,13 @@ select {
   font-weight: 700;
 }
 
+.parent-detail-item__row-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
 .parent-detail-item__row-title {
   margin: 0;
   min-width: 0;
@@ -6903,6 +6910,25 @@ select {
   font-weight: 800;
   white-space: normal;
   overflow-wrap: break-word;
+}
+
+.parent-detail-item__row-duplicate-note {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.parent-detail-item__duplicate-hint {
+  color: #b42318;
+}
+
+.parent-detail-item__table tbody tr.parent-detail-item__row--duplicate {
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.parent-detail-item__table tbody tr.parent-detail-item__row--duplicate:hover {
+  background: rgba(180, 35, 24, 0.1);
 }
 
 .parent-detail-item__field--variant-value,

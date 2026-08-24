@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateSkuStatus from '../../../components/button/sku-statuses-buttons/ButtonCreateSkuStatus.jsx'
+import SearchSkuStatus from '../../../components/search/SearchSkuStatus.jsx'
 import DataTableSkuStatuses from '../../../components/table/dekstop/master/DataTableSkuStatus.jsx'
 
-function SkuStatusPages({ activePage, searchQuery }) {
+function SkuStatusPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [skuStatusRefreshKey, setSkuStatusRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function SkuStatusPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchSkuStatus value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateSkuStatus
             onCreated={() => setSkuStatusRefreshKey((currentKey) => currentKey + 1)}
           />

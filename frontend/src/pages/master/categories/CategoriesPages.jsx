@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateCategories from '../../../components/button/categories-buttons/ButtonCreateCategories.jsx'
+import SearchCategories from '../../../components/search/SearchCategories.jsx'
 import DataTableCategories from '../../../components/table/dekstop/master/DataTableCategories.jsx'
 
-function CategoriesPages({ activePage, searchQuery }) {
+function CategoriesPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [categoriesRefreshKey, setCategoriesRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function CategoriesPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchCategories value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateCategories
             onCreated={() => setCategoriesRefreshKey((currentKey) => currentKey + 1)}
           />

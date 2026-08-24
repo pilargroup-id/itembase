@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreatePics from '../../../components/button/pics-buttons/ButtonCreatePics.jsx'
+import SearchPic from '../../../components/search/SearchPic.jsx'
 import DataTablePics from '../../../components/table/dekstop/master/DataTablePics.jsx'
 
-function PicsPages({ activePage, searchQuery }) {
+function PicsPages({ activePage, searchQuery, onSearchQueryChange }) {
   const [picsRefreshKey, setPicsRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function PicsPages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchPic value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreatePics
             onCreated={() => setPicsRefreshKey((currentKey) => currentKey + 1)}
           />

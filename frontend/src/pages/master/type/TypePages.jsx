@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import ButtonCreateBrand from '../../../components/button/types-buttons/ButtonCreateType.jsx'
+import SearchType from '../../../components/search/SearchType.jsx'
 import DataTableType from '../../../components/table/dekstop/master/DataTableType.jsx'
 
-function TypePages({ activePage, searchQuery }) {
+function TypePages({ activePage, searchQuery, onSearchQueryChange }) {
   const [brandRefreshKey, setBrandRefreshKey] = useState(0)
 
   return (
@@ -18,6 +19,7 @@ function TypePages({ activePage, searchQuery }) {
         </div>
 
         <div className="users-table-card__actions">
+          <SearchType value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateBrand
             onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
           />
