@@ -4219,7 +4219,7 @@ select {
 .parent-search__input {
   width: 100%;
   min-height: 48px;
-  padding: 0.85rem 1rem 0.85rem 2.75rem;
+  padding: 0.85rem 2.5rem 0.85rem 2.75rem;
   border: 1px solid rgba(125, 143, 174, 0.28);
   border-radius: 999px;
   background: #fff;
@@ -4246,6 +4246,35 @@ select {
 
 .parent-search__input::-webkit-search-cancel-button {
   -webkit-appearance: none;
+}
+
+.parent-search__clear {
+  position: absolute;
+  right: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(125, 143, 174, 0.16);
+  color: #5b6b85;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.parent-search__clear:hover {
+  background: rgba(42, 157, 143, 0.18);
+  color: #1f7d70;
+}
+
+.parent-search__clear:focus-visible {
+  outline: 2px solid rgba(42, 157, 143, 0.58);
+  outline-offset: 2px;
 }
 
 .users-table-card__action {

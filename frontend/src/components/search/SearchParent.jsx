@@ -1,11 +1,15 @@
-import { SearchMd } from '../template/TemplateIcons.jsx'
+import { SearchMd, XClose } from '../template/TemplateIcons.jsx'
 
 function SearchParent({
   value = '',
   onChange,
-  placeholder = 'Cari parent...',
+  placeholder = 'Cari parent, brand, kategori, item type, port...',
   ariaLabel = 'Cari parent',
 }) {
+  const handleClear = () => {
+    onChange?.({ target: { value: '' } })
+  }
+
   return (
     <label className="parent-search" aria-label={ariaLabel}>
       <SearchMd size={18} className="parent-search__icon" aria-hidden="true" />
@@ -16,6 +20,16 @@ function SearchParent({
         onChange={onChange}
         placeholder={placeholder}
       />
+      {value ? (
+        <button
+          type="button"
+          className="parent-search__clear"
+          onClick={handleClear}
+          aria-label="Bersihkan pencarian"
+        >
+          <XClose size={14} aria-hidden="true" />
+        </button>
+      ) : null}
     </label>
   )
 }
