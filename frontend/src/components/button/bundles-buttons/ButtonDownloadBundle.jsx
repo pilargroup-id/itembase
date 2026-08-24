@@ -17,7 +17,7 @@ function saveBlob(blob, filename) {
 
 function ButtonDownloadBundle({
   className = '',
-  children = 'Download',
+  children = 'Download Template',
   iconSize = 18,
   onClick,
   type = 'button',

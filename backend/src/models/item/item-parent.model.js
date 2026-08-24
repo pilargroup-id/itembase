@@ -12,11 +12,8 @@ function buildOrderByClause(sort = '') {
   return `ORDER BY ${map[sort] || map['date-desc']}`;
 }
 
-function buildWhereClause(query = {}) {
-  const conditions = [], params = [];
-  if (query.search) {
-    const search = `%${query.search}%`;
-    conditions.push(`(
+function buildSearchTokenCondition() {
+  return `(
       ip.parent_code LIKE ? OR ip.item_name LIKE ? OR ip.parent_name LIKE ? OR ip.sub_brand LIKE ?
       OR ms.name LIKE ? OR mb.code LIKE ? OR mb.name LIKE ? OR mc.detail_category LIKE ?
       OR mc.sub_category LIKE ? OR mc.main_category LIKE ? OR mc.brand_category LIKE ?
@@ -26,8 +23,22 @@ function buildWhereClause(query = {}) {
         INNER JOIN master_ports mp_s ON mp_s.id = ipp_s.port_id
         WHERE ipp_s.item_parent_id = ip.id AND (mp_s.code LIKE ? OR mp_s.name LIKE ?)
       )
-    )`);
-    params.push(...Array(15).fill(search));
+    )`;
+}
+
+function buildWhereClause(query = {}) {
+  const conditions = [], params = [];
+  if (query.search) {
+    // Global search: split into words so a query can match across different
+    // fields (e.g. "SEPATU SAFETY HOME & LIVING" = item_name + category),
+    // not just as one literal phrase inside a single column.
+    const tokens = String(query.search).trim().split(/\s+/).filter(Boolean);
+    if (tokens.length) {
+      conditions.push(`(${tokens.map(() => buildSearchTokenCondition()).join(' AND ')})`);
+      tokens.forEach((token) => {
+        params.push(...Array(15).fill(`%${token}%`));
+      });
+    }
   }
   const exact = [['status','ip.status'],['main_category','mc.main_category'],['sub_category','mc.sub_category'],['detail_category','mc.detail_category'],['brand_category','mc.brand_category'],['brand_name','mb.name'],['sub_brand','ip.sub_brand'],['subbrand_id','ip.subbrand_id'],['brand_id','ip.brand_id'],['category_id','ip.category_id'],['item_type_id','ip.item_type_id']];
   exact.forEach(([key,column]) => { if (query[key]) { conditions.push(`${column} = ?`); params.push(query[key]); } });

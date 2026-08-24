@@ -13,6 +13,7 @@ const initialFormValues = {
   category_id: '',
   item_type_id: '',
   port_id: [],
+  variant_attribute_ids: [],
   parent_name: '',
 }
 
@@ -57,7 +58,7 @@ const parentDetailFields = [
     placeholder: 'Pilih Source',
     type: 'select',
     optionsKey: 'itemTypes',
-    searchPlaceholder: 'Cari item type...',
+    searchable: false,
     emptyMessage: 'Item type tidak ditemukan.',
   },
   {
@@ -68,6 +69,16 @@ const parentDetailFields = [
     optionsKey: 'ports',
     searchPlaceholder: 'Cari port...',
     emptyMessage: 'Port tidak ditemukan.',
+  },
+  {
+    name: 'variant_attribute_ids',
+    label: 'Variant Attribute',
+    placeholder: 'Pilih attribute',
+    type: 'checkbox-list',
+    optionsKey: 'variantAttributes',
+    emptyMessage: 'Attribute tidak ditemukan.',
+    showOrder: true,
+    lockWhenHasItems: true,
   },
 ]
 
@@ -92,6 +103,9 @@ const masterSelectDefaults = {
   ports: {
     labelKeys: ['name', 'port_name', 'code', 'port_code'],
   },
+  variantAttributes: {
+    labelKeys: ['name', 'code'],
+  },
 }
 
 const emptyMasterOptions = {
@@ -99,6 +113,7 @@ const emptyMasterOptions = {
   categories: [],
   itemTypes: [],
   ports: [],
+  variantAttributes: [],
 }
 
 function getNestedId(item, key) {
@@ -132,8 +147,24 @@ function getPortIds(parent) {
   return portId ? [String(portId)] : []
 }
 
+function getVariantAttributeIds(parent) {
+  if (!Array.isArray(parent?.variant_attributes)) {
+    return []
+  }
+
+  return parent.variant_attributes
+    .slice()
+    .sort((a, b) => Number(a?.sort_order ?? 0) - Number(b?.sort_order ?? 0))
+    .map((attribute) => String(attribute?.attribute_id ?? attribute?.id ?? ''))
+    .filter(Boolean)
+}
+
 function getParentId(parent) {
   return parent?.id ?? null
+}
+
+function hasChildItems(parent) {
+  return Number(parent?.item_count ?? 0) > 0
 }
 
 function createFormValuesFromParent(parent) {
@@ -149,6 +180,7 @@ function createFormValuesFromParent(parent) {
     category_id: String(getNestedId(parent, 'category')),
     item_type_id: String(getNestedId(parent, 'item_type')),
     port_id: getPortIds(parent),
+    variant_attribute_ids: getVariantAttributeIds(parent),
     parent_name: parent.parent_name ?? '',
   }
 }
@@ -210,6 +242,39 @@ function buildParentPorts(portIds) {
     is_primary: index === 0 ? 1 : 0,
     sort_order: index + 1,
   }))
+}
+
+function getSelectedIds(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeFieldValue(item)).filter(Boolean)
+  }
+
+  const normalizedValue = normalizeFieldValue(value)
+
+  return normalizedValue ? [normalizedValue] : []
+}
+
+function buildParentVariantAttributes(attributeIds) {
+  return getSelectedIds(attributeIds).map((attributeId, index) => ({
+    attribute_id: attributeId,
+    sort_order: index + 1,
+  }))
+}
+
+function getApiErrorMessage(error, fallbackMessage) {
+  const responseErrors = error?.data?.errors
+
+  if (responseErrors && typeof responseErrors === 'object' && !Array.isArray(responseErrors)) {
+    const fieldMessage = Object.values(responseErrors).find(
+      (value) => typeof value === 'string' && value.trim(),
+    )
+
+    if (fieldMessage) {
+      return fieldMessage
+    }
+  }
+
+  return error?.message || fallbackMessage
 }
 
 function getResourceData(responseData) {
@@ -298,6 +363,7 @@ function SearchableMasterSelect({
   emptyMessage = 'Data tidak ditemukan.',
   loading = false,
   disabled = false,
+  searchable = true,
   onChange,
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -312,14 +378,14 @@ function SearchableMasterSelect({
   const filteredOptions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
-    if (!normalizedQuery) {
+    if (!searchable || !normalizedQuery) {
       return options
     }
 
     return options.filter((option) =>
       String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
     )
-  }, [options, searchQuery])
+  }, [options, searchQuery, searchable])
 
   const updateMenuPosition = useCallback(() => {
     const triggerElement = triggerRef.current
@@ -333,7 +399,7 @@ function SearchableMasterSelect({
     const viewportHeight = window.innerHeight
     const viewportMargin = 12
     const menuGap = 8
-    const menuChromeHeight = 72
+    const menuChromeHeight = searchable ? 72 : 18
     const maxOptionsHeight = 220
     const maxMenuWidth = Math.max(0, viewportWidth - viewportMargin * 2)
     const menuWidth = Math.min(triggerBounds.width, maxMenuWidth)
@@ -360,7 +426,7 @@ function SearchableMasterSelect({
       width: menuWidth,
       '--parent-master-select-options-max-height': `${nextOptionsHeight}px`,
     })
-  }, [])
+  }, [searchable])
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -415,10 +481,10 @@ function SearchableMasterSelect({
   }, [isOpen])
 
   useEffect(() => {
-    if (isOpen && menuStyle) {
+    if (searchable && isOpen && menuStyle) {
       searchInputRef.current?.focus()
     }
-  }, [isOpen, menuStyle])
+  }, [isOpen, menuStyle, searchable])
 
   const handleToggle = () => {
     if (disabled) {
@@ -449,18 +515,20 @@ function SearchableMasterSelect({
             aria-label={label}
             style={menuStyle}
           >
-            <div className="parent-master-select__search">
-              <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                className="parent-master-select__search-input"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={`Cari ${label}`}
-              />
-            </div>
+            {searchable ? (
+              <div className="parent-master-select__search">
+                <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  className="parent-master-select__search-input"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={`Cari ${label}`}
+                />
+              </div>
+            ) : null}
 
             <div className="parent-master-select__options">
               {filteredOptions.length > 0 ? (
@@ -821,11 +889,12 @@ function DialogEditParent({
       setIsLoadingMasters(true)
 
       try {
-        const [brands, categories, itemTypes, ports] = await Promise.all([
+        const [brands, categories, itemTypes, ports, variantAttributes] = await Promise.all([
           api.brands.list({ is_active: 1 }, { signal: controller.signal }),
           api.categories.list({ is_active: 1 }, { signal: controller.signal }),
           api.itemTypes.list({ is_active: 1 }, { signal: controller.signal }),
           api.ports.list({ is_active: 1 }, { signal: controller.signal }),
+          api.variants.attributes({ is_active: 1 }, { signal: controller.signal }),
         ])
 
         if (!isMounted) {
@@ -837,6 +906,7 @@ function DialogEditParent({
           categories: normalizeMasterOptions(categories, 'categories'),
           itemTypes: normalizeMasterOptions(itemTypes, 'itemTypes'),
           ports: normalizeMasterOptions(ports, 'ports'),
+          variantAttributes: normalizeMasterOptions(variantAttributes, 'variantAttributes'),
         })
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -896,22 +966,18 @@ function DialogEditParent({
     }))
   }
 
-  const handlePortToggle = (portId) => {
+  const handleCheckboxToggle = (name, optionId) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
-      const normalizedPortId = String(portId ?? '')
-      const selectedPortIds = Array.isArray(currentValues.port_id)
-        ? currentValues.port_id.map((selectedPortId) => String(selectedPortId ?? '')).filter(Boolean)
-        : normalizeFieldValue(currentValues.port_id)
-          ? [normalizeFieldValue(currentValues.port_id)]
-          : []
-      const isSelected = selectedPortIds.includes(normalizedPortId)
+      const normalizedOptionId = String(optionId ?? '')
+      const selectedOptionIds = getSelectedIds(currentValues[name])
+      const isSelected = selectedOptionIds.includes(normalizedOptionId)
 
       return {
         ...currentValues,
-        port_id: isSelected
-          ? selectedPortIds.filter((selectedPortId) => selectedPortId !== normalizedPortId)
-          : [...selectedPortIds, normalizedPortId],
+        [name]: isSelected
+          ? selectedOptionIds.filter((selectedOptionId) => selectedOptionId !== normalizedOptionId)
+          : [...selectedOptionIds, normalizedOptionId],
       }
     })
   }
@@ -926,7 +992,11 @@ function DialogEditParent({
   }
 
   const buildPayload = () => {
-    const { port_id: portIds, ...parentValues } = formValues
+    const {
+      port_id: portIds,
+      variant_attribute_ids: variantAttributeIds,
+      ...parentValues
+    } = formValues
 
     return {
       ...Object.fromEntries(
@@ -939,6 +1009,7 @@ function DialogEditParent({
       ),
       parent_name: generatedParentName,
       ports: buildParentPorts(portIds),
+      variant_attributes: buildParentVariantAttributes(variantAttributeIds),
     }
   }
 
@@ -973,7 +1044,7 @@ function DialogEditParent({
       onEdited?.(getResourceData(editedParent), payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah item parent.')
+      setErrorMessage(getApiErrorMessage(error, 'Gagal mengubah item parent.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -987,68 +1058,82 @@ function DialogEditParent({
     return null
   }
 
-  const renderField = (field) => (
-    <div
-      key={field.name}
-      className={`register-user-popup__field${
-        field.full ? ' register-user-popup__field--full' : ''
-      }`}
-    >
-      <label
-        className="register-user-popup__label"
-        htmlFor={`parent-${field.name}`}
+  const parentHasChildItems = hasChildItems(parent)
+
+  const renderField = (field) => {
+    const isFieldLocked = Boolean(field.lockWhenHasItems) && parentHasChildItems
+
+    return (
+      <div
+        key={field.name}
+        className={`register-user-popup__field${
+          field.full ? ' register-user-popup__field--full' : ''
+        }`}
       >
-        {field.label}
-      </label>
-      {field.type === 'checkbox-list' ? (
-        <CheckboxSelect
-          id={`parent-${field.name}`}
-          label={field.label}
-          value={formValues[field.name]}
-          options={masterOptions[field.optionsKey]}
-          placeholder={field.placeholder}
-          emptyMessage={field.emptyMessage}
-          loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters}
-          onToggle={handlePortToggle}
-        />
-      ) : field.type === 'select' ? (
-        <SearchableMasterSelect
-          id={`parent-${field.name}`}
-          label={field.label}
-          value={formValues[field.name]}
-          options={masterOptions[field.optionsKey]}
-          placeholder={field.placeholder}
-          searchPlaceholder={field.searchPlaceholder}
-          emptyMessage={field.emptyMessage}
-          loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters}
-          onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
-        />
-      ) : field.type === 'subBrandSearch' ? (
-        <SearchableSubBrandInput
-          id={`parent-${field.name}`}
-          label={field.label}
-          value={formValues[field.name]}
-          placeholder={field.placeholder}
-          searchPlaceholder={field.searchPlaceholder}
-          emptyMessage={field.emptyMessage}
-          disabled={isSubmitting}
-          onChange={handleSubBrandChange}
-        />
-      ) : (
-        <input
-          id={`parent-${field.name}`}
-          name={field.name}
-          className="register-user-popup__input"
-          value={formValues[field.name]}
-          placeholder={field.placeholder}
-          onChange={handleInputChange}
-          disabled={isSubmitting}
-        />
-      )}
-    </div>
-  )
+        <label
+          className="register-user-popup__label"
+          htmlFor={`parent-${field.name}`}
+        >
+          {field.label}
+        </label>
+        {field.type === 'checkbox-list' ? (
+          <CheckboxSelect
+            id={`parent-${field.name}`}
+            label={field.label}
+            value={formValues[field.name]}
+            options={masterOptions[field.optionsKey]}
+            placeholder={field.placeholder}
+            searchPlaceholder={field.searchPlaceholder}
+            emptyMessage={field.emptyMessage}
+            loading={isLoadingMasters}
+            disabled={isSubmitting || isLoadingMasters || isFieldLocked}
+            showOrder={field.showOrder}
+            onToggle={(nextValue) => handleCheckboxToggle(field.name, nextValue)}
+          />
+        ) : field.type === 'select' ? (
+          <SearchableMasterSelect
+            id={`parent-${field.name}`}
+            label={field.label}
+            value={formValues[field.name]}
+            options={masterOptions[field.optionsKey]}
+            placeholder={field.placeholder}
+            searchPlaceholder={field.searchPlaceholder}
+            emptyMessage={field.emptyMessage}
+            loading={isLoadingMasters}
+            disabled={isSubmitting || isLoadingMasters}
+            searchable={field.searchable !== false}
+            onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
+          />
+        ) : field.type === 'subBrandSearch' ? (
+          <SearchableSubBrandInput
+            id={`parent-${field.name}`}
+            label={field.label}
+            value={formValues[field.name]}
+            placeholder={field.placeholder}
+            searchPlaceholder={field.searchPlaceholder}
+            emptyMessage={field.emptyMessage}
+            disabled={isSubmitting}
+            onChange={handleSubBrandChange}
+          />
+        ) : (
+          <input
+            id={`parent-${field.name}`}
+            name={field.name}
+            className="register-user-popup__input"
+            value={formValues[field.name]}
+            placeholder={field.placeholder}
+            onChange={handleInputChange}
+            disabled={isSubmitting}
+          />
+        )}
+        {isFieldLocked ? (
+          <p className="parent-create-popup__field-note">
+            Variant attribute tidak dapat diubah karena parent ini sudah memiliki item.
+          </p>
+        ) : null}
+      </div>
+    )
+  }
 
   const dialogNode = (
     <div

@@ -418,7 +418,7 @@ function useDebouncedValue(value, delay = 350) {
 const columns = [
     {
         key: "identity",
-        header: "Item",
+        header: "SKU Name / Code",
         headerStyle: { width: "18%" },
         cellStyle: { width: "18%" },
         render: (item) => (

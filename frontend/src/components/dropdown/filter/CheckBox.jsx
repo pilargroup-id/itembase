@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { ChevronDown } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
 
 function getSelectedOptionIds(value) {
   if (Array.isArray(value)) {
@@ -19,6 +19,7 @@ function CheckboxSelect({
   value = [],
   options = [],
   placeholder = 'Pilih data',
+  searchPlaceholder = '',
   emptyMessage = 'Data tidak ditemukan.',
   loading = false,
   disabled = false,
@@ -26,14 +27,28 @@ function CheckboxSelect({
   onToggle,
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [menuStyle, setMenuStyle] = useState(null)
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
+  const searchInputRef = useRef(null)
+  const isSearchable = Boolean(searchPlaceholder)
   const selectedIds = getSelectedOptionIds(value)
   const selectedOptions = selectedIds
     .map((selectedId) => options.find((option) => option.value === selectedId))
     .filter(Boolean)
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+
+    if (!isSearchable || !normalizedQuery) {
+      return options
+    }
+
+    return options.filter((option) =>
+      String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
+    )
+  }, [isSearchable, options, searchQuery])
 
   useEffect(() => {
     if (!isOpen) {
@@ -50,6 +65,7 @@ function CheckboxSelect({
       const bounds = triggerElement.getBoundingClientRect()
       const viewportMargin = 12
       const gap = 8
+      const menuChromeHeight = isSearchable ? 72 : 18
       const menuWidth = Math.min(bounds.width, window.innerWidth - viewportMargin * 2)
       const left = Math.min(
         Math.max(bounds.left, viewportMargin),
@@ -60,8 +76,11 @@ function CheckboxSelect({
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow
       const optionsHeight = Math.max(96, Math.min(220, openUp ? spaceAbove : spaceBelow))
       const top = openUp
-        ? Math.max(viewportMargin, bounds.top - gap - optionsHeight - 18)
-        : Math.min(bounds.bottom + gap, window.innerHeight - viewportMargin - optionsHeight - 18)
+        ? Math.max(viewportMargin, bounds.top - gap - optionsHeight - menuChromeHeight)
+        : Math.min(
+            bounds.bottom + gap,
+            window.innerHeight - viewportMargin - optionsHeight - menuChromeHeight,
+          )
 
       setMenuStyle({
         top,
@@ -79,7 +98,7 @@ function CheckboxSelect({
       window.removeEventListener('resize', updateMenuPosition)
       window.removeEventListener('scroll', updateMenuPosition, true)
     }
-  }, [isOpen])
+  }, [isOpen, isSearchable])
 
   useEffect(() => {
     if (!isOpen) {
@@ -88,6 +107,7 @@ function CheckboxSelect({
 
     const closeDropdown = () => {
       setIsOpen(false)
+      setSearchQuery('')
     }
 
     const handlePointerDown = (event) => {
@@ -115,6 +135,12 @@ function CheckboxSelect({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (isSearchable && isOpen && menuStyle) {
+      searchInputRef.current?.focus()
+    }
+  }, [isSearchable, isOpen, menuStyle])
+
   const handleToggleDropdown = () => {
     if (disabled) {
       return
@@ -123,6 +149,7 @@ function CheckboxSelect({
     setIsOpen((currentState) => {
       if (currentState) {
         setMenuStyle(null)
+        setSearchQuery('')
       }
 
       return !currentState
@@ -148,11 +175,26 @@ function CheckboxSelect({
             aria-multiselectable="true"
             style={menuStyle}
           >
+            {isSearchable ? (
+              <div className="parent-master-select__search">
+                <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  className="parent-master-select__search-input"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={`Cari ${label}`}
+                />
+              </div>
+            ) : null}
+
             <div className="parent-master-select__options item-create-popup__channel-options">
               {loading ? (
                 <div className="parent-master-select__empty">Memuat data...</div>
-              ) : options.length > 0 ? (
-                options.map((option) => {
+              ) : filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
                   const isChecked = selectedIds.includes(option.value)
                   const orderNumber = isChecked ? selectedIds.indexOf(option.value) + 1 : 0
 

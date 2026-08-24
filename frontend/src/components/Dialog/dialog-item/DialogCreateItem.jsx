@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, RefreshCw05, XClose } from '../../template/TemplateIcons.jsx'
+import { Plus, RefreshCw05, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
@@ -34,7 +34,7 @@ const itemFields = [
   },
   {
     name: 'item_name',
-    label: 'Item Name',
+    label: 'SKU Name',
     placeholder: 'Masukan Item Name',
     required: true,
     half: true,
@@ -54,6 +54,7 @@ const itemFields = [
     searchPlaceholder: 'Cari UOM...',
     emptyMessage: 'UOM tidak ditemukan.',
     forceOpenDown: true,
+    allowCreate: true,
   },
   {
     name: 'qty_per_pack',
@@ -199,6 +200,15 @@ function getSelectedOptionsInOrder(value, options) {
   return selectedIds
     .map((selectedId) => options.find((option) => option.value === selectedId))
     .filter(Boolean)
+}
+
+function buildCodeFromName(name) {
+  return String(name ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50)
 }
 
 function toTitleCase(value) {
@@ -449,19 +459,36 @@ function ChannelCheckboxSelect({
   value = [],
   options = [],
   placeholder = 'Pilih data',
+  searchPlaceholder = 'Cari data...',
   emptyMessage = 'Data tidak ditemukan.',
   loading = false,
   disabled = false,
   maxSelectable,
+  allowCreate = false,
+  onCreate,
   onToggle,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [menuStyle, setMenuStyle] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isCreatingOption, setIsCreatingOption] = useState(false)
+  const [createOptionError, setCreateOptionError] = useState('')
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
   const selectedIds = getSelectedDepartmentIds(value)
   const selectedOptions = getSelectedOptionsInOrder(selectedIds, options)
+  const trimmedQuery = searchQuery.trim()
+  const normalizedQuery = trimmedQuery.toLowerCase()
+  const filteredOptions = normalizedQuery
+    ? options.filter((option) =>
+        String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
+      )
+    : options
+  const hasExactMatch = options.some(
+    (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  )
+  const canCreateOption = allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
 
   useEffect(() => {
     if (!isOpen) {
@@ -516,6 +543,8 @@ function ChannelCheckboxSelect({
 
     const closeDropdown = () => {
       setIsOpen(false)
+      setSearchQuery('')
+      setCreateOptionError('')
     }
 
     const handlePointerDown = (event) => {
@@ -543,25 +572,46 @@ function ChannelCheckboxSelect({
     }
   }, [isOpen])
 
-  const handleToggleDropdown = () => {
+  const handleFocusTrigger = () => {
     if (disabled) {
       return
     }
 
-    setIsOpen((currentState) => {
-      if (currentState) {
-        setMenuStyle(null)
-      }
-
-      return !currentState
-    })
+    setIsOpen(true)
   }
 
-  const displayValue = loading
-    ? 'Memuat data...'
-    : selectedOptions.length > 0
-      ? selectedOptions.map((option) => option.label).join(', ')
-      : placeholder
+  const handleSearchInputChange = (event) => {
+    setSearchQuery(event.target.value)
+    setCreateOptionError('')
+    setIsOpen(true)
+  }
+
+  const handleCreateOption = async () => {
+    if (!canCreateOption || isCreatingOption) {
+      return
+    }
+
+    setIsCreatingOption(true)
+    setCreateOptionError('')
+
+    try {
+      const newOption = await onCreate(trimmedQuery)
+
+      if (newOption?.value) {
+        onToggle?.(newOption.value)
+        setSearchQuery('')
+        triggerRef.current?.focus()
+      }
+    } catch (error) {
+      setCreateOptionError(error?.message || 'Gagal menambahkan data.')
+    } finally {
+      setIsCreatingOption(false)
+    }
+  }
+
+  const selectedLabel = selectedOptions.map((option) => option.label).join(', ')
+  const inputValue = isOpen ? searchQuery : loading ? 'Memuat data...' : selectedLabel
+  const inputPlaceholder = loading ? 'Memuat data...' : isOpen ? searchPlaceholder : placeholder
 
   const menuNode =
     isOpen && menuStyle && typeof document !== 'undefined'
@@ -577,8 +627,8 @@ function ChannelCheckboxSelect({
             <div className="parent-master-select__options item-create-popup__channel-options">
               {loading ? (
                 <div className="parent-master-select__empty">Memuat data...</div>
-              ) : options.length > 0 ? (
-                options.map((option) => {
+              ) : filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
                   const isChecked = selectedIds.includes(option.value)
                   const isLimitReached =
                     !isChecked &&
@@ -618,40 +668,51 @@ function ChannelCheckboxSelect({
                 <div className="parent-master-select__empty">{emptyMessage}</div>
               )}
             </div>
+
+            {canCreateOption ? (
+              <div className="parent-master-select__create">
+                <button
+                  type="button"
+                  className="parent-master-select__create-button"
+                  onClick={handleCreateOption}
+                  disabled={isCreatingOption}
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  <span>{isCreatingOption ? 'Menambahkan...' : `Tambah "${trimmedQuery}"`}</span>
+                </button>
+                {createOptionError ? (
+                  <p className="parent-master-select__create-error" role="alert">
+                    {createOptionError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>,
           document.body,
         )
       : null
 
   return (
-    <div ref={rootRef} className="parent-master-select item-create-popup__channel-select">
-      <button
-        ref={triggerRef}
-        id={id}
-        type="button"
-        className={`parent-master-select__trigger${
-          isOpen ? ' parent-master-select__trigger--open' : ''
-        }`}
-        onClick={handleToggleDropdown}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        disabled={disabled}
-      >
-        <span
-          className={`parent-master-select__value${
-            selectedOptions.length > 0 || loading ? '' : ' parent-master-select__value--placeholder'
-          }`}
-        >
-          {displayValue}
-        </span>
-        <ChevronDown
-          size={16}
-          aria-hidden="true"
-          className={`parent-master-select__chevron${
-            isOpen ? ' parent-master-select__chevron--open' : ''
-          }`}
+    <div ref={rootRef} className="parent-subbrand-search item-create-popup__channel-select">
+      <div className="parent-subbrand-search__control">
+        <SearchMd size={16} className="parent-subbrand-search__icon" aria-hidden="true" />
+        <input
+          ref={triggerRef}
+          id={id}
+          type="search"
+          className="register-user-popup__input parent-subbrand-search__input"
+          value={inputValue}
+          placeholder={inputPlaceholder}
+          onFocus={handleFocusTrigger}
+          onChange={handleSearchInputChange}
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          disabled={disabled || loading}
         />
-      </button>
+      </div>
 
       {menuNode}
     </div>
@@ -660,8 +721,8 @@ function ChannelCheckboxSelect({
 
 function DialogCreateItem({
   isOpen = false,
-  eyebrow = 'Create Item',
-  title = 'Create Item',
+  eyebrow = 'Create SKU',
+  title = 'Create SKU',
   onClose,
   onCreated,
 }) {
@@ -1201,6 +1262,72 @@ function DialogCreateItem({
     })
   }
 
+  const handleCreateUom = useCallback(async (name) => {
+    const trimmedName = String(name ?? '').trim()
+
+    if (!trimmedName) {
+      return null
+    }
+
+    const existingOption = masterOptions.uoms.find(
+      (option) => option.label.toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    if (existingOption) {
+      return existingOption
+    }
+
+    const response = await api.uoms.create({
+      code: buildCodeFromName(trimmedName) || trimmedName.slice(0, 50),
+      name: trimmedName,
+      is_active: 1,
+    })
+    const newOption = normalizeMasterOptions([getResourceData(response)])[0]
+
+    if (newOption) {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        uoms: [...currentOptions.uoms, newOption],
+      }))
+    }
+
+    return newOption ?? null
+  }, [masterOptions.uoms])
+
+  const handleCreateVariantValue = useCallback(async (attributeId, name) => {
+    const trimmedName = String(name ?? '').trim()
+
+    if (!trimmedName) {
+      return null
+    }
+
+    const existingOptions = variantValueOptionsByAttributeId[attributeId] || []
+    const existingOption = existingOptions.find(
+      (option) => option.label.toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    if (existingOption) {
+      return existingOption
+    }
+
+    const response = await api.variantValue.create({
+      attribute_id: attributeId,
+      name: trimmedName,
+      sort_order: existingOptions.length + 1,
+      is_active: 1,
+    })
+    const newOption = normalizeMasterOptions([getResourceData(response)])[0]
+
+    if (newOption) {
+      setVariantValueOptionsByAttributeId((currentOptions) => ({
+        ...currentOptions,
+        [attributeId]: [...(currentOptions[attributeId] || []), newOption],
+      }))
+    }
+
+    return newOption ?? null
+  }, [variantValueOptionsByAttributeId])
+
   const handlePreviewMatrix = () => {
     if (!formValues.parent_id) {
       setErrorMessage('Pilih parent terlebih dahulu sebelum membuat matrix.')
@@ -1377,10 +1504,13 @@ function DialogCreateItem({
                     value={variantSelections[attribute.value] || []}
                     options={variantValueOptionsByAttributeId[attribute.value] || []}
                     placeholder={`Pilih ${attribute.label}`}
+                    searchPlaceholder={`Cari ${attribute.label}...`}
                     emptyMessage="Value tidak ditemukan."
                     loading={Boolean(loadingVariantValuesByAttributeId[attribute.value])}
                     disabled={isSubmitting || Boolean(loadingVariantValuesByAttributeId[attribute.value])}
                     maxSelectable={MAX_VARIANT_VALUES_PER_ATTRIBUTE}
+                    allowCreate
+                    onCreate={(name) => handleCreateVariantValue(attribute.value, name)}
                     onToggle={(valueId) => handleVariantValueToggle(attribute.value, valueId)}
                   />
                 </div>
@@ -1400,7 +1530,7 @@ function DialogCreateItem({
                       <tr>
                         <th>Create</th>
                         <th>Variant</th>
-                        <th className="item-create-popup__matrix-th--name">Item Name</th>
+                        <th className="item-create-popup__matrix-th--name">SKU Name</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1578,6 +1708,8 @@ function DialogCreateItem({
                       loading={isLoadingMasters}
                       disabled={isSubmitting || isLoadingMasters}
                       forceOpenDown={Boolean(field.forceOpenDown)}
+                      allowCreate={Boolean(field.allowCreate)}
+                      onCreate={field.name === 'uom_id' ? handleCreateUom : undefined}
                       onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
                     />
                   ) : (
@@ -1682,8 +1814,10 @@ function DialogCreateItem({
             {isSubmitting
               ? 'Creating...'
               : isMatrixMode
-                ? `Create ${selectedMatrixRows.length || ''}`.trim()
-                : 'Create'}
+                ? selectedMatrixRows.length > 0
+                  ? `Create SKU (${selectedMatrixRows.length})`
+                  : 'Create SKU'
+                : 'Create SKU'}
           </button>
         </div>
       </form>

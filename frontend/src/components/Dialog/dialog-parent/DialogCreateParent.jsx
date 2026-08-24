@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, { createInitialDetailItem } from './detail-item/CreateDetailItem.jsx'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 
@@ -60,7 +60,7 @@ const parentDetailFields = [
     placeholder: 'Pilih Source',
     type: 'select',
     optionsKey: 'itemTypes',
-    searchPlaceholder: 'Cari item type...',
+    searchable: false,
     emptyMessage: 'Item type tidak ditemukan.',
   },
   {
@@ -78,7 +78,6 @@ const parentDetailFields = [
     placeholder: 'Pilih attribute',
     type: 'checkbox-list',
     optionsKey: 'variantAttributes',
-    searchPlaceholder: 'Cari attribute...',
     emptyMessage: 'Attribute tidak ditemukan.',
     showOrder: true,
   },
@@ -157,6 +156,15 @@ function normalizeFieldValue(value) {
     .replace(/\s+/g, ' ')
 }
 
+function buildCodeFromName(name) {
+  return String(name ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50)
+}
+
 function getOptionLabel(options, value) {
   const normalizedValue = String(value ?? '')
 
@@ -217,6 +225,42 @@ function hasIncompleteDetailVariantSelection(detailItems, attributeIds) {
 
 function getCreatedParentId(parent) {
   return parent?.id ?? parent?.parent_id ?? parent?.item_parent_id ?? ''
+}
+
+function findDuplicateParentMatch(parents, { subBrand, itemName, excludeId }) {
+  const normalizedSubBrand = normalizeFieldValue(subBrand).toLowerCase()
+  const normalizedItemName = normalizeFieldValue(itemName).toLowerCase()
+
+  return (
+    parents.find((parent) => {
+      const parentId = getCreatedParentId(parent)
+
+      if (excludeId && String(parentId) === String(excludeId)) {
+        return false
+      }
+
+      return (
+        normalizeFieldValue(parent.sub_brand).toLowerCase() === normalizedSubBrand &&
+        normalizeFieldValue(parent.item_name).toLowerCase() === normalizedItemName
+      )
+    }) || null
+  )
+}
+
+function getApiErrorMessage(error, fallbackMessage) {
+  const responseErrors = error?.data?.errors
+
+  if (responseErrors && typeof responseErrors === 'object' && !Array.isArray(responseErrors)) {
+    const fieldMessage = Object.values(responseErrors).find(
+      (value) => typeof value === 'string' && value.trim(),
+    )
+
+    if (fieldMessage) {
+      return fieldMessage
+    }
+  }
+
+  return error?.message || fallbackMessage
 }
 
 function getHwdParts(value) {
@@ -370,6 +414,7 @@ function SearchableMasterSelect({
   emptyMessage = 'Data tidak ditemukan.',
   loading = false,
   disabled = false,
+  searchable = true,
   onChange,
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -384,14 +429,14 @@ function SearchableMasterSelect({
   const filteredOptions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
-    if (!normalizedQuery) {
+    if (!searchable || !normalizedQuery) {
       return options
     }
 
     return options.filter((option) =>
       String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
     )
-  }, [options, searchQuery])
+  }, [options, searchQuery, searchable])
 
   const updateMenuPosition = useCallback(() => {
     const triggerElement = triggerRef.current
@@ -405,7 +450,7 @@ function SearchableMasterSelect({
     const viewportHeight = window.innerHeight
     const viewportMargin = 12
     const menuGap = 8
-    const menuChromeHeight = 72
+    const menuChromeHeight = searchable ? 72 : 18
     const maxOptionsHeight = 220
     const maxMenuWidth = Math.max(0, viewportWidth - viewportMargin * 2)
     const menuWidth = Math.min(triggerBounds.width, maxMenuWidth)
@@ -432,7 +477,7 @@ function SearchableMasterSelect({
       width: menuWidth,
       '--parent-master-select-options-max-height': `${nextOptionsHeight}px`,
     })
-  }, [])
+  }, [searchable])
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -486,10 +531,10 @@ function SearchableMasterSelect({
   }, [isOpen])
 
   useEffect(() => {
-    if (isOpen && menuStyle) {
+    if (searchable && isOpen && menuStyle) {
       searchInputRef.current?.focus()
     }
-  }, [isOpen, menuStyle])
+  }, [isOpen, menuStyle, searchable])
 
   const handleToggle = () => {
     if (disabled) {
@@ -520,18 +565,20 @@ function SearchableMasterSelect({
             aria-label={label}
             style={menuStyle}
           >
-            <div className="parent-master-select__search">
-              <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                className="parent-master-select__search-input"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={`Cari ${label}`}
-              />
-            </div>
+            {searchable ? (
+              <div className="parent-master-select__search">
+                <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  className="parent-master-select__search-input"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={`Cari ${label}`}
+                />
+              </div>
+            ) : null}
 
             <div className="parent-master-select__options">
               {filteredOptions.length > 0 ? (
@@ -855,6 +902,278 @@ function SearchableSubBrandInput({
   )
 }
 
+function SearchableCreatableSelect({
+  id,
+  label,
+  value = '',
+  options = [],
+  placeholder = 'Cari data',
+  emptyMessage = 'Data tidak ditemukan.',
+  loading = false,
+  disabled = false,
+  allowCreate = false,
+  onCreate,
+  onChange,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [inputText, setInputText] = useState('')
+  const [syncedValue, setSyncedValue] = useState(null)
+  const [isCreatingOption, setIsCreatingOption] = useState(false)
+  const [createOptionError, setCreateOptionError] = useState('')
+  const [menuStyle, setMenuStyle] = useState(null)
+  const rootRef = useRef(null)
+  const inputRef = useRef(null)
+  const menuRef = useRef(null)
+  const selectedValue = String(value ?? '')
+  const selectedOption = options.find((option) => option.value === selectedValue) || null
+
+  if (selectedValue !== syncedValue) {
+    setSyncedValue(selectedValue)
+    setInputText(selectedOption?.label ?? '')
+  }
+
+  const trimmedQuery = inputText.trim()
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = trimmedQuery.toLowerCase()
+
+    if (!normalizedQuery) {
+      return options
+    }
+
+    return options.filter((option) =>
+      String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
+    )
+  }, [options, trimmedQuery])
+  const hasExactMatch = options.some(
+    (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  )
+  const canCreateOption = allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
+
+  const updateMenuPosition = useCallback(() => {
+    const inputElement = inputRef.current
+
+    if (!inputElement) {
+      return
+    }
+
+    const inputBounds = inputElement.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const viewportMargin = 12
+    const menuGap = 8
+    const menuChromeHeight = 18
+    const maxOptionsHeight = 220
+    const maxMenuWidth = Math.max(0, viewportWidth - viewportMargin * 2)
+    const menuWidth = Math.min(inputBounds.width, maxMenuWidth)
+    const nextLeft = Math.min(
+      Math.max(inputBounds.left, viewportMargin),
+      Math.max(viewportMargin, viewportWidth - menuWidth - viewportMargin),
+    )
+    const spaceBelow = viewportHeight - inputBounds.bottom - viewportMargin - menuGap
+    const spaceAbove = inputBounds.top - viewportMargin - menuGap
+    const shouldOpenUp = spaceBelow < 190 && spaceAbove > spaceBelow
+    const availableHeight = Math.max(112, shouldOpenUp ? spaceAbove : spaceBelow)
+    const nextOptionsHeight = Math.max(
+      96,
+      Math.min(maxOptionsHeight, availableHeight - menuChromeHeight),
+    )
+    const menuHeight = nextOptionsHeight + menuChromeHeight
+    const nextTop = shouldOpenUp
+      ? Math.max(viewportMargin, inputBounds.top - menuGap - menuHeight)
+      : Math.min(inputBounds.bottom + menuGap, viewportHeight - viewportMargin - menuHeight)
+
+    setMenuStyle({
+      top: nextTop,
+      left: nextLeft,
+      width: menuWidth,
+      '--parent-master-select-options-max-height': `${nextOptionsHeight}px`,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    updateMenuPosition()
+
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [isOpen, updateMenuPosition])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const closeDropdown = () => {
+      setIsOpen(false)
+      setCreateOptionError('')
+      setInputText(selectedOption?.label ?? '')
+    }
+
+    const handlePointerDown = (event) => {
+      if (
+        !rootRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        closeDropdown()
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, selectedOption])
+
+  const handleFocus = () => {
+    if (!disabled) {
+      setIsOpen(true)
+    }
+  }
+
+  const handleInputChange = (event) => {
+    setInputText(event.target.value)
+    setCreateOptionError('')
+    setIsOpen(true)
+  }
+
+  const handleSelectOption = (option) => {
+    onChange?.(option.value)
+    setInputText(option.label)
+    setCreateOptionError('')
+    setIsOpen(false)
+  }
+
+  const handleCreateOption = async () => {
+    if (!canCreateOption || isCreatingOption) {
+      return
+    }
+
+    setIsCreatingOption(true)
+    setCreateOptionError('')
+
+    try {
+      const newOption = await onCreate(trimmedQuery)
+
+      if (newOption?.value) {
+        onChange?.(newOption.value)
+        setInputText(newOption.label)
+        setIsOpen(false)
+      }
+    } catch (error) {
+      setCreateOptionError(error?.message || 'Gagal menambahkan data.')
+    } finally {
+      setIsCreatingOption(false)
+    }
+  }
+
+  const menuNode =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="parent-master-select__menu parent-subbrand-search__menu"
+            role="listbox"
+            aria-label={label}
+            style={menuStyle}
+          >
+            <div className="parent-master-select__options">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
+                  const isSelected = option.value === selectedValue
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={[
+                        'parent-master-select__option',
+                        isSelected ? 'parent-master-select__option--selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => handleSelectOption(option)}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="parent-master-select__empty">
+                  {loading ? 'Memuat data...' : emptyMessage}
+                </div>
+              )}
+            </div>
+
+            {canCreateOption ? (
+              <div className="parent-master-select__create">
+                <button
+                  type="button"
+                  className="parent-master-select__create-button"
+                  onClick={handleCreateOption}
+                  disabled={isCreatingOption}
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  <span>{isCreatingOption ? 'Menambahkan...' : `Tambah "${trimmedQuery}"`}</span>
+                </button>
+                {createOptionError ? (
+                  <p className="parent-master-select__create-error" role="alert">
+                    {createOptionError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <div ref={rootRef} className="parent-subbrand-search">
+      <div className="parent-subbrand-search__control">
+        <SearchMd size={16} className="parent-subbrand-search__icon" aria-hidden="true" />
+        <input
+          ref={inputRef}
+          id={id}
+          type="search"
+          className="register-user-popup__input parent-subbrand-search__input"
+          value={inputText}
+          placeholder={loading ? 'Memuat data...' : placeholder}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          disabled={disabled || loading}
+        />
+      </div>
+
+      {menuNode}
+    </div>
+  )
+}
+
 function DialogCreateParent({
   isOpen = false,
   eyebrow = 'Item Parent',
@@ -873,6 +1192,8 @@ function DialogCreateParent({
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
   const [isParentSectionOpen, setIsParentSectionOpen] = useState(true)
   const [previousCreatedParent, setPreviousCreatedParent] = useState(null)
+  const [duplicateParentMatch, setDuplicateParentMatch] = useState(null)
+  const [isCheckingDuplicateParent, setIsCheckingDuplicateParent] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -884,6 +1205,8 @@ function DialogCreateParent({
     setLoadingVariantValuesByAttributeId({})
     setIsParentSectionOpen(true)
     setPreviousCreatedParent(null)
+    setDuplicateParentMatch(null)
+    setIsCheckingDuplicateParent(false)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -953,6 +1276,55 @@ function DialogCreateParent({
       setIsParentSectionOpen(false)
     }
   }
+
+  useEffect(() => {
+    if (!isOpen || createdParent) {
+      return undefined
+    }
+
+    const brandId = normalizeFieldValue(formValues.brand_id)
+    const subBrand = normalizeFieldValue(formValues.sub_brand)
+    const itemName = normalizeFieldValue(formValues.item_name)
+
+    if (!brandId || !subBrand || !itemName) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(async () => {
+      setIsCheckingDuplicateParent(true)
+
+      try {
+        const response = await api.itemParents.list(
+          { brand_id: brandId, search: itemName, limit: 50 },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setDuplicateParentMatch(
+          findDuplicateParentMatch(normalizeListResponse(response), { subBrand, itemName }),
+        )
+      } catch (error) {
+        if (isMounted && error?.name !== 'AbortError') {
+          setDuplicateParentMatch(null)
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingDuplicateParent(false)
+        }
+      }
+    }, 400)
+
+    return () => {
+      isMounted = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [isOpen, createdParent, formValues.brand_id, formValues.sub_brand, formValues.item_name])
 
   const selectedDetailVariantAttributeIds = useMemo(
     () => getSelectedIds(formValues.variant_attribute_ids),
@@ -1056,6 +1428,11 @@ function DialogCreateParent({
     const { name, value } = event.target
 
     setErrorMessage('')
+
+    if (name === 'item_name') {
+      setDuplicateParentMatch(null)
+    }
+
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: name === 'item_name' ? value.toUpperCase() : value,
@@ -1064,6 +1441,11 @@ function DialogCreateParent({
 
   const handleSelectChange = (name, value) => {
     setErrorMessage('')
+
+    if (name === 'brand_id') {
+      setDuplicateParentMatch(null)
+    }
+
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
@@ -1088,6 +1470,7 @@ function DialogCreateParent({
 
   const handleSubBrandChange = (value, option) => {
     setErrorMessage('')
+    setDuplicateParentMatch(null)
     setFormValues((currentValues) => ({
       ...currentValues,
       subbrand_id: option?.subbrand_id || '',
@@ -1099,6 +1482,72 @@ function DialogCreateParent({
     setErrorMessage('')
     setDetailItems(nextDetailItems)
   }
+
+  const handleCreateUom = useCallback(async (name) => {
+    const trimmedName = normalizeFieldValue(name)
+
+    if (!trimmedName) {
+      return null
+    }
+
+    const existingOption = masterOptions.uoms.find(
+      (option) => option.label.toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    if (existingOption) {
+      return existingOption
+    }
+
+    const response = await api.uoms.create({
+      code: buildCodeFromName(trimmedName) || trimmedName.slice(0, 50),
+      name: trimmedName,
+      is_active: 1,
+    })
+    const newOption = normalizeMasterOptions([getResourceData(response)], 'uoms')[0]
+
+    if (newOption) {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        uoms: [...currentOptions.uoms, newOption],
+      }))
+    }
+
+    return newOption ?? null
+  }, [masterOptions.uoms])
+
+  const handleCreateVariantValue = useCallback(async (attributeId, name) => {
+    const trimmedName = normalizeFieldValue(name)
+
+    if (!trimmedName) {
+      return null
+    }
+
+    const existingOptions = variantValueOptionsByAttributeId[attributeId] || []
+    const existingOption = existingOptions.find(
+      (option) => option.label.toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    if (existingOption) {
+      return existingOption
+    }
+
+    const response = await api.variantValue.create({
+      attribute_id: attributeId,
+      name: trimmedName,
+      sort_order: existingOptions.length + 1,
+      is_active: 1,
+    })
+    const newOption = normalizeMasterOptions([getResourceData(response)], 'variantValues')[0]
+
+    if (newOption) {
+      setVariantValueOptionsByAttributeId((currentOptions) => ({
+        ...currentOptions,
+        [attributeId]: [...(currentOptions[attributeId] || []), newOption],
+      }))
+    }
+
+    return newOption ?? null
+  }, [variantValueOptionsByAttributeId])
 
   const handleToggleParentSection = () => {
     setIsParentSectionOpen((currentValue) => !currentValue)
@@ -1182,13 +1631,21 @@ function DialogCreateParent({
         return
       }
 
+      if (duplicateParentMatch) {
+        setErrorMessage(
+          `Parent dengan kombinasi Brand + Sub Brand + Item Name ini sudah ada (${duplicateParentMatch.parent_code}).`,
+        )
+        return
+      }
+
       const createdParentResponse = await api.itemParents.create(payload)
       const parentData = getResourceData(createdParentResponse)
 
       setCreatedParent(parentData)
+      setDuplicateParentMatch(null)
       onCreated?.(parentData)
     } catch (error) {
-      setErrorMessage(error?.message || (createdParent ? 'Gagal membuat SKU.' : 'Gagal membuat item parent.'))
+      setErrorMessage(getApiErrorMessage(error, createdParent ? 'Gagal membuat SKU.' : 'Gagal membuat item parent.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -1222,6 +1679,7 @@ function DialogCreateParent({
           value={formValues[field.name]}
           options={masterOptions[field.optionsKey]}
           placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
           disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
@@ -1239,6 +1697,7 @@ function DialogCreateParent({
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
           disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          searchable={field.searchable !== false}
           onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
         />
       ) : field.type === 'subBrandSearch' ? (
@@ -1342,6 +1801,11 @@ function DialogCreateParent({
                         <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
                           {parentFormulaFields.map(renderField)}
                         </div>
+                        {!createdParent && duplicateParentMatch ? (
+                          <p className="register-user-popup__hint" role="alert">
+                            Parent dengan kombinasi Brand + Sub Brand + Item Name ini sudah ada ({duplicateParentMatch.parent_code}).
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="parent-create-popup__section">
@@ -1369,7 +1833,9 @@ function DialogCreateParent({
                         Boolean(loadingVariantValuesByAttributeId[String(attributeId ?? '')])
                       }
                       loadingUoms={isLoadingMasters}
-                      SearchableSelect={SearchableMasterSelect}
+                      SearchableSelect={SearchableCreatableSelect}
+                      onCreateUom={handleCreateUom}
+                      onCreateVariantValue={handleCreateVariantValue}
                       disabled={isSubmitting}
                       onChange={handleDetailItemsChange}
                     />
@@ -1400,7 +1866,10 @@ function DialogCreateParent({
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              (!createdParent && (isCheckingDuplicateParent || Boolean(duplicateParentMatch)))
+            }
           >
             {isSubmitting
               ? 'Creating...'

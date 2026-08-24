@@ -61,20 +61,6 @@ export const itemFilterConfig = [
         getValue: (item) => (Number(item.is_active) === 1 ? "1" : "0"),
     },
     {
-        key: "itemKind",
-        apiParam: "item_kind",
-        label: "Item Kind",
-        placeholder: "All Item Kind",
-        searchPlaceholder: "Search item kind...",
-        emptyMessage: "Item kind not found.",
-        searchable: false,
-        options: [
-            { value: "regular", label: "Regular" },
-            { value: "bundle", label: "Bundle" },
-        ],
-        getValue: (item) => String(item.item_kind ?? "").toLowerCase(),
-    },
-    {
         key: "parent",
         apiParam: "parent_id",
         label: "Parent",
@@ -146,21 +132,6 @@ export const itemFilterConfig = [
                 item.parent?.category?.detail_category,
                 item.parent?.category?.sub_category,
                 item.parent?.category?.main_category,
-            ]),
-    },
-    {
-        key: "createdBy",
-        apiParam: "created_by",
-        label: "Created By",
-        placeholder: "All Created By",
-        searchPlaceholder: "Search creator...",
-        emptyMessage: "Creator not found.",
-        getValue: (item) => getCreatedByValue(item),
-        getOption: (item) =>
-            createEntityOption(getCreatedByValue(item), [
-                item.created_by?.name,
-                item.created_by?.username,
-                item.created_by,
             ]),
     },
     {

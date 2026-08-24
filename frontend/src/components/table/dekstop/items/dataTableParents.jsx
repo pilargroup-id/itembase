@@ -5,8 +5,10 @@ import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
 import DialogImportParent from "../../../Dialog/dialog-parent/DialogImportParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
+import ButtonDeleteParent from "../../../button/parents-buttons/ButtonDeleteParent.jsx"
 import ButtonImportParent from "../../../button/parents-buttons/ButtonImportParent.jsx"
-import { Check, ChevronDown, FilterFunnel, SearchMd } from "../../../template/TemplateIcons.jsx"
+import ButtonExportParent from "../../../button/parents-buttons/ButtonExportParent.jsx"
+import { Check, ChevronDown, Export01, FilterFunnel, SearchMd } from "../../../template/TemplateIcons.jsx"
 import FilterDropdownParent from "../../../dropdown/filter-parent/FilterDropdownParent.jsx"
 import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
 import DataTable, {
@@ -762,18 +764,34 @@ function DataTableParents({
             cellClassName: "users-table__action-cell",
             headerStyle: { width: "7%" },
             cellStyle: { width: "7%", whiteSpace: "nowrap" },
-            render: (parent) => (
-                <div className="parent-action-buttons">
-                    <ButtonEditParent
-                        title="Edit"
-                        aria-label={`Edit ${parent.parent_name || parent.item_name || "item parent"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("edit", parent)
-                        }}
-                    />
-                </div>
-            ),
+            render: (parent) => {
+                const itemCount = Number(parent.item_count ?? 0)
+                const canDelete = itemCount === 0
+                const parentLabel = parent.parent_name || parent.item_name || "item parent"
+
+                return (
+                    <div className="parent-action-buttons">
+                        <ButtonEditParent
+                            title="Edit"
+                            aria-label={`Edit ${parentLabel}`}
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                openActionDialog("edit", parent)
+                            }}
+                        />
+                        {canDelete ? (
+                            <ButtonDeleteParent
+                                title="Delete"
+                                aria-label={`Delete ${parentLabel}`}
+                                onClick={(event) => {
+                                    event.stopPropagation()
+                                    openActionDialog("delete", parent)
+                                }}
+                            />
+                        ) : null}
+                    </div>
+                )
+            },
         },
     ]
 
@@ -887,6 +905,16 @@ function DataTableParents({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-backdrop" aria-label="Parent table tools">
                 <div className="parent-table-actions">
+                    <ButtonExportParent
+                        variant="action"
+                        className="parent-table-tool-button parent-table-tool-button--download"
+                        dialogEyebrow="Export Parent"
+                        dialogTitle="Export Item Parent Management"
+                        aria-label="Export parent data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportParent>
                     <ButtonImportParent
                         aria-label="Import parent data"
                         onClick={openImportDialog}

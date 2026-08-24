@@ -11,7 +11,6 @@ const BUNDLE_MAX_COMPONENTS = 5
 const initialFormValues = {
   parent_id: '',
   selling_name: '',
-  uom_id: '',
   is_active: '1',
 }
 
@@ -33,16 +32,6 @@ const bundleFields = [
     label: 'Selling Name',
     placeholder: 'Masukan Selling Name',
   },
-  {
-    name: 'uom_id',
-    label: 'UOM',
-    placeholder: 'Pilih UOM',
-    type: 'select',
-    optionsKey: 'uoms',
-    searchPlaceholder: 'Cari UOM...',
-    emptyMessage: 'UOM tidak ditemukan.',
-    required: true,
-  },
 ]
 
 const numericFields = new Set(['is_active'])
@@ -50,7 +39,6 @@ const integerInputFields = new Set()
 
 const emptyMasterOptions = {
   parents: [],
-  uoms: [],
   regularItems: [],
 }
 
@@ -96,12 +84,6 @@ function makeOption(value, labelParts) {
   }
 }
 
-function normalizeMasterOptions(responseData) {
-  return normalizeListResponse(responseData)
-    .map((item) => makeOption(item.id ?? item.value, [item.name, item.code]))
-    .filter((option) => option.value && option.label)
-}
-
 function normalizeParentOptions(responseData) {
   return normalizeListResponse(responseData)
     .map((parent) => {
@@ -122,14 +104,22 @@ function normalizeParentOptions(responseData) {
 function normalizeRegularItemOptions(responseData) {
   return normalizeListResponse(responseData)
     .filter((item) => item.item_kind === 'regular')
-    .map((item) =>
-      makeOption(item.id, [
+    .map((item) => ({
+      ...makeOption(item.id, [
         item.item_name || item.item_code,
         item.item_code,
         item.barcode,
       ]),
-    )
+      uomId: String(item.uom_id ?? item.uom?.id ?? ''),
+      uomLabel: item.uom?.name || item.uom?.code || '',
+    }))
     .filter((option) => option.value && option.label)
+}
+
+function findRegularItemOption(options, value) {
+  const normalizedValue = String(value ?? '')
+
+  return options.find((option) => option.value === normalizedValue) ?? null
 }
 
 function sanitizeIntegerInput(value) {
@@ -172,7 +162,7 @@ function buildBundleFormulaPreview(components, regularItems) {
   return formulaParts.length > 0 ? `BUNDLE ${formulaParts.join(' + ')}` : ''
 }
 
-function buildPayload(formValues, components) {
+function buildPayload(formValues, components, resolvedUomId) {
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
@@ -192,6 +182,11 @@ function buildPayload(formValues, components) {
   )
 
   payload.item_kind = 'bundle'
+  payload.uom_id = resolvedUomId || ''
+
+  if (!payload.uom_id) {
+    delete payload.uom_id
+  }
 
   const validComponents = components
     .filter((component) => component.component_item_id && isPositiveInteger(component.qty))
@@ -245,6 +240,15 @@ function DialogCreateBundle({
   )
   const dialogTitle = bundleFormulaPreview || title
 
+  const resolvedComponentItemId = useMemo(
+    () => components.find((component) => component.component_item_id)?.component_item_id ?? '',
+    [components],
+  )
+  const resolvedUomOption = useMemo(
+    () => findRegularItemOption(masterOptions.regularItems, resolvedComponentItemId),
+    [masterOptions.regularItems, resolvedComponentItemId],
+  )
+
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setComponents([initialComponent(), initialComponent()])
@@ -271,10 +275,10 @@ function DialogCreateBundle({
       setIsLoadingMasters(true)
 
       try {
-        const [uoms, items] = await Promise.all([
-          api.uoms.list({ is_active: 1 }, { signal: controller.signal }),
-          api.items.list({ item_kind: 'regular' }, { signal: controller.signal }),
-        ])
+        const items = await api.items.list(
+          { item_kind: 'regular' },
+          { signal: controller.signal },
+        )
 
         if (!isMounted) {
           return
@@ -282,7 +286,6 @@ function DialogCreateBundle({
 
         setMasterOptions((currentOptions) => ({
           ...currentOptions,
-          uoms: normalizeMasterOptions(uoms),
           regularItems: normalizeRegularItemOptions(items),
         }))
       } catch (error) {
@@ -432,7 +435,7 @@ function DialogCreateBundle({
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const payload = buildPayload(formValues, components)
+    const payload = buildPayload(formValues, components, resolvedUomOption?.uomId)
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
@@ -608,6 +611,15 @@ function DialogCreateBundle({
                                 handleComponentChange(index, 'component_item_id', nextValue)
                               }
                             />
+                            {component.component_item_id ? (
+                              <span className="bundle-create-popup__component-uom">
+                                UOM:{' '}
+                                {findRegularItemOption(
+                                  masterOptions.regularItems,
+                                  component.component_item_id,
+                                )?.uomLabel || '-'}
+                              </span>
+                            ) : null}
                           </div>
 
                           <div className="register-user-popup__field">

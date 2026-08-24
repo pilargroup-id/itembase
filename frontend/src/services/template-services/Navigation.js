@@ -1,6 +1,6 @@
 import {
+  Anchor,
   Badge,
-  Barcode,
   Boxes01,
   FileText01,
   Folder,
@@ -13,8 +13,6 @@ import {
   Settings01,
   Table01,
   Tag01,
-  UserCheck,
-  UserCog,
   LayoutDashboard,
 } from '../../components/template/TemplateIcons.jsx'
 
@@ -55,13 +53,13 @@ export const primaryNavigationItems = [
       },
       {
         id: 'nav-items',
-        label: 'Items',
+        label: 'SKU',
         href: '/items',
         icon: LayersTwo,
       },
       {
         id: 'nav-bundles',
-        label: 'Bundles',
+        label: 'Bundle',
         href: '/bundles',
         icon: Tag01,
       },
@@ -76,32 +74,37 @@ export const primaryNavigationItems = [
         id: 'nav-categories',
         label: 'Categories',
         href: '/categories',
+        icon: List,
       },
       {
         id: 'nav-brands',
         label: 'Brands',
         href: '/brands',
-
+        icon: Badge,
       },
       {
         id: 'nav-types',
         label: 'Source',
         href: '/types',
+        icon: Globe,
       },
       {
         id: 'nav-ports',
         label: 'Ports',
         href: '/ports',
+        icon: Anchor,
       },
       {
         id: 'nav-uoms',
         label: 'Uoms',
         href: '/uoms',
+        icon: Ruler,
       },
       {
         id: 'variant',
         label: 'Variant',
         href: '/variant',
+        icon: Shapes,
       }
     ],
   },

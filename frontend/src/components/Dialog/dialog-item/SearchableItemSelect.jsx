@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, SearchMd } from '../../template/TemplateIcons.jsx'
 
 function SearchableItemSelect({
   id,
@@ -15,12 +15,16 @@ function SearchableItemSelect({
   disabled = false,
   remoteSearch = false,
   forceOpenDown = false,
+  allowCreate = false,
+  onCreate,
   onChange,
   onSearchChange,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [menuStyle, setMenuStyle] = useState(null)
+  const [isCreatingOption, setIsCreatingOption] = useState(false)
+  const [createOptionError, setCreateOptionError] = useState('')
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
@@ -38,6 +42,11 @@ function SearchableItemSelect({
       String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
     )
   }, [options, remoteSearch, searchQuery])
+  const trimmedQuery = searchQuery.trim()
+  const hasExactMatch = options.some(
+    (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  )
+  const canCreateOption = allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
 
   useEffect(() => {
     if (!isOpen || !remoteSearch) {
@@ -109,6 +118,7 @@ function SearchableItemSelect({
     const closeDropdown = () => {
       setIsOpen(false)
       setSearchQuery('')
+      setCreateOptionError('')
     }
 
     const handlePointerDown = (event) => {
@@ -158,6 +168,30 @@ function SearchableItemSelect({
     onChange?.(String(nextValue))
     setIsOpen(false)
     setSearchQuery('')
+    setCreateOptionError('')
+  }
+
+  const handleCreateOption = async () => {
+    if (!canCreateOption || isCreatingOption) {
+      return
+    }
+
+    setIsCreatingOption(true)
+    setCreateOptionError('')
+
+    try {
+      const newOption = await onCreate(trimmedQuery)
+
+      if (newOption?.value) {
+        onChange?.(String(newOption.value))
+        setIsOpen(false)
+        setSearchQuery('')
+      }
+    } catch (error) {
+      setCreateOptionError(error?.message || 'Gagal menambahkan data.')
+    } finally {
+      setIsCreatingOption(false)
+    }
   }
 
   const displayValue = loading ? 'Memuat data...' : selectedOption?.label || placeholder
@@ -213,6 +247,25 @@ function SearchableItemSelect({
                 </div>
               )}
             </div>
+
+            {canCreateOption ? (
+              <div className="parent-master-select__create">
+                <button
+                  type="button"
+                  className="parent-master-select__create-button"
+                  onClick={handleCreateOption}
+                  disabled={isCreatingOption}
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  <span>{isCreatingOption ? 'Menambahkan...' : `Tambah "${trimmedQuery}"`}</span>
+                </button>
+                {createOptionError ? (
+                  <p className="parent-master-select__create-error" role="alert">
+                    {createOptionError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>,
           document.body,
         )

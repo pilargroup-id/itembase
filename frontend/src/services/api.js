@@ -315,6 +315,8 @@ const api = {
     },
     export: (params, options) =>
       api.get('/item-data/export', { ...options, params, responseType: 'blob' }),
+    exportParents: (params, options) =>
+      api.get('/item-data/export/parents', { ...options, params, responseType: 'blob' }),
     imports: {
       parentsPreview: (data, options) =>
         api.post('/item-data/imports/parents/preview', data, options),

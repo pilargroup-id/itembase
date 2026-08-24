@@ -316,9 +316,9 @@ function useDebouncedValue(value, delay = 350) {
 const columns = [
     {
         key: "identity",
-        header: "Item",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
+        header: "SKU BUNDLING NAME / CODE",
+        headerStyle: { width: "14%" },
+        cellStyle: { width: "14%" },
         render: (item) => (
             <DataTableIdentity
                 title={item.item_name || "-"}
@@ -326,19 +326,27 @@ const columns = [
             />
         ),
     },
-
+    {
+        key: "sellingName",
+        header: "Selling Name",
+        headerStyle: { width: "12%" },
+        cellStyle: { width: "12%" },
+        render: (item) => (
+            <DataTableIdentity title={item.selling_name ?? item.item_name ?? "-"} />
+        ),
+    },
     {
         key: "barcode",
         header: "Barcode",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
         render: (item) => renderItemValue(item.barcode),
     },
     {
         key: "parent",
         header: "Parent",
-        headerStyle: { width: "15%" },
-        cellStyle: { width: "15%" },
+        headerStyle: { width: "13%" },
+        cellStyle: { width: "13%" },
         render: (item) => (
             <DataTableIdentity
                 title={item.parent?.parent_name || "-"}
@@ -349,15 +357,15 @@ const columns = [
     {
         key: "brand",
         header: "Brand",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
+        headerStyle: { width: "6%" },
+        cellStyle: { width: "6%" },
         render: (item) => renderItemValue(item.parent?.brand?.name),
     },
     {
         key: "category",
         header: "Category",
-        headerStyle: { width: "10%" },
-        cellStyle: { width: "10%" },
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
         render: (item) => renderItemValue(item.parent?.category?.detail_category),
     },
     {
@@ -370,15 +378,15 @@ const columns = [
     {
         key: "pack",
         header: "Pack",
-        headerStyle: { width: "6%" },
-        cellStyle: { width: "6%" },
+        headerStyle: { width: "5%" },
+        cellStyle: { width: "5%" },
         render: (item) => renderItemValue(formatNumberValue(item.qty_per_pack)),
     },
     {
         key: "components",
         header: "Components",
-        headerStyle: { width: "8%" },
-        cellStyle: { width: "8%" },
+        headerStyle: { width: "7%" },
+        cellStyle: { width: "7%" },
         render: (item) => renderItemValue(
             Array.isArray(item.components) ? item.components.length : "-"
         ),
@@ -549,8 +557,8 @@ function DataTableBundles({
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "8%" },
-            cellStyle: { width: "8%" },
+            headerStyle: { width: "7%" },
+            cellStyle: { width: "7%" },
             render: (item) => (
                 <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <label

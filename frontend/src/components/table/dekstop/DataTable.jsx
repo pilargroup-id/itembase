@@ -12,19 +12,6 @@ function getInitials(value = '') {
     .join('')
 }
 
-function toTitleCase(value) {
-  if (typeof value !== 'string') {
-    return value
-  }
-
-  return value
-    .toLowerCase()
-    .replace(
-      /(^|[\s/-])([a-z])/g,
-      (match, separator, letter) => `${separator}${letter.toUpperCase()}`,
-    )
-}
-
 function getDefaultRowId(row, index) {
   return row?.id ?? row?.userId ?? row?.key ?? index
 }
@@ -191,15 +178,13 @@ export function DataTableChips({ items = [], empty = '-', variant = 'app', class
 }
 
 export function DataTableIdentity({ title, subtitle, initials, badge, className = '' }) {
-  const displayTitle = toTitleCase(title)
-
   return (
     <div className={['users-table__identity', className].filter(Boolean).join(' ')}>
       <span className="users-table__avatar">{initials || getInitials(title)}</span>
 
       <div className="users-table__identity-copy">
         <div className="users-table__name-row">
-          <strong className="users-table__name">{displayTitle}</strong>
+          <strong className="users-table__name">{title}</strong>
           {badge}
         </div>
 

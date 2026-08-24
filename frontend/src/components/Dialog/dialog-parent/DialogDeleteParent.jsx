@@ -72,7 +72,7 @@ function DialogDeleteParent({
     setErrorMessage('')
 
     try {
-      await api.itemParents.updateStatus(deleteId, 'inactive')
+      await api.itemParents.remove(deleteId)
       onDeleted?.(parent ?? user)
       onConfirm?.(parent ?? user)
     } catch (error) {
@@ -127,7 +127,7 @@ function DialogDeleteParent({
             Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menonaktifkan item parent beserta child item terkait.
+            Tindakan ini akan menghapus item parent secara permanen. Item parent hanya dapat dihapus jika tidak memiliki item di dalamnya.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">

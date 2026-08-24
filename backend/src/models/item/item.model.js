@@ -26,13 +26,8 @@ function normalizeBooleanFilter(value) {
   return Number(value) ? 1 : 0;
 }
 
-function buildWhereClause(query = {}) {
-  const conditions = [];
-  const params = [];
-
-  if (query.search) {
-    const search = `%${query.search}%`;
-    conditions.push(`(
+function buildSearchTokenCondition() {
+  return `(
       i.item_code LIKE ? OR i.barcode LIKE ? OR i.item_name LIKE ? OR i.selling_name LIKE ?
       OR ip.parent_code LIKE ? OR ip.parent_name LIKE ?
       OR mb.code LIKE ? OR mb.name LIKE ? OR mc.detail_category LIKE ?
@@ -50,8 +45,24 @@ function buildWhereClause(query = {}) {
         WHERE ipp_search.item_parent_id = ip.id
           AND (mp_search.code LIKE ? OR mp_search.name LIKE ?)
       )
-    )`);
-    params.push(...Array(22).fill(search));
+    )`;
+}
+
+function buildWhereClause(query = {}) {
+  const conditions = [];
+  const params = [];
+
+  if (query.search) {
+    // Global search: split into words so a query can match across different
+    // fields (e.g. item name + category), not just as one literal phrase
+    // inside a single column.
+    const tokens = String(query.search).trim().split(/\s+/).filter(Boolean);
+    if (tokens.length) {
+      conditions.push(`(${tokens.map(() => buildSearchTokenCondition()).join(' AND ')})`);
+      tokens.forEach((token) => {
+        params.push(...Array(22).fill(`%${token}%`));
+      });
+    }
   }
 
   const directFilters = [

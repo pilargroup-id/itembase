@@ -66,6 +66,8 @@ function CreateDetailItem({
   getLoadingVariantValues = () => false,
   loadingUoms = false,
   SearchableSelect = null,
+  onCreateUom = null,
+  onCreateVariantValue = null,
   disabled = false,
   onChange,
 }) {
@@ -165,7 +167,7 @@ function CreateDetailItem({
           <thead>
             <tr>
               <th scope="col" className="parent-detail-item__table-title-header">
-                SKU
+                SKU Name
               </th>
               {variantAttributeOptions.map((attribute) => (
                 <th key={attribute.value} scope="col">
@@ -180,7 +182,7 @@ function CreateDetailItem({
               ))}
               <th scope="col">Lead Time (Day)</th>
               <th scope="col" className="parent-detail-item__table-action-header">
-                Aksi
+                Action
               </th>
             </tr>
           </thead>
@@ -213,6 +215,12 @@ function CreateDetailItem({
                           emptyMessage="Value tidak ditemukan."
                           loading={loadingVariantValues}
                           disabled={disabled || loadingVariantValues}
+                          allowCreate={Boolean(onCreateVariantValue)}
+                          onCreate={
+                            onCreateVariantValue
+                              ? (nextName) => onCreateVariantValue(attribute.value, nextName)
+                              : undefined
+                          }
                           onChange={(nextValue) =>
                             handleVariantValueChange(item.id, attribute.value, nextValue)
                           }
@@ -253,6 +261,8 @@ function CreateDetailItem({
                       emptyMessage="UOM tidak ditemukan."
                       loading={loadingUoms}
                       disabled={disabled || loadingUoms}
+                      allowCreate={Boolean(onCreateUom)}
+                      onCreate={onCreateUom || undefined}
                       onChange={(nextValue) =>
                         handleFieldChange(item.id, 'uom_id', nextValue)
                       }
