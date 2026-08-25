@@ -5,17 +5,11 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
-  code: '',
   name: '',
   is_active: '1',
 }
 
 const TypeFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'FG',
-  },
   {
     name: 'name',
     label: 'Name',
@@ -73,7 +67,7 @@ function DialogCreateType({
   }
 
   const buildPayload = () => ({
-    code: formValues.code.trim(),
+    code: formValues.name.trim().slice(0, 50),
     name: formValues.name.trim(),
     is_active: Number(formValues.is_active),
   })
@@ -83,8 +77,8 @@ function DialogCreateType({
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Please complete the code and name for the Type first.')
+    if (!payload.name) {
+      setErrorMessage('Please complete the name for the Type first.')
       return
     }
 
@@ -118,7 +112,7 @@ function DialogCreateType({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup master-simple-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-Type-title"

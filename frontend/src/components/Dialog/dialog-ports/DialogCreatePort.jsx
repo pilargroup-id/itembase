@@ -4,18 +4,14 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
+const DEFAULT_COUNTRY_CODE = 'ID'
+
 const initialFormValues = {
-  code: '',
   name: '',
   is_active: '1',
 }
 
 const PortFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'JKT',
-  },
   {
     name: 'name',
     label: 'Name',
@@ -73,8 +69,9 @@ function DialogCreatePort({
   }
 
   const buildPayload = () => ({
-    code: formValues.code.trim(),
+    code: formValues.name.trim().slice(0, 50),
     name: formValues.name.trim(),
+    country_code: DEFAULT_COUNTRY_CODE,
     is_active: Number(formValues.is_active),
   })
 
@@ -83,8 +80,8 @@ function DialogCreatePort({
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Please complete the code and name for the Port first.')
+    if (!payload.name) {
+      setErrorMessage('Please complete the name for the Port first.')
       return
     }
 
@@ -118,7 +115,7 @@ function DialogCreatePort({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup master-simple-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-Port-title"

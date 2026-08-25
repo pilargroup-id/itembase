@@ -6637,6 +6637,14 @@ select {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.master-simple-popup {
+  width: min(100%, 460px);
+}
+
+.master-simple-popup .register-user-popup__layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .parent-create-popup .register-user-popup__layout {
   grid-template-columns: minmax(0, 1fr);
 }

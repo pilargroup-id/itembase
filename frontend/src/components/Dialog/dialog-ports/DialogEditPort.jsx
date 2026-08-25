@@ -4,18 +4,14 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
+const DEFAULT_COUNTRY_CODE = 'ID'
+
 const initialFormValues = {
-  code: '',
   name: '',
   is_active: '1',
 }
 
 const PortFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'JKT',
-  },
   {
     name: 'name',
     label: 'Name',
@@ -51,7 +47,6 @@ function createFormValuesFromPort(Port) {
   }
 
   return {
-    code: Port.code ?? Port.port_code ?? '',
     name: Port.name ?? Port.port_name ?? '',
     is_active: getPortStatusValue(Port),
   }
@@ -112,8 +107,9 @@ function DialogEditPort({
   }
 
   const buildPayload = () => ({
-    code: formValues.code.trim(),
+    code: formValues.name.trim().slice(0, 50),
     name: formValues.name.trim(),
+    country_code: Port?.country_code ?? DEFAULT_COUNTRY_CODE,
     is_active: Number(formValues.is_active),
   })
 
@@ -122,8 +118,8 @@ function DialogEditPort({
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Please complete the code and name for the Port first.')
+    if (!payload.name) {
+      setErrorMessage('Please complete the name for the Port first.')
       return
     }
 
@@ -164,7 +160,7 @@ function DialogEditPort({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup master-simple-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-edit-port-title"

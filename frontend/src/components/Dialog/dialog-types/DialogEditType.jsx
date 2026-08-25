@@ -3,17 +3,11 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 const initialFormValues = {
-  code: '',
   name: '',
   is_active: '1',
 }
 
 const TypeFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'FG',
-  },
   {
     name: 'name',
     label: 'Name',
@@ -49,7 +43,6 @@ function createFormValuesFromType(Type) {
   }
 
   return {
-    code: Type.code ?? Type.Type_code ?? '',
     name: Type.name ?? Type.Type_name ?? '',
     is_active: getTypeStatusValue(Type),
   }
@@ -110,7 +103,7 @@ function DialogEditType({
   }
 
   const buildPayload = () => ({
-    code: formValues.code.trim(),
+    code: formValues.name.trim().slice(0, 50),
     name: formValues.name.trim(),
     is_active: Number(formValues.is_active),
   })
@@ -120,8 +113,8 @@ function DialogEditType({
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Please complete the code and name for the Type first.')
+    if (!payload.name) {
+      setErrorMessage('Please complete the name for the Type first.')
       return
     }
 
@@ -162,7 +155,7 @@ function DialogEditType({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup master-simple-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-edit-Type-title"

@@ -5,17 +5,11 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
-  code: '',
   name: '',
   is_active: '1',
 }
 
 const uomFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'PCS',
-  },
   {
     name: 'name',
     label: 'Name',
@@ -51,7 +45,6 @@ function createFormValuesFromUom(uom) {
   }
 
   return {
-    code: uom.code ?? uom.uom_code ?? '',
     name: uom.name ?? uom.uom_name ?? '',
     is_active: getUomStatusValue(uom),
   }
@@ -112,7 +105,7 @@ function DialogEditUom({
   }
 
   const buildPayload = () => ({
-    code: formValues.code.trim(),
+    code: formValues.name.trim().slice(0, 50),
     name: formValues.name.trim(),
     is_active: Number(formValues.is_active),
   })
@@ -122,8 +115,8 @@ function DialogEditUom({
 
     const payload = buildPayload()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Please complete the code and name for the UOM first.')
+    if (!payload.name) {
+      setErrorMessage('Please complete the name for the UOM first.')
       return
     }
 
@@ -164,7 +157,7 @@ function DialogEditUom({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup master-simple-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-edit-uom-title"
