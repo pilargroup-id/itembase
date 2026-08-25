@@ -5,6 +5,7 @@ import DialogDeleteCategories from "../../../Dialog/dialog-categories/DialogDele
 import DialogEditCategories from "../../../Dialog/dialog-categories/DialogEditCategories.jsx"
 import ButtonDeleteCategories from "../../../button/categories-buttons/ButtonDeleteCategories.jsx"
 import ButtonEditCategories from "../../../button/categories-buttons/ButtonEditCategories.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
 import FilterDropdownCategories from "../../../dropdown/filter-categories/FilterDropdownCategories.jsx"
 import { categoriesFilterConfig } from "../../../dropdown/filter-categories/FilterDropdownCategories.config.js"
 import DataTable, {
@@ -539,6 +540,15 @@ function DataTableCategories({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
+                <div className="parent-table-actions">
+                    <ButtonImportMaster
+                        type="categories"
+                        masterLabel="Category"
+                        aria-label="Import category data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
+                </div>
+
                 <div className="parent-table-filters" aria-label="Filter categories">
                     <FilterDropdownCategories
                         className="parent-table-filter parent-table-filter--sort"

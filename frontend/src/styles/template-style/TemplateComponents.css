@@ -2620,6 +2620,14 @@ select {
   margin: 8px 0 18px;
 }
 
+.variant-table-tabs__actions,
+.brand-table-tabs__actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding-bottom: 8px;
+}
+
 .variant-table-tabs__button,
 .brand-table-tabs__button {
   position: relative;
@@ -7482,6 +7490,25 @@ select {
 
 .item-create-popup__matrix-row--muted {
   opacity: 0.58;
+}
+
+.item-create-popup__matrix-duplicate-hint {
+  color: #b42318;
+}
+
+.item-create-popup__matrix-table tbody tr.item-create-popup__matrix-row--duplicate {
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.item-create-popup__matrix-table tbody tr.item-create-popup__matrix-row--duplicate:hover {
+  background: rgba(180, 35, 24, 0.1);
+}
+
+.item-create-popup__matrix-duplicate-note {
+  margin: 0.25rem 0 0;
+  color: #b42318;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .item-create-popup__matrix-variant {

@@ -453,6 +453,55 @@ function hasIncompleteMatrixSelection(variantAttributes, variantSelections) {
   )
 }
 
+function normalizeMatrixText(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+}
+
+function buildMatrixVariantKey(variants) {
+  return (Array.isArray(variants) ? variants : [])
+    .map((variant) => `${variant?.attribute_id ?? ''}:${variant?.value_id ?? ''}`)
+    .sort()
+    .join('|')
+}
+
+function buildMatrixRowDuplicateKey(row) {
+  const variantKey = buildMatrixVariantKey(row.variants)
+
+  return variantKey ? `${normalizeMatrixText(row.item_name)}__${variantKey}` : ''
+}
+
+function getDuplicateMatrixRowIds(rows) {
+  const enabledRows = rows.filter((row) => row.create)
+  const keyCounts = new Map()
+
+  enabledRows.forEach((row) => {
+    const key = buildMatrixRowDuplicateKey(row)
+
+    if (key) {
+      keyCounts.set(key, (keyCounts.get(key) || 0) + 1)
+    }
+  })
+
+  const duplicateIds = new Set()
+
+  enabledRows.forEach((row) => {
+    const key = buildMatrixRowDuplicateKey(row)
+
+    if (key && keyCounts.get(key) > 1) {
+      duplicateIds.add(row.id)
+    }
+  })
+
+  return duplicateIds
+}
+
+function hasDuplicateMatrixRows(rows) {
+  return getDuplicateMatrixRowIds(rows).size > 0
+}
+
 function ChannelCheckboxSelect({
   id,
   label,
@@ -996,6 +1045,9 @@ function DialogCreateItem({
     }
   }, [formValues.business_unit_id, isOpen, itemOptionRows])
 
+  const duplicateMatrixRowIds = useMemo(() => getDuplicateMatrixRowIds(matrixRows), [matrixRows])
+  const hasDuplicateMatrixSelection = duplicateMatrixRowIds.size > 0
+
   const selectedParentOption = useMemo(
     () =>
       masterOptions.parents.find(
@@ -1403,6 +1455,13 @@ function DialogCreateItem({
           return
         }
 
+        if (hasDuplicateMatrixRows(matrixRows)) {
+          setErrorMessage(
+            'Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah item name atau variant salah satu SKU agar tidak duplikat.',
+          )
+          return
+        }
+
         const createdItems = await api.items.createMatrix(payload)
 
         onCreated?.(createdItems)
@@ -1523,6 +1582,16 @@ function DialogCreateItem({
                 <span>{selectedMatrixRows.length} dipilih</span>
               </div>
 
+              {hasDuplicateMatrixSelection ? (
+                <p
+                  className="register-user-popup__hint item-create-popup__matrix-duplicate-hint"
+                  role="alert"
+                >
+                  Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah item name atau
+                  variant salah satu SKU agar tidak duplikat.
+                </p>
+              ) : null}
+
               {matrixRows.length > 0 ? (
                 <div className="item-create-popup__matrix-table-wrap">
                   <table className="item-create-popup__matrix-table">
@@ -1534,35 +1603,55 @@ function DialogCreateItem({
                       </tr>
                     </thead>
                     <tbody>
-                      {matrixRows.map((row) => (
-                        <tr key={row.id} className={row.create ? '' : 'item-create-popup__matrix-row--muted'}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              className="register-user-popup__dropdown-checkbox"
-                              checked={row.create}
-                              disabled={isSubmitting}
-                              onChange={() => handleMatrixRowToggle(row.id)}
-                              aria-label={`Create ${row.variant_summary || row.row_no}`}
-                            />
-                          </td>
-                          <td>
-                            <span className="item-create-popup__matrix-variant">
-                              {row.variant_summary || '-'}
-                            </span>
-                          </td>
-                          <td className="item-create-popup__matrix-td--name">
-                            <input
-                              className="register-user-popup__input item-create-popup__matrix-input"
-                              value={row.item_name}
-                              disabled={isSubmitting || !row.create}
-                              onChange={(event) =>
-                                handleMatrixRowChange(row.id, 'item_name', event.target.value)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
+                      {matrixRows.map((row) => {
+                        const isDuplicateRow = duplicateMatrixRowIds.has(row.id)
+
+                        return (
+                          <tr
+                            key={row.id}
+                            className={[
+                              !row.create ? 'item-create-popup__matrix-row--muted' : '',
+                              isDuplicateRow ? 'item-create-popup__matrix-row--duplicate' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
+                            <td>
+                              <input
+                                type="checkbox"
+                                className="register-user-popup__dropdown-checkbox"
+                                checked={row.create}
+                                disabled={isSubmitting}
+                                onChange={() => handleMatrixRowToggle(row.id)}
+                                aria-label={`Create ${row.variant_summary || row.row_no}`}
+                              />
+                            </td>
+                            <td>
+                              <span className="item-create-popup__matrix-variant">
+                                {row.variant_summary || '-'}
+                              </span>
+                            </td>
+                            <td className="item-create-popup__matrix-td--name">
+                              <input
+                                className="register-user-popup__input item-create-popup__matrix-input"
+                                value={row.item_name}
+                                disabled={isSubmitting || !row.create}
+                                onChange={(event) =>
+                                  handleMatrixRowChange(row.id, 'item_name', event.target.value)
+                                }
+                              />
+                              {isDuplicateRow ? (
+                                <p
+                                  className="item-create-popup__matrix-duplicate-note"
+                                  role="alert"
+                                >
+                                  Item Name + Varian duplikat
+                                </p>
+                              ) : null}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1809,7 +1898,11 @@ function DialogCreateItem({
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting || isPreviewingMatrix}
+            disabled={
+              isSubmitting ||
+              isPreviewingMatrix ||
+              (isMatrixMode && hasDuplicateMatrixSelection)
+            }
           >
             {isSubmitting
               ? 'Creating...'

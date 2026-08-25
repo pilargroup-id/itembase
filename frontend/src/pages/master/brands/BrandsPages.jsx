@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import ButtonCreateBrand from '../../../components/button/brands-buttons/ButtonCreateBrand.jsx'
 import ButtonCreateSubBrands from '../../../components/button/sub-brands-buttons/SubButtonCreateBrand.jsx'
+import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
 import SearchBrand from '../../../components/search/SearchBrand.jsx'
 import DataTableBrands from '../../../components/table/dekstop/master/DataTableBrands.jsx'
 import DataTableSubBrands from '../../../components/table/dekstop/master/DataTableSubBrands.jsx'
@@ -60,6 +61,21 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
             </button>
           )
         })}
+
+        <div className="brand-table-tabs__actions">
+          <ButtonImportMaster
+            type={activeBrandTab === 'brands' ? 'brands' : 'sub-brands'}
+            masterLabel={activeBrandTab === 'brands' ? 'Brand' : 'Sub Brand'}
+            aria-label={
+              activeBrandTab === 'brands' ? 'Import brand data' : 'Import sub brand data'
+            }
+            onImported={() =>
+              activeBrandTab === 'brands'
+                ? setBrandRefreshKey((currentKey) => currentKey + 1)
+                : setSubBrandRefreshKey((currentKey) => currentKey + 1)
+            }
+          />
+        </div>
       </div>
 
       {activeBrandTab === 'brands' ? (

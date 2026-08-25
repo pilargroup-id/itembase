@@ -5,6 +5,7 @@ import DialogDeleteUom from "../../../Dialog/dialog-uoms/DialogDeleteUom.jsx"
 import DialogEditUom from "../../../Dialog/dialog-uoms/DialogEditUom.jsx"
 import ButtonDeleteUom from "../../../button/uoms-buttons/ButtonDeleteUom.jsx"
 import ButtonEditUom from "../../../button/uoms-buttons/ButtonEditUom.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
 import FilterDropdownUom from "../../../dropdown/filter-uoms/FilterDropdownUom.jsx"
 import { uomFilterConfig } from "../../../dropdown/filter-uoms/FilterDropdownUom.config.js"
 import DataTable, {
@@ -522,6 +523,15 @@ function DataTableUom({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
+                <div className="parent-table-actions">
+                    <ButtonImportMaster
+                        type="uoms"
+                        masterLabel="UOM"
+                        aria-label="Import UOM data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
+                </div>
+
                 <div className="parent-table-filters" aria-label="Filter uom">
                     <FilterDropdownUom
                         className="parent-table-filter parent-table-filter--sort"

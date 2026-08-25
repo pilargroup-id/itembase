@@ -17,22 +17,22 @@ const categoriesFields = [
   {
     name: 'detail_category',
     label: 'Detail Category',
-    placeholder: 'e.g., Apple iPhone 14 Pro Max',
+    placeholder: 'Enter Detail Category',
   },
   {
     name: 'sub_category',
     label: 'Sub Category',
-    placeholder: 'e.g., Handphone',
+    placeholder: 'Enter Sub Category',
   },
   {
     name: 'main_category',
     label: 'Main Category',
-    placeholder: 'e.g., Electronics',
+    placeholder: 'Enter Main Category',
   },
   {
     name: 'brand_category',
     label: 'Brand Category',
-    placeholder: 'e.g., Apple',
+    placeholder: 'Enter Brand Category',
   },
 ]
 

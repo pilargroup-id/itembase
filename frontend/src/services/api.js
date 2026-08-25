@@ -312,11 +312,15 @@ const api = {
         api.get('/item-data/templates/items', { ...options, responseType: 'blob' }),
       bundles: (options) =>
         api.get('/item-data/templates/bundles', { ...options, responseType: 'blob' }),
+      masters: (type, options) =>
+        api.get(`/item-data/templates/masters/${type}`, { ...options, responseType: 'blob' }),
     },
     export: (params, options) =>
       api.get('/item-data/export', { ...options, params, responseType: 'blob' }),
     exportParents: (params, options) =>
       api.get('/item-data/export/parents', { ...options, params, responseType: 'blob' }),
+    exportMaster: (type, params, options) =>
+      api.get(`/item-data/export/masters/${type}`, { ...options, params, responseType: 'blob' }),
     imports: {
       parentsPreview: (data, options) =>
         api.post('/item-data/imports/parents/preview', data, options),
@@ -333,6 +337,17 @@ const api = {
         }),
       cancelPreview: (previewToken, options) =>
         api.delete(`/item-data/imports/preview/${previewToken}`, options),
+      masterPreview: (type, data, options) =>
+        api.post(`/item-data/imports/masters/${type}/preview`, data, options),
+      masterCommit: (data, options) =>
+        api.post('/item-data/imports/masters/commit', data, options),
+      masterErrors: (errorFileToken, options) =>
+        api.get(`/item-data/imports/masters/errors/${errorFileToken}`, {
+          ...options,
+          responseType: 'blob',
+        }),
+      masterCancelPreview: (previewToken, options) =>
+        api.delete(`/item-data/imports/masters/preview/${previewToken}`, options),
     },
   },
   activityLogs: createResource('/activity-logs'),

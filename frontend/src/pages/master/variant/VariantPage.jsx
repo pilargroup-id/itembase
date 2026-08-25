@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ButtonCreateVariant from '../../../components/button/variant-buttons/ButtonCreateVariant.jsx'
+import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
 import SearchVariant from '../../../components/search/SearchVariant.jsx'
 import DataTableVariantAttributes from '../../../components/table/dekstop/master/DataTableVariantAttributes.jsx'
 import DataTableVariantValue from '../../../components/table/dekstop/master/DataTableVariantValue.jsx'
@@ -57,6 +58,19 @@ function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
             </button>
           )
         })}
+
+        <div className="variant-table-tabs__actions">
+          <ButtonImportMaster
+            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
+            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
+            aria-label={
+              activeVariantTab === 'attributes'
+                ? 'Import variant attribute data'
+                : 'Import variant value data'
+            }
+            onImported={() => setUomRefreshKey((currentKey) => currentKey + 1)}
+          />
+        </div>
       </div>
 
       {activeVariantTab === 'attributes' ? (
