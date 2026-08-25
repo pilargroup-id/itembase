@@ -84,7 +84,7 @@ function DialogCreateSkuStatus({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name sku status terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the SKU status first.')
       return
     }
 
@@ -97,7 +97,7 @@ function DialogCreateSkuStatus({
       onCreated?.(createdSkuStatus)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat sku status.')
+      setErrorMessage(error?.message || 'Failed to create SKU status.')
     } finally {
       setIsSubmitting(false)
     }
@@ -136,7 +136,7 @@ function DialogCreateSkuStatus({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -203,7 +203,7 @@ function DialogCreateSkuStatus({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

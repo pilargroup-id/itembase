@@ -57,7 +57,7 @@ function DialogDelete({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={onClose}
           >
             <XClose size={18} />
@@ -66,10 +66,10 @@ function DialogDelete({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{user?.name ?? 'item ini'}</strong>?
+            Are you sure you want to delete <strong>{user?.name ?? 'this item'}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghilangkan data dari tabel aktif.
+            This action will remove the data from the active table.
           </p>
         </div>
 
@@ -79,7 +79,7 @@ function DialogDelete({
             className="dashboard-popup__button dashboard-popup__button--secondary"
             onClick={onClose}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

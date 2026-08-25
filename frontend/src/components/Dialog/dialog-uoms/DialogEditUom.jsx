@@ -123,14 +123,14 @@ function DialogEditUom({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name uom terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the UOM first.')
       return
     }
 
     const uomId = getUomId(uom)
 
     if (!uomId) {
-      setErrorMessage('ID uom tidak ditemukan.')
+      setErrorMessage('UOM ID not found.')
       return
     }
 
@@ -143,7 +143,7 @@ function DialogEditUom({
       onEdited?.(editedUom, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah uom.')
+      setErrorMessage(error?.message || 'Failed to update UOM.')
     } finally {
       setIsSubmitting(false)
     }
@@ -182,7 +182,7 @@ function DialogEditUom({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -249,7 +249,7 @@ function DialogEditUom({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

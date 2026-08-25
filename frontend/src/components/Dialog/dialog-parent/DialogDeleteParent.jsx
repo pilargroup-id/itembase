@@ -10,7 +10,7 @@ function getParentDisplayName(parent, user) {
     parent?.item_name ||
     parent?.parent_code ||
     user?.name ||
-    'item ini'
+    'this item'
   )
 }
 
@@ -64,7 +64,7 @@ function DialogDeleteParent({
     const deleteId = getDeleteId(parent, user)
 
     if (!deleteId) {
-      setErrorMessage('ID data tidak ditemukan.')
+      setErrorMessage('Data ID not found.')
       return
     }
 
@@ -76,7 +76,7 @@ function DialogDeleteParent({
       onDeleted?.(parent ?? user)
       onConfirm?.(parent ?? user)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus item parent.')
+      setErrorMessage(error?.message || 'Failed to delete item parent.')
     } finally {
       setIsSubmitting(false)
     }
@@ -114,7 +114,7 @@ function DialogDeleteParent({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -124,10 +124,10 @@ function DialogDeleteParent({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus item parent secara permanen. Item parent hanya dapat dihapus jika tidak memiliki item di dalamnya.
+            This action will permanently delete the item parent. An item parent can only be deleted if it has no items inside it.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -143,7 +143,7 @@ function DialogDeleteParent({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

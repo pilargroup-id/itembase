@@ -122,7 +122,7 @@ function DialogCreateCategories({
     const payload = buildPayload()
 
     if (!payload.detail_category) {
-      setErrorMessage('Lengkapi detail category terlebih dahulu.')
+      setErrorMessage('Please enter the detail category first.')
       return
     }
 
@@ -135,7 +135,7 @@ function DialogCreateCategories({
       onCreated?.(createdCategories)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat categories.')
+      setErrorMessage(error?.message || 'Failed to create categories.')
     } finally {
       setIsSubmitting(false)
     }
@@ -174,7 +174,7 @@ function DialogCreateCategories({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -219,7 +219,7 @@ function DialogCreateCategories({
                       onChange={handleInputChange}
                       disabled={isSubmitting}
                     >
-                      <option value="">Pilih PIC</option>
+                      <option value="">Select PIC</option>
                       {picOptions.map((pic) => (
                         <option key={pic.id} value={pic.id}>
                           {pic.name || pic.code || pic.id}
@@ -262,7 +262,7 @@ function DialogCreateCategories({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

@@ -123,14 +123,14 @@ function DialogEditPicUser({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name pic user terlebih dahulu.')
+      setErrorMessage('Please enter the PIC user code and name first.')
       return
     }
 
     const picUserId = getPicUserId(picUser)
 
     if (!picUserId) {
-      setErrorMessage('ID Pic User tidak ditemukan.')
+      setErrorMessage('PIC User ID not found.')
       return
     }
 
@@ -143,7 +143,7 @@ function DialogEditPicUser({
       onEdited?.(editedPicUser, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah pic user.')
+      setErrorMessage(error?.message || 'Failed to update PIC user.')
     } finally {
       setIsSubmitting(false)
     }
@@ -182,7 +182,7 @@ function DialogEditPicUser({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -249,7 +249,7 @@ function DialogEditPicUser({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

@@ -84,7 +84,7 @@ function DialogCreateVariantAttributes({
     const payload = buildPayload()
 
     if (!payload.name) {
-      setErrorMessage('Lengkapi name variant attribute terlebih dahulu.')
+      setErrorMessage('Please complete the variant attribute name first.')
       return
     }
 
@@ -97,7 +97,7 @@ function DialogCreateVariantAttributes({
       onCreated?.(createdAttribute)
       handleClose()
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Gagal membuat variant attribute.'))
+      setErrorMessage(getApiErrorMessage(error, 'Failed to create variant attribute.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -132,7 +132,7 @@ function DialogCreateVariantAttributes({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -179,7 +179,7 @@ function DialogCreateVariantAttributes({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

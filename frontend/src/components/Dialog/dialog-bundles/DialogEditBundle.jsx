@@ -20,17 +20,17 @@ const bundleFields = [
   {
     name: 'parent_id',
     label: 'Parent',
-    placeholder: 'Pilih Parent',
+    placeholder: 'Select Parent',
     type: 'select',
     optionsKey: 'parents',
-    searchPlaceholder: 'Cari Parent...',
-    emptyMessage: 'Parent tidak ditemukan.',
+    searchPlaceholder: 'Search Parent...',
+    emptyMessage: 'Parent not found.',
     required: true,
   },
   {
     name: 'selling_name',
     label: 'Selling Name',
-    placeholder: 'Masukan Selling Name',
+    placeholder: 'Enter Selling Name',
   },
 ]
 
@@ -523,7 +523,7 @@ function DialogEditBundle({
         }
 
         setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Gagal memuat data master bundle.')
+        setErrorMessage(error?.message || 'Failed to load bundle master data.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -579,7 +579,7 @@ function DialogEditBundle({
           ...currentOptions,
           parents: [],
         }))
-        setErrorMessage(error?.message || 'Gagal memuat parent bundle.')
+        setErrorMessage(error?.message || 'Failed to load bundle parents.')
       } finally {
         if (isMounted) {
           setIsLoadingParentOptions(false)
@@ -683,7 +683,7 @@ function DialogEditBundle({
     event.preventDefault()
 
     if (!item?.id) {
-      setErrorMessage('ID bundle tidak ditemukan.')
+      setErrorMessage('Bundle ID not found.')
       return
     }
 
@@ -691,7 +691,7 @@ function DialogEditBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Lengkapi Parent, UOM, dan minimal ${BUNDLE_MIN_COMPONENTS} component item dengan qty angka bulat.`,
+        `Please complete Parent, UOM, and at least ${BUNDLE_MIN_COMPONENTS} component items with whole number qty.`,
       )
       return
     }
@@ -705,7 +705,7 @@ function DialogEditBundle({
       onEdited?.(editedItem, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah bundle.')
+      setErrorMessage(error?.message || 'Failed to update bundle.')
     } finally {
       setIsSubmitting(false)
     }
@@ -792,7 +792,7 @@ function DialogEditBundle({
             size={23}
             role="button"
             tabIndex={isSubmitting ? -1 : 0}
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={() => {
               if (!isSubmitting) {
                 handleClose()
@@ -840,9 +840,9 @@ function DialogEditBundle({
                 <div className="parent-create-popup__section bundle-create-popup__items-backdrop">
                   <div className="bundle-create-popup__section-top">
                     <div className="parent-create-popup__section-header">
-                      <h3 className="parent-create-popup__section-title">Daftar Item Bundle</h3>
+                      <h3 className="parent-create-popup__section-title">Bundle Item List</h3>
                       <p className="parent-create-popup__section-description">
-                        Tambahkan minimal {BUNDLE_MIN_COMPONENTS} item regular. Qty hanya bisa angka bulat tanpa koma.
+                        Add at least {BUNDLE_MIN_COMPONENTS} regular items. Qty must be a whole number without decimals.
                       </p>
                     </div>
 
@@ -865,7 +865,7 @@ function DialogEditBundle({
                               className="register-user-popup__label"
                               htmlFor={`edit-bundle-component-item-${index}`}
                             >
-                              Item Regular
+                              Regular Item
                               <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                             </label>
                             <SearchableItemSelect
@@ -873,9 +873,9 @@ function DialogEditBundle({
                               label={`Component item ${index + 1}`}
                               value={component.component_item_id}
                               options={componentItemOptions}
-                              placeholder="Pilih regular item..."
-                              searchPlaceholder="Cari item..."
-                              emptyMessage="Item tidak ditemukan."
+                              placeholder="Select regular item..."
+                              searchPlaceholder="Search item..."
+                              emptyMessage="Item not found."
                               loading={isLoadingMasters}
                               disabled={isSubmitting || isLoadingMasters}
                               onChange={(nextValue) =>
@@ -907,8 +907,8 @@ function DialogEditBundle({
                                 className="bundle-create-popup__qty-button"
                                 onClick={() => handleQtyStep(index, -1)}
                                 disabled={isSubmitting || Number(component.qty) <= 1}
-                                title="Kurangi qty"
-                                aria-label={`Kurangi qty item bundle ${index + 1}`}
+                                title="Decrease qty"
+                                aria-label={`Decrease qty for bundle item ${index + 1}`}
                               >
                                 <Minus size={14} />
                               </button>
@@ -930,8 +930,8 @@ function DialogEditBundle({
                                 className="bundle-create-popup__qty-button"
                                 onClick={() => handleQtyStep(index, 1)}
                                 disabled={isSubmitting}
-                                title="Tambah qty"
-                                aria-label={`Tambah qty item bundle ${index + 1}`}
+                                title="Increase qty"
+                                aria-label={`Increase qty for bundle item ${index + 1}`}
                               >
                                 <Plus size={14} />
                               </button>
@@ -946,8 +946,8 @@ function DialogEditBundle({
                                 className="bundle-create-popup__component-add"
                                 onClick={handleAddComponent}
                                 disabled={isSubmitting}
-                                title="Tambah item"
-                                aria-label="Tambah item bundle"
+                                title="Add item"
+                                aria-label="Add bundle item"
                               >
                                 <Plus size={16} />
                               </button>
@@ -963,8 +963,8 @@ function DialogEditBundle({
                               className="bundle-create-popup__component-remove"
                               onClick={() => handleRemoveComponent(index)}
                               disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
-                              title="Hapus component"
-                              aria-label={`Hapus item bundle ${index + 1}`}
+                              title="Remove component"
+                              aria-label={`Remove bundle item ${index + 1}`}
                             >
                               <Trash03 size={16} />
                             </button>
@@ -976,7 +976,7 @@ function DialogEditBundle({
 
                   <div className="bundle-create-popup__footer">
                     <p className="register-user-popup__hint">
-                      Minimal {BUNDLE_MIN_COMPONENTS} item dan maksimal {BUNDLE_MAX_COMPONENTS} item regular per bundle.
+                      Minimum {BUNDLE_MIN_COMPONENTS} items and maximum {BUNDLE_MAX_COMPONENTS} regular items per bundle.
                     </p>
                   </div>
                 </div>

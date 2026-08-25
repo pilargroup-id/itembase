@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getSkuStatusDisplayName(skuStatus) {
-  return skuStatus?.name || skuStatus?.sku_status_name || skuStatus?.code || skuStatus?.sku_status_code || 'sku status ini'
+  return skuStatus?.name || skuStatus?.sku_status_name || skuStatus?.code || skuStatus?.sku_status_code || 'this SKU status'
 }
 
 function getDeleteId(skuStatus) {
@@ -57,7 +57,7 @@ function DialogDeleteSkuStatus({
     const deleteId = getDeleteId(skuStatus)
 
     if (!deleteId) {
-      setErrorMessage('ID sku status tidak ditemukan.')
+      setErrorMessage('SKU status ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeleteSkuStatus({
       onDeleted?.(skuStatus)
       onConfirm?.(skuStatus)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus sku status.')
+      setErrorMessage(error?.message || 'Failed to delete SKU status.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeleteSkuStatus({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeleteSkuStatus({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data sku status dari master sku statuses.
+            This action will remove the SKU status data from the SKU statuses master list.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeleteSkuStatus({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

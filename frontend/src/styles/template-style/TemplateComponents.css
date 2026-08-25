@@ -6625,6 +6625,18 @@ select {
   width: min(100%, 1100px);
 }
 
+.brand-create-popup.parent-create-popup {
+  width: min(100%, 640px);
+}
+
+.sub-brand-create-popup {
+  width: min(100%, 480px);
+}
+
+.sub-brand-create-popup .register-user-popup__layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .parent-create-popup .register-user-popup__layout {
   grid-template-columns: minmax(0, 1fr);
 }

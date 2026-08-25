@@ -8,9 +8,9 @@ function SearchableItemSelect({
   label,
   value = '',
   options = [],
-  placeholder = 'Pilih data',
-  searchPlaceholder = 'Cari data...',
-  emptyMessage = 'Data tidak ditemukan.',
+  placeholder = 'Select data',
+  searchPlaceholder = 'Search data...',
+  emptyMessage = 'No data found.',
   loading = false,
   disabled = false,
   remoteSearch = false,
@@ -159,7 +159,7 @@ function SearchableItemSelect({
     setSearchQuery('')
   }
 
-  const displayValue = loading ? 'Memuat data...' : selectedOption?.label || placeholder
+  const displayValue = loading ? 'Loading data...' : selectedOption?.label || placeholder
   const menuNode =
     isOpen && menuStyle && typeof document !== 'undefined'
       ? createPortal(
@@ -179,7 +179,7 @@ function SearchableItemSelect({
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={searchPlaceholder}
-                aria-label={`Cari ${label}`}
+                aria-label={`Search ${label}`}
               />
             </div>
 
@@ -208,7 +208,7 @@ function SearchableItemSelect({
                 })
               ) : (
                 <div className="parent-master-select__empty">
-                  {loading ? 'Memuat data...' : emptyMessage}
+                  {loading ? 'Loading data...' : emptyMessage}
                 </div>
               )}
             </div>

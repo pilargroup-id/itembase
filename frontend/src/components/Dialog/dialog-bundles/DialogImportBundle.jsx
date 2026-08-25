@@ -97,15 +97,15 @@ function DialogImportBundle({
   isOpen = false,
   eyebrow = 'Import Bundle',
   title = 'Preview Import Bundle',
-  commitErrorMessage = 'Gagal commit import bundle.',
+  commitErrorMessage = 'Failed to commit bundle import.',
   errorFileName = 'bundle-import-errors.xlsx',
   fileName = '',
   previewResponse = null,
   errorMessage = '',
   isPreviewing = false,
   templateButton = null,
-  templateHintTitle = 'Gunakan template resmi',
-  templateHintDescription = 'Unduh template terlebih dahulu agar format data sesuai sebelum diupload.',
+  templateHintTitle = 'Use the official template',
+  templateHintDescription = 'Download the template first so the data format matches before uploading.',
   onClose,
   onCommitted,
   onFileSelect,
@@ -273,7 +273,7 @@ function DialogImportBundle({
           <button
             type="button"
             className="dashboard-popup__close item-create-popup__close-button"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isBusy}
           >
@@ -319,7 +319,7 @@ function DialogImportBundle({
                   className="parent-import-file__change"
                   onClick={handleBrowseClick}
                 >
-                  Ganti File
+                  Change File
                 </button>
               ) : null}
             </div>
@@ -348,7 +348,7 @@ function DialogImportBundle({
             >
               <Upload01 size={26} className="parent-import-dropzone__icon" aria-hidden="true" />
               <p className="parent-import-dropzone__title">
-                Klik untuk upload atau drag &amp; drop file di sini
+                Click to upload or drag &amp; drop a file here
               </p>
               <p className="parent-import-dropzone__hint">Format .xlsx</p>
             </div>
@@ -361,7 +361,7 @@ function DialogImportBundle({
 
           {isPreviewing ? (
             <div className="parent-import-state" role="status">
-              Membuat preview import...
+              Building import preview...
             </div>
           ) : errorMessage ? (
             <p className="parent-import-alert parent-import-alert--danger" role="alert">
@@ -415,7 +415,7 @@ function DialogImportBundle({
                     ) : (
                       <tr>
                         <td colSpan={5} className="parent-import-table__empty">
-                          Tidak ada baris preview.
+                          No preview rows.
                         </td>
                       </tr>
                     )}
@@ -425,23 +425,23 @@ function DialogImportBundle({
 
               {hiddenRows > 0 ? (
                 <p className="parent-import-expiry">
-                  Menampilkan 100 baris pertama dari {formatNumber(previewRows.length)} baris.
+                  Showing the first 100 rows out of {formatNumber(previewRows.length)} rows.
                 </p>
               ) : null}
             </>
           ) : onFileSelect ? null : (
-            <div className="parent-import-state">Pilih file .xlsx untuk membuat preview import.</div>
+            <div className="parent-import-state">Select an .xlsx file to build an import preview.</div>
           )}
 
           {commitSummary ? (
             <div className="parent-import-commit" role="status">
-              <strong>Commit selesai</strong>
+              <strong>Commit complete</strong>
               <span>
-                Success {formatNumber(commitSummary.success)} dari {formatNumber(commitSummary.total)} baris,
+                Success {formatNumber(commitSummary.success)} out of {formatNumber(commitSummary.total)} rows,
                 failed {formatNumber(commitSummary.failed)}.
               </span>
               {commitData?.error_file_token ? (
-                <span>File error sudah di-download otomatis.</span>
+                <span>Error file has been downloaded automatically.</span>
               ) : null}
             </div>
           ) : null}

@@ -25,34 +25,34 @@ const itemFields = [
   {
     name: 'parent_id',
     label: 'Parent',
-    placeholder: 'Pilih Parent',
+    placeholder: 'Select Parent',
     type: 'select',
     optionsKey: 'parents',
-    searchPlaceholder: 'Cari Parent...',
-    emptyMessage: 'Parent tidak ditemukan.',
+    searchPlaceholder: 'Search Parent...',
+    emptyMessage: 'Parent not found.',
     half: true,
   },
   {
     name: 'item_name',
     label: 'SKU Name',
-    placeholder: 'Masukan Item Name',
+    placeholder: 'Enter Item Name',
     required: true,
     half: true,
   },
   {
     name: 'selling_name',
     label: 'Selling Name (Editable)',
-    placeholder: 'Masukan Selling Name',
+    placeholder: 'Enter Selling Name',
     half: true,
   },
   {
     name: 'uom_id',
     label: 'UOM',
-    placeholder: 'Pilih UOM',
+    placeholder: 'Select UOM',
     type: 'select',
     optionsKey: 'uoms',
-    searchPlaceholder: 'Cari UOM...',
-    emptyMessage: 'UOM tidak ditemukan.',
+    searchPlaceholder: 'Search UOM...',
+    emptyMessage: 'UOM not found.',
     forceOpenDown: true,
     allowCreate: true,
   },
@@ -507,9 +507,9 @@ function ChannelCheckboxSelect({
   label,
   value = [],
   options = [],
-  placeholder = 'Pilih data',
-  searchPlaceholder = 'Cari data...',
-  emptyMessage = 'Data tidak ditemukan.',
+  placeholder = 'Select data',
+  searchPlaceholder = 'Search data...',
+  emptyMessage = 'No data found.',
   loading = false,
   disabled = false,
   maxSelectable,
@@ -652,15 +652,15 @@ function ChannelCheckboxSelect({
         triggerRef.current?.focus()
       }
     } catch (error) {
-      setCreateOptionError(error?.message || 'Gagal menambahkan data.')
+      setCreateOptionError(error?.message || 'Failed to add data.')
     } finally {
       setIsCreatingOption(false)
     }
   }
 
   const selectedLabel = selectedOptions.map((option) => option.label).join(', ')
-  const inputValue = isOpen ? searchQuery : loading ? 'Memuat data...' : selectedLabel
-  const inputPlaceholder = loading ? 'Memuat data...' : isOpen ? searchPlaceholder : placeholder
+  const inputValue = isOpen ? searchQuery : loading ? 'Loading data...' : selectedLabel
+  const inputPlaceholder = loading ? 'Loading data...' : isOpen ? searchPlaceholder : placeholder
 
   const menuNode =
     isOpen && menuStyle && typeof document !== 'undefined'
@@ -675,7 +675,7 @@ function ChannelCheckboxSelect({
           >
             <div className="parent-master-select__options item-create-popup__channel-options">
               {loading ? (
-                <div className="parent-master-select__empty">Memuat data...</div>
+                <div className="parent-master-select__empty">Loading data...</div>
               ) : filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => {
                   const isChecked = selectedIds.includes(option.value)
@@ -727,7 +727,7 @@ function ChannelCheckboxSelect({
                   disabled={isCreatingOption}
                 >
                   <Plus size={14} aria-hidden="true" />
-                  <span>{isCreatingOption ? 'Menambahkan...' : `Tambah "${trimmedQuery}"`}</span>
+                  <span>{isCreatingOption ? 'Adding...' : `Add "${trimmedQuery}"`}</span>
                 </button>
                 {createOptionError ? (
                   <p className="parent-master-select__create-error" role="alert">
@@ -864,7 +864,7 @@ function DialogCreateItem({
         }
 
         setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Gagal memuat data master item.')
+        setErrorMessage(error?.message || 'Failed to load item master data.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -920,7 +920,7 @@ function DialogCreateItem({
           ...currentOptions,
           parents: [],
         }))
-        setErrorMessage(error?.message || 'Gagal memuat data parent.')
+        setErrorMessage(error?.message || 'Failed to load parent data.')
       } finally {
         if (isMounted) {
           setIsLoadingParentOptions(false)
@@ -965,7 +965,7 @@ function DialogCreateItem({
         }
 
         setParentVariantAttributes([])
-        setErrorMessage(error?.message || 'Gagal memuat konfigurasi parent.')
+        setErrorMessage(error?.message || 'Failed to load parent configuration.')
       } finally {
         if (isMounted) {
           setIsLoadingParentConfig(false)
@@ -1029,7 +1029,7 @@ function DialogCreateItem({
           ...currentOptions,
           departments: [],
         }))
-        setErrorMessage(error?.message || 'Gagal memuat data channel.')
+        setErrorMessage(error?.message || 'Failed to load channel data.')
       } finally {
         if (isMounted) {
           setIsLoadingDepartments(false)
@@ -1115,7 +1115,7 @@ function DialogCreateItem({
           return
         }
 
-        setErrorMessage(error?.message || 'Gagal memuat data variant value.')
+        setErrorMessage(error?.message || 'Failed to load variant value data.')
       })
       .finally(() => {
         if (!isMounted) {
@@ -1200,7 +1200,7 @@ function DialogCreateItem({
         }
 
         setMatrixRows([])
-        setErrorMessage(error?.message || 'Gagal membuat preview matrix.')
+        setErrorMessage(error?.message || 'Failed to generate matrix preview.')
       } finally {
         if (isMounted) {
           setIsPreviewingMatrix(false)
@@ -1292,7 +1292,7 @@ function DialogCreateItem({
 
     if (!isSelected && selectedValueIds.length >= MAX_VARIANT_VALUES_PER_ATTRIBUTE) {
       setErrorMessage(
-        `Maksimal ${MAX_VARIANT_VALUES_PER_ATTRIBUTE} value untuk setiap variant attribute.`,
+        `Maximum ${MAX_VARIANT_VALUES_PER_ATTRIBUTE} values per variant attribute.`,
       )
       return
     }
@@ -1382,17 +1382,17 @@ function DialogCreateItem({
 
   const handlePreviewMatrix = () => {
     if (!formValues.parent_id) {
-      setErrorMessage('Pilih parent terlebih dahulu sebelum membuat matrix.')
+      setErrorMessage('Select a parent first before building the matrix.')
       return
     }
 
     if (activeVariantAttributes.length === 0) {
-      setErrorMessage('Parent ini tidak memiliki variant attribute.')
+      setErrorMessage('This parent has no variant attributes.')
       return
     }
 
     if (hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)) {
-      setErrorMessage('Pilih minimal satu value untuk setiap variant attribute.')
+      setErrorMessage('Select at least one value for each variant attribute.')
       return
     }
 
@@ -1441,23 +1441,23 @@ function DialogCreateItem({
         )
 
         if (!payload.item_parent_id) {
-          setErrorMessage('Pilih parent terlebih dahulu sebelum membuat matrix item.')
+          setErrorMessage('Select a parent first before creating matrix items.')
           return
         }
 
         if (payload.items.length === 0) {
-          setErrorMessage('Preview matrix dan pilih minimal satu item untuk dibuat.')
+          setErrorMessage('Preview the matrix and select at least one item to create.')
           return
         }
 
         if (hasInvalidMatrixRow) {
-          setErrorMessage('Lengkapi item name pada preview matrix.')
+          setErrorMessage('Complete the item name in the matrix preview.')
           return
         }
 
         if (hasDuplicateMatrixRows(matrixRows)) {
           setErrorMessage(
-            'Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah item name atau variant salah satu SKU agar tidak duplikat.',
+            'There are SKUs with the same Item Name + Variant combination. Change the item name or variant of one SKU to avoid duplication.',
           )
           return
         }
@@ -1472,7 +1472,7 @@ function DialogCreateItem({
       const payload = buildPayload(formValues, masterOptions)
 
       if (!hasRequiredValues(payload)) {
-        setErrorMessage('Lengkapi item name terlebih dahulu.')
+        setErrorMessage('Please enter the item name first.')
         return
       }
 
@@ -1481,7 +1481,7 @@ function DialogCreateItem({
       onCreated?.(createdItem)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat item.')
+      setErrorMessage(error?.message || 'Failed to create item.')
     } finally {
       setIsSubmitting(false)
     }
@@ -1521,7 +1521,7 @@ function DialogCreateItem({
           <div>
             <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
             <p className="parent-create-popup__section-description">
-              Pilih value untuk tiap variant attribute dari parent ini untuk membuat beberapa item sekaligus.
+              Select values for each variant attribute of this parent to create multiple items at once.
             </p>
           </div>
 
@@ -1540,12 +1540,12 @@ function DialogCreateItem({
 
         {!hasParent ? (
           <p className="register-user-popup__hint">
-            Pilih parent terlebih dahulu untuk menampilkan variant matrix.
+            Select a parent first to display the variant matrix.
           </p>
         ) : isLoadingAttributes ? (
-          <p className="register-user-popup__hint">Memuat variant attribute parent...</p>
+          <p className="register-user-popup__hint">Loading parent variant attributes...</p>
         ) : !hasAttributes ? (
-          <p className="register-user-popup__hint">Parent ini tidak memiliki variant attribute.</p>
+          <p className="register-user-popup__hint">This parent has no variant attributes.</p>
         ) : (
           <>
             <div className="item-create-popup__variant-grid">
@@ -1562,9 +1562,9 @@ function DialogCreateItem({
                     label={attribute.label}
                     value={variantSelections[attribute.value] || []}
                     options={variantValueOptionsByAttributeId[attribute.value] || []}
-                    placeholder={`Pilih ${attribute.label}`}
-                    searchPlaceholder={`Cari ${attribute.label}...`}
-                    emptyMessage="Value tidak ditemukan."
+                    placeholder={`Select ${attribute.label}`}
+                    searchPlaceholder={`Search ${attribute.label}...`}
+                    emptyMessage="Value not found."
                     loading={Boolean(loadingVariantValuesByAttributeId[attribute.value])}
                     disabled={isSubmitting || Boolean(loadingVariantValuesByAttributeId[attribute.value])}
                     maxSelectable={MAX_VARIANT_VALUES_PER_ATTRIBUTE}
@@ -1579,7 +1579,7 @@ function DialogCreateItem({
             <div className="item-create-popup__matrix-preview">
               <div className="item-create-popup__matrix-summary">
                 <span>{matrixRows.length} preview item</span>
-                <span>{selectedMatrixRows.length} dipilih</span>
+                <span>{selectedMatrixRows.length} selected</span>
               </div>
 
               {hasDuplicateMatrixSelection ? (
@@ -1587,8 +1587,8 @@ function DialogCreateItem({
                   className="register-user-popup__hint item-create-popup__matrix-duplicate-hint"
                   role="alert"
                 >
-                  Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah item name atau
-                  variant salah satu SKU agar tidak duplikat.
+                  There are SKUs with the same Item Name + Variant combination. Change the item name or
+                  variant of one SKU to avoid duplication.
                 </p>
               ) : null}
 
@@ -1645,7 +1645,7 @@ function DialogCreateItem({
                                   className="item-create-popup__matrix-duplicate-note"
                                   role="alert"
                                 >
-                                  Item Name + Varian duplikat
+                                  Duplicate Item Name + Variant
                                 </p>
                               ) : null}
                             </td>
@@ -1657,7 +1657,7 @@ function DialogCreateItem({
                 </div>
               ) : (
                 <p className="register-user-popup__hint">
-                  Preview item akan muncul di sini setelah value dipilih.
+                  Item preview will appear here once values are selected.
                 </p>
               )}
             </div>
@@ -1767,7 +1767,7 @@ function DialogCreateItem({
 
     return (
       <div className="item-create-popup__dimension-table-wrap">
-        <table className="item-create-popup__dimension-table" aria-label="Dimensi ukuran karton">
+        <table className="item-create-popup__dimension-table" aria-label="Carton dimensions">
           <thead>
             <tr>
               {dimensionFields.map((field) => (
@@ -1847,7 +1847,7 @@ function DialogCreateItem({
           <button
             type="button"
             className="dashboard-popup__close item-create-popup__close-button"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -1875,9 +1875,9 @@ function DialogCreateItem({
 
                 <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
                   <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Dimensi ukuran karton</h3>
+                    <h3 className="parent-create-popup__section-title">Carton dimensions</h3>
                     <p className="parent-create-popup__section-description">
-                      Lengkapi detail dimensi item mulai dari UOM sampai lead time.
+                      Complete the item dimension details from UOM to lead time.
                     </p>
                   </div>
 

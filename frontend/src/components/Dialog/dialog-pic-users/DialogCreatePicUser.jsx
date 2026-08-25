@@ -84,7 +84,7 @@ function DialogCreatePicUser({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name pic user terlebih dahulu.')
+      setErrorMessage('Please enter the PIC user code and name first.')
       return
     }
 
@@ -97,7 +97,7 @@ function DialogCreatePicUser({
       onCreated?.(createdPicUser)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat pic user.')
+      setErrorMessage(error?.message || 'Failed to create PIC user.')
     } finally {
       setIsSubmitting(false)
     }
@@ -136,7 +136,7 @@ function DialogCreatePicUser({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -203,7 +203,7 @@ function DialogCreatePicUser({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

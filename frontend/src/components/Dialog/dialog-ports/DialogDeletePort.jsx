@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getPortDisplayName(Port) {
-  return Port?.name || Port?.port_name || Port?.code || Port?.port_code || 'Port ini'
+  return Port?.name || Port?.port_name || Port?.code || Port?.port_code || 'this Port'
 }
 
 function getDeleteId(Port) {
@@ -57,7 +57,7 @@ function DialogDeletePort({
     const deleteId = getDeleteId(Port)
 
     if (!deleteId) {
-      setErrorMessage('ID Port tidak ditemukan.')
+      setErrorMessage('Port ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeletePort({
       onDeleted?.(Port)
       onConfirm?.(Port)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus Port.')
+      setErrorMessage(error?.message || 'Failed to delete Port.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeletePort({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeletePort({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data Port dari master Ports.
+            This action will remove the Port data from the Ports master list.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeletePort({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

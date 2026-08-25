@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getCategoriesDisplayName(categories) {
-  return categories?.detail_category || categories?.sub_category || categories?.name || categories?.category_name || categories?.code || categories?.category_code || 'categories ini'
+  return categories?.detail_category || categories?.sub_category || categories?.name || categories?.category_name || categories?.code || categories?.category_code || 'this category'
 }
 
 function getDeleteId(categories) {
@@ -57,7 +57,7 @@ function DialogDeleteCategories({
     const deleteId = getDeleteId(categories)
 
     if (!deleteId) {
-      setErrorMessage('ID categories tidak ditemukan.')
+      setErrorMessage('Category ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeleteCategories({
       onDeleted?.(categories)
       onConfirm?.(categories)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus categories.')
+      setErrorMessage(error?.message || 'Failed to delete categories.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeleteCategories({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeleteCategories({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data categories dari master categories.
+            This action will remove the category data from the categories master.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeleteCategories({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

@@ -84,7 +84,7 @@ function DialogCreateUom({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name UOM terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the UOM first.')
       return
     }
 
@@ -97,7 +97,7 @@ function DialogCreateUom({
       onCreated?.(createdUom)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat UOM.')
+      setErrorMessage(error?.message || 'Failed to create UOM.')
     } finally {
       setIsSubmitting(false)
     }
@@ -136,7 +136,7 @@ function DialogCreateUom({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -203,7 +203,7 @@ function DialogCreateUom({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

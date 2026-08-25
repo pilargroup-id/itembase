@@ -10,7 +10,7 @@ function getItemDisplayName(item, user) {
     item?.item_code ||
     item?.barcode ||
     user?.name ||
-    'item ini'
+    'this item'
   )
 }
 
@@ -69,7 +69,7 @@ function DialogDeleteItem({
     const deleteId = getDeleteId(selectedItem, user)
 
     if (!deleteId) {
-      setErrorMessage('ID item tidak ditemukan.')
+      setErrorMessage('Item ID not found.')
       return
     }
 
@@ -81,7 +81,7 @@ function DialogDeleteItem({
       onDeleted?.(selectedItem ?? user)
       onConfirm?.(selectedItem ?? user)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus item.')
+      setErrorMessage(error?.message || 'Failed to delete item.')
     } finally {
       setIsSubmitting(false)
     }
@@ -115,7 +115,7 @@ function DialogDeleteItem({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -125,10 +125,10 @@ function DialogDeleteItem({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menonaktifkan item dari daftar aktif.
+            This action will deactivate the item from the active list.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -144,7 +144,7 @@ function DialogDeleteItem({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

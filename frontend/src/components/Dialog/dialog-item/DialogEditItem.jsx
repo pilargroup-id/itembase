@@ -25,24 +25,24 @@ const itemFields = [
   {
     name: 'parent_id',
     label: 'Parent',
-    placeholder: 'Pilih Parent',
+    placeholder: 'Select Parent',
     type: 'select',
     optionsKey: 'parents',
-    searchPlaceholder: 'Cari Parent...',
-    emptyMessage: 'Parent tidak ditemukan.',
+    searchPlaceholder: 'Search Parent...',
+    emptyMessage: 'Parent not found.',
     fullRow: true,
   },
   {
     name: 'item_name',
     label: 'Item Name',
-    placeholder: 'Masukan Item Name',
+    placeholder: 'Enter Item Name',
     required: true,
     half: true,
   },
   {
     name: 'selling_name',
     label: 'Selling Name (Editable)',
-    placeholder: 'Masukan Selling Name',
+    placeholder: 'Enter Selling Name',
     half: true,
   },
   {
@@ -54,11 +54,11 @@ const itemFields = [
   {
     name: 'uom_id',
     label: 'UOM',
-    placeholder: 'Pilih UOM',
+    placeholder: 'Select UOM',
     type: 'select',
     optionsKey: 'uoms',
-    searchPlaceholder: 'Cari UOM...',
-    emptyMessage: 'UOM tidak ditemukan.',
+    searchPlaceholder: 'Search UOM...',
+    emptyMessage: 'UOM not found.',
   },
   {
     name: 'qty_per_pack',
@@ -438,7 +438,7 @@ function DialogEditItem({
         }
 
         setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Gagal memuat data master item.')
+        setErrorMessage(error?.message || 'Failed to load item master data.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -495,14 +495,14 @@ function DialogEditItem({
     event.preventDefault()
 
     if (!selectedItem?.id) {
-      setErrorMessage('ID item tidak ditemukan.')
+      setErrorMessage('Item ID not found.')
       return
     }
 
     const payload = buildPayload(formValues)
 
     if (!hasRequiredValues(payload)) {
-      setErrorMessage('Lengkapi item name terlebih dahulu.')
+      setErrorMessage('Please enter the item name first.')
       return
     }
 
@@ -515,7 +515,7 @@ function DialogEditItem({
       onEdited?.(editedItem, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah item.')
+      setErrorMessage(error?.message || 'Failed to update item.')
     } finally {
       setIsSubmitting(false)
     }
@@ -631,7 +631,7 @@ function DialogEditItem({
           <button
             type="button"
             className="dashboard-popup__close item-create-popup__close-button"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -662,7 +662,7 @@ function DialogEditItem({
                   <div className="parent-create-popup__section-header">
                     <h3 className="parent-create-popup__section-title">Dimency Item</h3>
                     <p className="parent-create-popup__section-description">
-                      Lengkapi detail dimensi item mulai dari UOM sampai lead time.
+                      Complete the item dimension details from UOM to lead time.
                     </p>
                   </div>
 

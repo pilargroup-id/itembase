@@ -33,6 +33,13 @@ router.get(
   ItemParentController.suggestSubbrands
 );
 
+router.post(
+  '/helpers/subbrands',
+  authenticate,
+  requireApp('itembase'),
+  ItemParentController.createSubbrand
+);
+
 router.get(
   '/:id',
   authenticate,

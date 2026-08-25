@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getPicUserDisplayName(picUser) {
-  return picUser?.name || picUser?.pic_user_name || picUser?.code || picUser?.pic_user_code || 'pic user ini'
+  return picUser?.name || picUser?.pic_user_name || picUser?.code || picUser?.pic_user_code || 'this PIC user'
 }
 
 function getDeleteId(picUser) {
@@ -57,7 +57,7 @@ function DialogDeletePicUser({
     const deleteId = getDeleteId(picUser)
 
     if (!deleteId) {
-      setErrorMessage('ID Pic User tidak ditemukan.')
+      setErrorMessage('PIC User ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeletePicUser({
       onDeleted?.(picUser)
       onConfirm?.(picUser)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus pic user.')
+      setErrorMessage(error?.message || 'Failed to delete PIC user.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeletePicUser({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeletePicUser({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data pic user dari master pic user.
+            This action will remove the PIC user data from the PIC user master.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeletePicUser({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

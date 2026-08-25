@@ -235,7 +235,7 @@ function DialogImportParent({
         onClose?.()
       }
     } catch (error) {
-      setDialogError(error?.message || 'Gagal commit import parent.')
+      setDialogError(error?.message || 'Failed to commit parent import.')
     } finally {
       setIsSubmitting(false)
     }
@@ -269,7 +269,7 @@ function DialogImportParent({
           <button
             type="button"
             className="dashboard-popup__close item-create-popup__close-button"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isBusy}
           >
@@ -284,11 +284,11 @@ function DialogImportParent({
                 <FileText01 size={18} />
               </span>
               <span className="parent-import-template-hint__text">
-                <strong>Gunakan template resmi</strong>
-                <span>Unduh template terlebih dahulu agar format data sesuai sebelum diupload.</span>
+                <strong>Use the official template</strong>
+                <span>Download the template first so the data format matches before uploading.</span>
               </span>
             </div>
-            <ButtonDownloadParent aria-label="Download template item parent" />
+            <ButtonDownloadParent aria-label="Download item parent template" />
           </div>
 
           <input
@@ -311,7 +311,7 @@ function DialogImportParent({
                   className="parent-import-file__change"
                   onClick={handleBrowseClick}
                 >
-                  Ganti File
+                  Change File
                 </button>
               ) : null}
             </div>
@@ -340,7 +340,7 @@ function DialogImportParent({
             >
               <Upload01 size={26} className="parent-import-dropzone__icon" aria-hidden="true" />
               <p className="parent-import-dropzone__title">
-                Klik untuk upload atau drag &amp; drop file di sini
+                Click to upload or drag &amp; drop a file here
               </p>
               <p className="parent-import-dropzone__hint">Format .xlsx</p>
             </div>
@@ -348,7 +348,7 @@ function DialogImportParent({
 
           {isPreviewing ? (
             <div className="parent-import-state" role="status">
-              Membuat preview import...
+              Building import preview...
             </div>
           ) : errorMessage ? (
             <p className="parent-import-alert parent-import-alert--danger" role="alert">
@@ -402,7 +402,7 @@ function DialogImportParent({
                     ) : (
                       <tr>
                         <td colSpan={5} className="parent-import-table__empty">
-                          Tidak ada baris preview.
+                          No preview rows.
                         </td>
                       </tr>
                     )}
@@ -412,7 +412,7 @@ function DialogImportParent({
 
               {hiddenRows > 0 ? (
                 <p className="parent-import-expiry">
-                  Menampilkan 100 baris pertama dari {formatNumber(previewRows.length)} baris.
+                  Showing the first 100 rows out of {formatNumber(previewRows.length)} rows.
                 </p>
               ) : null}
             </>
@@ -420,13 +420,13 @@ function DialogImportParent({
 
           {commitSummary ? (
             <div className="parent-import-commit" role="status">
-              <strong>Commit selesai</strong>
+              <strong>Commit complete</strong>
               <span>
-                Success {formatNumber(commitSummary.success)} dari {formatNumber(commitSummary.total)} baris,
+                Success {formatNumber(commitSummary.success)} out of {formatNumber(commitSummary.total)} rows,
                 failed {formatNumber(commitSummary.failed)}.
               </span>
               {commitData?.error_file_token ? (
-                <span>File error sudah di-download otomatis.</span>
+                <span>Error file has been downloaded automatically.</span>
               ) : null}
             </div>
           ) : null}

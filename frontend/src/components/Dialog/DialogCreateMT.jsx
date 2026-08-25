@@ -13,7 +13,7 @@ const supportOptions = [
 
 const priorityOptions = ['Low', 'Medium', 'High']
 
-const documentStatusOptions = ['Lengkap', 'Belum lengkap']
+const documentStatusOptions = ['Complete', 'Incomplete']
 
 function DialogCreateTicket({
   isOpen = false,
@@ -95,7 +95,7 @@ function DialogCreateTicket({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={onClose}
           >
             <XClose size={18} />
@@ -117,7 +117,7 @@ function DialogCreateTicket({
                       defaultValue=""
                     >
                       <option value="" disabled>
-                        Pilih category
+                        Select category
                       </option>
                       <option value="Contract">Contract</option>
                       <option value="Compliance">Compliance</option>
@@ -137,7 +137,7 @@ function DialogCreateTicket({
                       defaultValue=""
                     >
                       <option value="" disabled>
-                        Pilih support name
+                        Select support name
                       </option>
                       {supportOptions.map((supportName) => (
                         <option key={supportName} value={supportName}>
@@ -157,7 +157,7 @@ function DialogCreateTicket({
                       defaultValue=""
                     >
                       <option value="" disabled>
-                        Pilih priority
+                        Select priority
                       </option>
                       {priorityOptions.map((priority) => (
                         <option key={priority} value={priority}>
@@ -177,7 +177,7 @@ function DialogCreateTicket({
                       defaultValue=""
                     >
                       <option value="" disabled>
-                        Pilih status document
+                        Select status document
                       </option>
                       {documentStatusOptions.map((documentStatus) => (
                         <option key={documentStatus} value={documentStatus}>
@@ -189,12 +189,12 @@ function DialogCreateTicket({
 
                   <div className="register-user-popup__field register-user-popup__field--full">
                     <label className="register-user-popup__label" htmlFor="ticket-issue">
-                      Masalah
+                      Issue
                     </label>
                     <textarea
                       id="ticket-issue"
                       className="register-user-popup__input master-project-popup__textarea"
-                      placeholder="Jelaskan permasalahan atau kebutuhan legal yang ingin diajukan."
+                      placeholder="Describe the issue or legal need you want to raise."
                     />
                   </div>
                 </div>
@@ -205,7 +205,7 @@ function DialogCreateTicket({
               <div className="register-user-popup__section-header">
                 <p className="register-user-popup__label">Upload File</p>
                 <p className="register-user-popup__hint">
-                  Letakkan dokumen pendukung di area ini agar popup tetap ringkas.
+                  Drop supporting documents in this area to keep the popup compact.
                 </p>
               </div>
 
@@ -227,12 +227,12 @@ function DialogCreateTicket({
                 <span className="register-user-popup__upload-icon">
                   <FileText01 size={20} />
                 </span>
-                <span className="register-user-popup__upload-title">Drag and drop file di sini</span>
+                <span className="register-user-popup__upload-title">Drag and drop file here</span>
                 <span className="register-user-popup__upload-meta">
-                  atau klik untuk memilih file dari perangkat Anda
+                  or click to select a file from your device
                 </span>
                 <span className="register-user-popup__upload-file">
-                  {selectedFileName || 'Belum ada file yang dipilih'}
+                  {selectedFileName || 'No file selected yet'}
                 </span>
               </label>
             </aside>
@@ -245,7 +245,7 @@ function DialogCreateTicket({
             className="dashboard-popup__button dashboard-popup__button--secondary"
             onClick={onClose}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

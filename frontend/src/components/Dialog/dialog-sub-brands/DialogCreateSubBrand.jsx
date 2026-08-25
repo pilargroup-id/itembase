@@ -5,28 +5,29 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 const initialFormValues = {
-  code: '',
   name: '',
-  is_active: '1',
 }
 
-const TypeFields = [
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'FG',
-  },
-  {
-    name: 'name',
-    label: 'Name',
-    placeholder: 'Finished Goods',
-  },
-]
+function getApiErrorMessage(error, fallbackMessage) {
+  const responseErrors = error?.data?.errors
 
-function DialogCreateType({
+  if (responseErrors && typeof responseErrors === 'object' && !Array.isArray(responseErrors)) {
+    const fieldMessage = Object.values(responseErrors).find(
+      (value) => typeof value === 'string' && value.trim(),
+    )
+
+    if (fieldMessage) {
+      return fieldMessage
+    }
+  }
+
+  return error?.message || fallbackMessage
+}
+
+function DialogCreateSubBrand({
   isOpen = false,
-  eyebrow = 'Create Type',
-  title = 'Create Type',
+  eyebrow = 'Sub Brand',
+  title = 'Create Sub Brand',
   onClose,
   onCreated,
 }) {
@@ -66,25 +67,20 @@ function DialogCreateType({
   const handleInputChange = (event) => {
     const { name, value } = event.target
 
+    setErrorMessage('')
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
     }))
   }
 
-  const buildPayload = () => ({
-    code: formValues.code.trim(),
-    name: formValues.name.trim(),
-    is_active: Number(formValues.is_active),
-  })
-
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const payload = buildPayload()
+    const name = formValues.name.trim()
 
-    if (!payload.code || !payload.name) {
-      setErrorMessage('Please complete the code and name for the Type first.')
+    if (!name) {
+      setErrorMessage('Please enter the sub brand name first.')
       return
     }
 
@@ -92,12 +88,12 @@ function DialogCreateType({
     setErrorMessage('')
 
     try {
-      const createdType = await api.itemTypes.create(payload)
+      const createdSubBrand = await api.subBrands.create({ name })
 
-      onCreated?.(createdType)
+      onCreated?.(createdSubBrand)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Failed to create Type.')
+      setErrorMessage(getApiErrorMessage(error, 'Failed to create sub brand.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -118,17 +114,17 @@ function DialogCreateType({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup sub-brand-create-popup"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-create-Type-title"
+        aria-labelledby="dialog-create-sub-brand-title"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
         <div className="dashboard-popup__header">
           <div>
             <p className="dashboard-popup__eyebrow">{eyebrow}</p>
-            <h2 className="dashboard-popup__title" id="dialog-create-Type-title">
+            <h2 className="dashboard-popup__title" id="dialog-create-sub-brand-title">
               {title}
             </h2>
           </div>
@@ -149,41 +145,20 @@ function DialogCreateType({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
-                  {TypeFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
-                      <label
-                        className="register-user-popup__label"
-                        htmlFor={`Type-${field.name}`}
-                      >
-                        {field.label}
-                      </label>
-                      <input
-                        id={`Type-${field.name}`}
-                        name={field.name}
-                        className="register-user-popup__input"
-                        value={formValues[field.name]}
-                        placeholder={field.placeholder}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  ))}
-
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="Type-is-active">
-                      Status
+                  <div className="register-user-popup__field register-user-popup__field--full">
+                    <label className="register-user-popup__label" htmlFor="sub-brand-name">
+                      Name
                     </label>
-                    <select
-                      id="Type-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
+                    <input
+                      id="sub-brand-name"
+                      name="name"
+                      className="register-user-popup__input"
+                      value={formValues.name}
+                      placeholder="Input Sub Brand Name"
                       onChange={handleInputChange}
                       disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
+                      autoFocus
+                    />
                   </div>
                 </div>
                 {errorMessage ? (
@@ -220,4 +195,4 @@ function DialogCreateType({
   return createPortal(dialogNode, document.body)
 }
 
-export default DialogCreateType
+export default DialogCreateSubBrand

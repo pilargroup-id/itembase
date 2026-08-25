@@ -26,11 +26,11 @@ const parentFormulaFields = [
   {
     name: 'brand_id',
     label: 'Brand',
-    placeholder: 'Pilih brand',
+    placeholder: 'Select brand',
     type: 'select',
     optionsKey: 'brands',
-    searchPlaceholder: 'Cari brand...',
-    emptyMessage: 'Brand tidak ditemukan.',
+    searchPlaceholder: 'Search brand...',
+    emptyMessage: 'Brand not found.',
   },
   {
     name: 'sub_brand',
@@ -38,7 +38,7 @@ const parentFormulaFields = [
     placeholder: 'Search...',
     type: 'subBrandSearch',
     searchPlaceholder: 'Search',
-    emptyMessage: 'Sub brand tidak ditemukan.',
+    emptyMessage: 'Sub brand not found.',
   },
   {
     name: 'item_name',
@@ -51,37 +51,37 @@ const parentDetailFields = [
   {
     name: 'category_id',
     label: 'Category',
-    placeholder: 'Pilih category',
+    placeholder: 'Select category',
     type: 'select',
     optionsKey: 'categories',
-    searchPlaceholder: 'Cari category...',
-    emptyMessage: 'Category tidak ditemukan.',
+    searchPlaceholder: 'Search category...',
+    emptyMessage: 'Category not found.',
   },
   {
     name: 'item_type_id',
     label: 'Item Source',
-    placeholder: 'Pilih Source',
+    placeholder: 'Select Source',
     type: 'select',
     optionsKey: 'itemTypes',
     searchable: false,
-    emptyMessage: 'Item type tidak ditemukan.',
+    emptyMessage: 'Item type not found.',
   },
   {
     name: 'port_id',
     label: 'Port',
-    placeholder: 'Pilih port',
+    placeholder: 'Select port',
     type: 'checkbox-list',
     optionsKey: 'ports',
-    searchPlaceholder: 'Cari port...',
-    emptyMessage: 'Port tidak ditemukan.',
+    searchPlaceholder: 'Search port...',
+    emptyMessage: 'Port not found.',
   },
   {
     name: 'variant_attribute_ids',
     label: 'Variant Attribute',
-    placeholder: 'Pilih attribute',
+    placeholder: 'Select attribute',
     type: 'checkbox-list',
     optionsKey: 'variantAttributes',
-    emptyMessage: 'Attribute tidak ditemukan.',
+    emptyMessage: 'Attribute not found.',
     showOrder: true,
   },
 ]
@@ -412,9 +412,9 @@ function SearchableMasterSelect({
   label,
   value = '',
   options = [],
-  placeholder = 'Pilih data',
-  searchPlaceholder = 'Cari data...',
-  emptyMessage = 'Data tidak ditemukan.',
+  placeholder = 'Select data',
+  searchPlaceholder = 'Search data...',
+  emptyMessage = 'No data found.',
   loading = false,
   disabled = false,
   searchable = true,
@@ -557,7 +557,7 @@ function SearchableMasterSelect({
     setSearchQuery('')
   }
 
-  const displayValue = loading ? 'Memuat data...' : selectedOption?.label || placeholder
+  const displayValue = loading ? 'Loading data...' : selectedOption?.label || placeholder
   const menuNode =
     isOpen && menuStyle && typeof document !== 'undefined'
       ? createPortal(
@@ -578,7 +578,7 @@ function SearchableMasterSelect({
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder={searchPlaceholder}
-                  aria-label={`Cari ${label}`}
+                  aria-label={`Search ${label}`}
                 />
               </div>
             ) : null}
@@ -608,7 +608,7 @@ function SearchableMasterSelect({
                 })
               ) : (
                 <div className="parent-master-select__empty">
-                  {loading ? 'Memuat data...' : emptyMessage}
+                  {loading ? 'Loading data...' : emptyMessage}
                 </div>
               )}
             </div>
@@ -648,9 +648,9 @@ function SearchableSubBrandInput({
   id,
   label,
   value = '',
-  placeholder = 'Cari sub brand',
-  searchPlaceholder = 'Cari sub brand...',
-  emptyMessage = 'Sub brand tidak ditemukan.',
+  placeholder = 'Search sub brand',
+  searchPlaceholder = 'Search sub brand...',
+  emptyMessage = 'Sub brand not found.',
   disabled = false,
   onChange,
 }) {
@@ -865,7 +865,7 @@ function SearchableSubBrandInput({
               ) : (
                 <div className="parent-master-select__empty">
                   {isLoading && normalizedValue
-                    ? 'Memuat data...'
+                    ? 'Loading data...'
                     : normalizedValue
                       ? emptyMessage
                       : searchPlaceholder}
@@ -910,8 +910,8 @@ function SearchableCreatableSelect({
   label,
   value = '',
   options = [],
-  placeholder = 'Cari data',
-  emptyMessage = 'Data tidak ditemukan.',
+  placeholder = 'Search data',
+  emptyMessage = 'No data found.',
   loading = false,
   disabled = false,
   allowCreate = false,
@@ -1081,7 +1081,7 @@ function SearchableCreatableSelect({
         setIsOpen(false)
       }
     } catch (error) {
-      setCreateOptionError(error?.message || 'Gagal menambahkan data.')
+      setCreateOptionError(error?.message || 'Failed to add data.')
     } finally {
       setIsCreatingOption(false)
     }
@@ -1122,7 +1122,7 @@ function SearchableCreatableSelect({
                 })
               ) : (
                 <div className="parent-master-select__empty">
-                  {loading ? 'Memuat data...' : emptyMessage}
+                  {loading ? 'Loading data...' : emptyMessage}
                 </div>
               )}
             </div>
@@ -1136,7 +1136,7 @@ function SearchableCreatableSelect({
                   disabled={isCreatingOption}
                 >
                   <Plus size={14} aria-hidden="true" />
-                  <span>{isCreatingOption ? 'Menambahkan...' : `Tambah "${trimmedQuery}"`}</span>
+                  <span>{isCreatingOption ? 'Adding...' : `Add "${trimmedQuery}"`}</span>
                 </button>
                 {createOptionError ? (
                   <p className="parent-master-select__create-error" role="alert">
@@ -1160,7 +1160,7 @@ function SearchableCreatableSelect({
           type="search"
           className="register-user-popup__input parent-subbrand-search__input"
           value={inputText}
-          placeholder={loading ? 'Memuat data...' : placeholder}
+          placeholder={loading ? 'Loading data...' : placeholder}
           onChange={handleInputChange}
           onFocus={handleFocus}
           autoComplete="off"
@@ -1256,7 +1256,7 @@ function DialogCreateParent({
         }
 
         setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Gagal memuat data master item parent.')
+        setErrorMessage(error?.message || 'Failed to load item parent master data.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -1388,7 +1388,7 @@ function DialogCreateParent({
           return
         }
 
-        setErrorMessage(error?.message || 'Gagal memuat data variant value.')
+        setErrorMessage(error?.message || 'Failed to load variant value data.')
       })
       .finally(() => {
         if (!isMounted) {
@@ -1597,22 +1597,22 @@ function DialogCreateParent({
         const parentId = getCreatedParentId(createdParent)
 
         if (!parentId) {
-          setErrorMessage('Item parent berhasil dibuat, tetapi ID parent tidak ditemukan.')
+          setErrorMessage('Item parent created successfully, but the parent ID was not found.')
           return
         }
 
         if (!payload.item_name) {
-          setErrorMessage('Item name parent tidak ditemukan untuk membuat SKU.')
+          setErrorMessage('Parent item name not found to create SKU.')
           return
         }
 
         if (hasIncompleteDetailVariantSelection(detailItems, formValues.variant_attribute_ids)) {
-          setErrorMessage('Lengkapi variant value pada SKU detail terlebih dahulu.')
+          setErrorMessage('Please complete the variant value on SKU details first.')
           return
         }
 
         if (hasDuplicateVariantSelection(detailItems, payload.item_name)) {
-          setErrorMessage('Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah variant agar tidak duplikat.')
+          setErrorMessage('There are SKUs with the same Item Name + Variant combination. Change the variant so it is not duplicated.')
           return
         }
 
@@ -1635,13 +1635,13 @@ function DialogCreateParent({
       }
 
       if (hasEmptyRequiredValue || !payload.parent_name) {
-        setErrorMessage('Lengkapi semua field item parent terlebih dahulu.')
+        setErrorMessage('Please complete all item parent fields first.')
         return
       }
 
       if (duplicateParentMatch) {
         setErrorMessage(
-          `Parent dengan kombinasi Brand + Sub Brand + Item Name ini sudah ada (${duplicateParentMatch.parent_code}).`,
+          `A parent with this Brand + Sub Brand + Item Name combination already exists (${duplicateParentMatch.parent_code}).`,
         )
         return
       }
@@ -1653,7 +1653,7 @@ function DialogCreateParent({
       setDuplicateParentMatch(null)
       onCreated?.(parentData)
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, createdParent ? 'Gagal membuat SKU.' : 'Gagal membuat item parent.'))
+      setErrorMessage(getApiErrorMessage(error, createdParent ? 'Failed to create SKU.' : 'Failed to create item parent.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -1764,7 +1764,7 @@ function DialogCreateParent({
           <button
             type="button"
             className="dashboard-popup__close parent-create-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -1811,7 +1811,7 @@ function DialogCreateParent({
                         </div>
                         {!createdParent && duplicateParentMatch ? (
                           <p className="register-user-popup__hint" role="alert">
-                            Parent dengan kombinasi Brand + Sub Brand + Item Name ini sudah ada ({duplicateParentMatch.parent_code}).
+                            A parent with this Brand + Sub Brand + Item Name combination already exists ({duplicateParentMatch.parent_code}).
                           </p>
                         ) : null}
                       </div>

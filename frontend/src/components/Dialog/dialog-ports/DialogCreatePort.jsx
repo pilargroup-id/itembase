@@ -84,7 +84,7 @@ function DialogCreatePort({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name Port terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the Port first.')
       return
     }
 
@@ -97,7 +97,7 @@ function DialogCreatePort({
       onCreated?.(createdPort)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat Port.')
+      setErrorMessage(error?.message || 'Failed to create Port.')
     } finally {
       setIsSubmitting(false)
     }
@@ -136,7 +136,7 @@ function DialogCreatePort({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -203,7 +203,7 @@ function DialogCreatePort({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

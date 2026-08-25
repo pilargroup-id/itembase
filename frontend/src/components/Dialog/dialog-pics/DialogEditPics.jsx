@@ -163,14 +163,14 @@ function DialogEditPics({
     event.preventDefault()
 
     if (!formValues.pic1 || !formValues.pic2) {
-      setErrorMessage('Pilih 2 PIC User terlebih dahulu.')
+      setErrorMessage('Please select 2 PIC Users first.')
       return
     }
 
     const picsId = getPicsId(pics)
 
     if (!picsId) {
-      setErrorMessage('ID pics tidak ditemukan.')
+      setErrorMessage('Pics ID not found.')
       return
     }
 
@@ -184,7 +184,7 @@ function DialogEditPics({
       onEdited?.(editedPics, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah pics.')
+      setErrorMessage(error?.message || 'Failed to update pics.')
     } finally {
       setIsSubmitting(false)
     }
@@ -226,7 +226,7 @@ function DialogEditPics({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -253,7 +253,7 @@ function DialogEditPics({
                       disabled={isSubmitting || isLoadingOptions}
                     >
                       <option value="">
-                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 1 --'}
+                        {isLoadingOptions ? 'Loading...' : '-- Select PIC 1 --'}
                       </option>
                       {picUserOptions.map((opt) => (
                         <option key={opt.id} value={opt.username ?? opt.name}>
@@ -277,7 +277,7 @@ function DialogEditPics({
                       disabled={isSubmitting || isLoadingOptions}
                     >
                       <option value="">
-                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 2 --'}
+                        {isLoadingOptions ? 'Loading...' : '-- Select PIC 2 --'}
                       </option>
                       {picUserOptions.map((opt) => (
                         <option key={opt.value ?? opt.id ?? opt.code} value={opt.value ?? opt.code ?? opt.name}>
@@ -336,7 +336,7 @@ function DialogEditPics({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

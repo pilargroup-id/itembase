@@ -59,7 +59,7 @@ function DialogEdit({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={onClose}
           >
             <XClose size={18} />
@@ -68,7 +68,7 @@ function DialogEdit({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Data untuk <strong>{user?.name ?? 'item ini'}</strong> siap dibuka ke proses edit.
+            Data for <strong>{user?.name ?? 'this item'}</strong> is ready to be opened for editing.
           </p>
           {hasUserMeta ? (
             <p className="dashboard-popup__text">
@@ -83,7 +83,7 @@ function DialogEdit({
             className="dashboard-popup__button dashboard-popup__button--secondary"
             onClick={onClose}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

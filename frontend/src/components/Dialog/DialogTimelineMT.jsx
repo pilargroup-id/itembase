@@ -57,7 +57,7 @@ function DialogTimelineMT({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={onClose}
           >
             <XClose size={18} />

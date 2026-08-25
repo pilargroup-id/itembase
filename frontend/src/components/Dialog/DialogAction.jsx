@@ -6,7 +6,7 @@ import { XClose } from '../template/TemplateIcons.jsx'
 function DialogAction({
   isOpen = false,
   eyebrow = 'Dialog',
-  title = 'Tombol',
+  title = 'Button',
   onClose,
 }) {
   useEffect(() => {
@@ -55,7 +55,7 @@ function DialogAction({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={onClose}
           >
             <XClose size={18} />

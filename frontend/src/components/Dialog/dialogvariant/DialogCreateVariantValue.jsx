@@ -98,7 +98,7 @@ function DialogCreateVariantValue({
       } catch (error) {
         if (isMounted) {
           setAttributeOptions([])
-          setErrorMessage(getApiErrorMessage(error, 'Gagal memuat variant attribute.'))
+          setErrorMessage(getApiErrorMessage(error, 'Failed to load variant attribute data.'))
         }
       } finally {
         if (isMounted) {
@@ -158,12 +158,12 @@ function DialogCreateVariantValue({
     const payload = buildPayload()
 
     if (!payload.attribute_id || !payload.name) {
-      setErrorMessage('Lengkapi attribute dan name variant value terlebih dahulu.')
+      setErrorMessage('Please complete the attribute and name for the variant value first.')
       return
     }
 
     if (!Number.isInteger(payload.sort_order) || payload.sort_order < 1) {
-      setErrorMessage('Sort order harus berupa integer positif.')
+      setErrorMessage('Sort order must be a positive integer.')
       return
     }
 
@@ -176,7 +176,7 @@ function DialogCreateVariantValue({
       onCreated?.(createdValue)
       handleClose()
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Gagal membuat variant value.'))
+      setErrorMessage(getApiErrorMessage(error, 'Failed to create variant value.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -211,7 +211,7 @@ function DialogCreateVariantValue({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -237,7 +237,7 @@ function DialogCreateVariantValue({
                       disabled={isSubmitting || isLoadingAttributes}
                     >
                       <option value="">
-                        {isLoadingAttributes ? 'Memuat attribute...' : 'Pilih attribute'}
+                        {isLoadingAttributes ? 'Loading attributes...' : 'Select attribute'}
                       </option>
                       {sortedAttributeOptions.map((attribute) => (
                         <option key={attribute.id} value={attribute.id}>
@@ -298,7 +298,7 @@ function DialogCreateVariantValue({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

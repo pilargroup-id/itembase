@@ -31,13 +31,29 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
         <div className="users-table-card__actions">
           <SearchBrand value={searchQuery} onChange={onSearchQueryChange} />
           {activeBrandTab === 'brands' ? (
-            <ButtonCreateBrand
-              onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
-            />
+            <>
+              <ButtonCreateBrand
+                onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
+              <ButtonImportMaster
+                type="brands"
+                masterLabel="Brand"
+                aria-label="Import brand data"
+                onImported={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
+            </>
           ) : (
-            <ButtonCreateSubBrands
-              onCreated={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
-            />
+            <>
+              <ButtonCreateSubBrands
+                onCreated={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
+              <ButtonImportMaster
+                type="sub-brands"
+                masterLabel="Sub Brand"
+                aria-label="Import sub brand data"
+                onImported={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
+            </>
           )}
         </div>
       </div>
@@ -61,21 +77,6 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
             </button>
           )
         })}
-
-        <div className="brand-table-tabs__actions">
-          <ButtonImportMaster
-            type={activeBrandTab === 'brands' ? 'brands' : 'sub-brands'}
-            masterLabel={activeBrandTab === 'brands' ? 'Brand' : 'Sub Brand'}
-            aria-label={
-              activeBrandTab === 'brands' ? 'Import brand data' : 'Import sub brand data'
-            }
-            onImported={() =>
-              activeBrandTab === 'brands'
-                ? setBrandRefreshKey((currentKey) => currentKey + 1)
-                : setSubBrandRefreshKey((currentKey) => currentKey + 1)
-            }
-          />
-        </div>
       </div>
 
       {activeBrandTab === 'brands' ? (

@@ -193,7 +193,7 @@ function DialogImportMaster({
 
       setPreviewResponse(response)
     } catch (error) {
-      setErrorMessage(error?.message || `Gagal membuat preview import ${masterLabel.toLowerCase()}.`)
+      setErrorMessage(error?.message || `Failed to create import preview for ${masterLabel.toLowerCase()}.`)
     } finally {
       setIsPreviewing(false)
     }
@@ -280,7 +280,7 @@ function DialogImportMaster({
         onClose?.()
       }
     } catch (error) {
-      setDialogError(error?.message || `Gagal commit import ${masterLabel.toLowerCase()}.`)
+      setDialogError(error?.message || `Failed to commit import for ${masterLabel.toLowerCase()}.`)
     } finally {
       setIsSubmitting(false)
     }
@@ -314,7 +314,7 @@ function DialogImportMaster({
           <button
             type="button"
             className="dashboard-popup__close item-create-popup__close-button"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isBusy}
           >
@@ -329,8 +329,8 @@ function DialogImportMaster({
                 <FileText01 size={18} />
               </span>
               <span className="parent-import-template-hint__text">
-                <strong>Gunakan template resmi</strong>
-                <span>Unduh template terlebih dahulu agar format data sesuai sebelum diupload.</span>
+                <strong>Use the official template</strong>
+                <span>Download the template first so the data format matches before uploading.</span>
               </span>
             </div>
             <button
@@ -366,7 +366,7 @@ function DialogImportMaster({
                   className="parent-import-file__change"
                   onClick={handleBrowseClick}
                 >
-                  Ganti File
+                  Change File
                 </button>
               ) : null}
             </div>
@@ -395,15 +395,15 @@ function DialogImportMaster({
             >
               <Upload01 size={26} className="parent-import-dropzone__icon" aria-hidden="true" />
               <p className="parent-import-dropzone__title">
-                Klik untuk upload atau drag &amp; drop file di sini
+                Click to upload or drag and drop a file here
               </p>
-              <p className="parent-import-dropzone__hint">Format .xlsx</p>
+              <p className="parent-import-dropzone__hint">Format: .xlsx</p>
             </div>
           )}
 
           {isPreviewing ? (
             <div className="parent-import-state" role="status">
-              Membuat preview import...
+              Creating import preview...
             </div>
           ) : errorMessage ? (
             <p className="parent-import-alert parent-import-alert--danger" role="alert">
@@ -419,7 +419,7 @@ function DialogImportMaster({
 
               {previewData.expires_at ? (
                 <p className="parent-import-expiry">
-                  Preview berlaku sampai {formatDateTime(previewData.expires_at)}
+                  Preview valid until {formatDateTime(previewData.expires_at)}
                 </p>
               ) : null}
 
@@ -457,7 +457,7 @@ function DialogImportMaster({
                     ) : (
                       <tr>
                         <td colSpan={5} className="parent-import-table__empty">
-                          Tidak ada baris preview.
+                          No preview rows.
                         </td>
                       </tr>
                     )}
@@ -467,7 +467,7 @@ function DialogImportMaster({
 
               {hiddenRows > 0 ? (
                 <p className="parent-import-expiry">
-                  Menampilkan 100 baris pertama dari {formatNumber(previewRows.length)} baris.
+                  Showing the first 100 rows out of {formatNumber(previewRows.length)} rows.
                 </p>
               ) : null}
             </>
@@ -475,13 +475,13 @@ function DialogImportMaster({
 
           {commitSummary ? (
             <div className="parent-import-commit" role="status">
-              <strong>Commit selesai</strong>
+              <strong>Commit complete</strong>
               <span>
-                Success {formatNumber(commitSummary.success)} dari {formatNumber(commitSummary.total)} baris,
+                Success {formatNumber(commitSummary.success)} out of {formatNumber(commitSummary.total)} rows,
                 failed {formatNumber(commitSummary.failed)}.
               </span>
               {commitData?.error_file_token ? (
-                <span>File error sudah di-download otomatis.</span>
+                <span>The error file has been downloaded automatically.</span>
               ) : null}
             </div>
           ) : null}

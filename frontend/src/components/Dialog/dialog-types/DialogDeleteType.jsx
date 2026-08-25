@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getTypeDisplayName(Type) {
-  return Type?.name || Type?.Type_name || Type?.code || Type?.Type_code || 'Type ini'
+  return Type?.name || Type?.Type_name || Type?.code || Type?.Type_code || 'this Type'
 }
 
 function getDeleteId(Type) {
@@ -57,7 +57,7 @@ function DialogDeleteType({
     const deleteId = getDeleteId(Type)
 
     if (!deleteId) {
-      setErrorMessage('ID Type tidak ditemukan.')
+      setErrorMessage('Type ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeleteType({
       onDeleted?.(Type)
       onConfirm?.(Type)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus Type.')
+      setErrorMessage(error?.message || 'Failed to delete Type.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeleteType({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeleteType({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data Type dari master Types.
+            This action will remove the Type data from the Types master list.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeleteType({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

@@ -164,14 +164,14 @@ function DialogEditCategories({
     const payload = buildPayload()
 
     if (!payload.detail_category) {
-      setErrorMessage('Lengkapi detail category terlebih dahulu.')
+      setErrorMessage('Please enter the detail category first.')
       return
     }
 
     const categoriesId = getCategoriesId(categories)
 
     if (!categoriesId) {
-      setErrorMessage('ID categories tidak ditemukan.')
+      setErrorMessage('Category ID not found.')
       return
     }
 
@@ -184,7 +184,7 @@ function DialogEditCategories({
       onEdited?.(editedCategories, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah categories.')
+      setErrorMessage(error?.message || 'Failed to update categories.')
     } finally {
       setIsSubmitting(false)
     }
@@ -223,7 +223,7 @@ function DialogEditCategories({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -268,7 +268,7 @@ function DialogEditCategories({
                       onChange={handleInputChange}
                       disabled={isSubmitting}
                     >
-                      <option value="">Pilih PIC</option>
+                      <option value="">Select PIC</option>
                       {picOptions.map((pic) => (
                         <option key={pic.id} value={pic.id}>
                           {pic.name || pic.code || pic.id}
@@ -311,7 +311,7 @@ function DialogEditCategories({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

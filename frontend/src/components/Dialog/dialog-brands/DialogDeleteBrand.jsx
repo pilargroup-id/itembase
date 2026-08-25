@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getBrandDisplayName(brand) {
-  return brand?.name || brand?.brand_name || brand?.code || brand?.brand_code || 'brand ini'
+  return brand?.name || brand?.brand_name || brand?.code || brand?.brand_code || 'this brand'
 }
 
 function getDeleteId(brand) {
@@ -57,7 +57,7 @@ function DialogDeleteBrand({
     const deleteId = getDeleteId(brand)
 
     if (!deleteId) {
-      setErrorMessage('ID brand tidak ditemukan.')
+      setErrorMessage('Brand ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeleteBrand({
       onDeleted?.(brand)
       onConfirm?.(brand)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus brand.')
+      setErrorMessage(error?.message || 'Failed to delete brand.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeleteBrand({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeleteBrand({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data brand dari master brands.
+            This action will remove the brand data from the brand master.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeleteBrand({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import DialogCreateBrand from '../../Dialog/dialog-brands/DialogCreateBrand.jsx'
+import DialogCreateSubBrand from '../../Dialog/dialog-sub-brands/DialogCreateSubBrand.jsx'
 import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateSubBrands({
@@ -30,9 +30,9 @@ function ButtonCreateSubBrands({
     setIsDialogOpen(false)
   }
 
-  const handleCreated = (createdBrand) => {
-    dialogProps.onCreated?.(createdBrand)
-    onCreated?.(createdBrand)
+  const handleCreated = (createdSubBrand) => {
+    dialogProps.onCreated?.(createdSubBrand)
+    onCreated?.(createdSubBrand)
   }
 
   return (
@@ -48,7 +48,7 @@ function ButtonCreateSubBrands({
         <span>{children}</span>
       </button>
 
-      <DialogCreateBrand
+      <DialogCreateSubBrand
         {...dialogProps}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}

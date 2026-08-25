@@ -46,11 +46,11 @@ function getFilteredFields(searchQuery) {
 
 function getSelectedFieldsSummary(selectedFields) {
   if (selectedFields.length === 0) {
-    return 'Hanya kolom default'
+    return 'Default columns only'
   }
 
   if (selectedFields.length === optionalFields.length) {
-    return 'Semua kolom optional dipilih'
+    return 'All optional columns selected'
   }
 
   const selectedKeySet = new Set(selectedFields)
@@ -62,7 +62,7 @@ function getSelectedFieldsSummary(selectedFields) {
     return labels.join(', ')
   }
 
-  return `${labels.slice(0, 2).join(', ')} +${labels.length - 2} lainnya`
+  return `${labels.slice(0, 2).join(', ')} +${labels.length - 2} more`
 }
 
 function saveBlob(blob, filename) {
@@ -150,7 +150,7 @@ function DialogExportBundleContent({
       saveBlob(blob, `items-${selectedStatus}.xlsx`)
       onClose?.()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal export file.')
+      setErrorMessage(error?.message || 'Failed to export file.')
     } finally {
       setIsExporting(false)
     }
@@ -176,7 +176,7 @@ function DialogExportBundleContent({
           <button
             type="button"
             className="dashboard-popup__close item-create-popup__close-button"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={onClose}
           >
             <XClose size={22} />
@@ -198,7 +198,7 @@ function DialogExportBundleContent({
                 >
                   <span className="download-select__column-trigger-copy">
                     <span className="download-select__column-trigger-label">
-                      Status &amp; Kolom Export
+                      Status &amp; Export Columns
                     </span>
                     <span className="download-select__column-trigger-value">
                       {selectedStatusLabel} · {selectedFieldsSummary}
@@ -217,7 +217,7 @@ function DialogExportBundleContent({
                     className="download-select__column-menu"
                     id={columnMenuId}
                     role="group"
-                    aria-label="Kolom optional export"
+                    aria-label="Optional export columns"
                   >
                     <div className="download-select__column-search">
                       <SearchMd size={16} className="download-select__column-search-icon" />
@@ -225,18 +225,18 @@ function DialogExportBundleContent({
                         className="download-select__column-search-input"
                         type="search"
                         value={columnSearch}
-                        aria-label="Search kolom optional"
+                        aria-label="Search optional columns"
                         placeholder="Search column..."
                         onChange={(event) => setColumnSearch(event.target.value)}
                       />
                     </div>
 
                     <div className="download-select__status">
-                      <p className="download-select__column-group-title">Status Item</p>
+                      <p className="download-select__column-group-title">Item Status</p>
                       <div
                         className="download-select__status-group"
                         role="radiogroup"
-                        aria-label="Pilih status Item"
+                        aria-label="Select Item status"
                       >
                         {statusOptions.map((option) => {
                           const isSelected = selectedStatus === option.value
@@ -266,7 +266,7 @@ function DialogExportBundleContent({
                         onChange={handleSelectAllToggle}
                       />
                       <span className="download-select__checkbox-text">
-                        <span className="download-select__checkbox-label">Pilih Semua Kolom</span>
+                        <span className="download-select__checkbox-label">Select All Columns</span>
                       </span>
                     </label>
 
@@ -288,7 +288,7 @@ function DialogExportBundleContent({
                         </div>
                       </div>
                     ) : (
-                      <div className="download-select__column-empty">Kolom tidak ditemukan.</div>
+                      <div className="download-select__column-empty">No columns found.</div>
                     )}
                   </div>
                 ) : null}

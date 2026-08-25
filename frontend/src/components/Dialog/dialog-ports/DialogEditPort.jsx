@@ -123,14 +123,14 @@ function DialogEditPort({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name Port terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the Port first.')
       return
     }
 
     const PortId = getPortId(Port)
 
     if (!PortId) {
-      setErrorMessage('ID Port tidak ditemukan.')
+      setErrorMessage('Port ID not found.')
       return
     }
 
@@ -143,7 +143,7 @@ function DialogEditPort({
       onEdited?.(editedPort, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah Port.')
+      setErrorMessage(error?.message || 'Failed to update Port.')
     } finally {
       setIsSubmitting(false)
     }
@@ -182,7 +182,7 @@ function DialogEditPort({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -249,7 +249,7 @@ function DialogEditPort({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

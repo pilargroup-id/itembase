@@ -123,14 +123,14 @@ function DialogEditBrand({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name brand terlebih dahulu.')
+      setErrorMessage('Please enter the brand code and name first.')
       return
     }
 
     const brandId = getBrandId(brand)
 
     if (!brandId) {
-      setErrorMessage('ID brand tidak ditemukan.')
+      setErrorMessage('Brand ID not found.')
       return
     }
 
@@ -143,7 +143,7 @@ function DialogEditBrand({
       onEdited?.(editedBrand, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah brand.')
+      setErrorMessage(error?.message || 'Failed to update brand.')
     } finally {
       setIsSubmitting(false)
     }
@@ -182,7 +182,7 @@ function DialogEditBrand({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -249,7 +249,7 @@ function DialogEditBrand({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

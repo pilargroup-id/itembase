@@ -9,10 +9,10 @@ import {
 } from '@mui/material'
 
 const DEFAULT_TITLES = {
-  error: 'Terjadi Kesalahan',
-  warning: 'Peringatan',
-  success: 'Berhasil',
-  info: 'Informasi',
+  error: 'An Error Occurred',
+  warning: 'Warning',
+  success: 'Success',
+  info: 'Information',
 }
 
 function DialogAlert({
@@ -38,7 +38,7 @@ function DialogAlert({
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} variant="contained">
-          Tutup
+          Close
         </Button>
       </DialogActions>
     </Dialog>

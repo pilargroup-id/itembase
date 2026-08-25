@@ -107,7 +107,7 @@ function DialogCreatePics({
     event.preventDefault()
 
     if (!formValues.pic1 || !formValues.pic2) {
-      setErrorMessage('Pilih 2 PIC User terlebih dahulu.')
+      setErrorMessage('Please select 2 PIC Users first.')
       return
     }
 
@@ -121,7 +121,7 @@ function DialogCreatePics({
       onCreated?.(createdPics)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat Pics.')
+      setErrorMessage(error?.message || 'Failed to create Pics.')
     } finally {
       setIsSubmitting(false)
     }
@@ -163,7 +163,7 @@ function DialogCreatePics({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -190,7 +190,7 @@ function DialogCreatePics({
                       disabled={isSubmitting || isLoadingOptions}
                     >
                       <option value="">
-                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 1 --'}
+                        {isLoadingOptions ? 'Loading...' : '-- Select PIC 1 --'}
                       </option>
                       {picUserOptions.map((opt) => (
                         <option key={opt.id} value={opt.username ?? opt.name}>
@@ -214,7 +214,7 @@ function DialogCreatePics({
                       disabled={isSubmitting || isLoadingOptions}
                     >
                       <option value="">
-                        {isLoadingOptions ? 'Loading...' : '-- Pilih PIC 2 --'}
+                        {isLoadingOptions ? 'Loading...' : '-- Select PIC 2 --'}
                       </option>
                       {picUserOptions.map((opt) => (
                         <option key={opt.id} value={opt.username ?? opt.name}>
@@ -273,7 +273,7 @@ function DialogCreatePics({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

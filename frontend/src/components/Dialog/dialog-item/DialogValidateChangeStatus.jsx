@@ -10,7 +10,7 @@ function getItemDisplayName(item, user) {
     item?.item_code ||
     item?.barcode ||
     user?.name ||
-    'item ini'
+    'this item'
   )
 }
 
@@ -101,7 +101,7 @@ function DialogValidateChangeStatus({
     const itemId = getItemId(selectedItem, user)
 
     if (!itemId) {
-      setErrorMessage('ID item tidak ditemukan.')
+      setErrorMessage('Item ID not found.')
       return
     }
 
@@ -120,7 +120,7 @@ function DialogValidateChangeStatus({
     } catch (error) {
       setErrorMessage(
         error?.message ||
-          `Gagal ${isActivating ? 'mengaktifkan' : 'menonaktifkan'} item.`,
+          `Failed to ${isActivating ? 'activate' : 'deactivate'} item.`,
       )
     } finally {
       setIsSubmitting(false)
@@ -155,7 +155,7 @@ function DialogValidateChangeStatus({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -165,13 +165,13 @@ function DialogValidateChangeStatus({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin {isActivating ? 'mengaktifkan' : 'menonaktifkan'}{' '}
+            Are you sure you want to {isActivating ? 'activate' : 'deactivate'}{' '}
             <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
             {isActivating
-              ? 'Item akan kembali muncul pada daftar item aktif dan dapat digunakan kembali.'
-              : 'Item akan dinonaktifkan dan tidak akan muncul pada daftar item aktif.'}
+              ? 'The item will reappear in the active items list and can be used again.'
+              : 'The item will be deactivated and will no longer appear in the active items list.'}
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -187,7 +187,7 @@ function DialogValidateChangeStatus({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"
@@ -200,10 +200,10 @@ function DialogValidateChangeStatus({
             disabled={isSubmitting}
           >
             {isSubmitting
-              ? 'Menyimpan...'
+              ? 'Saving...'
               : isActivating
-                ? 'Aktifkan'
-                : 'Non-aktifkan'}
+                ? 'Activate'
+                : 'Deactivate'}
           </button>
         </div>
       </div>

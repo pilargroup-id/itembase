@@ -121,14 +121,14 @@ function DialogEditType({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name Type terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the Type first.')
       return
     }
 
     const TypeId = getTypeId(Type)
 
     if (!TypeId) {
-      setErrorMessage('ID Type tidak ditemukan.')
+      setErrorMessage('Type ID not found.')
       return
     }
 
@@ -141,7 +141,7 @@ function DialogEditType({
       onEdited?.(editedType, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah Type.')
+      setErrorMessage(error?.message || 'Failed to update Type.')
     } finally {
       setIsSubmitting(false)
     }
@@ -237,7 +237,7 @@ function DialogEditType({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

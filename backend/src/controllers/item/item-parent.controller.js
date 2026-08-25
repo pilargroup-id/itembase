@@ -98,6 +98,24 @@ async function suggestSubbrands(req, res, next) {
   }
 }
 
+async function createSubbrand(req, res, next) {
+  try {
+    const result = await ItemParentService.createSubbrand(req.body, req.user.id, req);
+
+    if (handleServiceError(res, result.error)) {
+      return;
+    }
+
+    return response.created(
+      res,
+      result.data,
+      'Sub brand created successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function store(req, res, next) {
   try {
     const result = await ItemParentService.create(req.body, req.user.id, req);
@@ -160,6 +178,7 @@ module.exports = {
   itemConfig,
   show,
   suggestSubbrands,
+  createSubbrand,
   store,
   update,
   destroy,

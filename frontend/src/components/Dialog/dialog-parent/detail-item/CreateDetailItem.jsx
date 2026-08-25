@@ -221,7 +221,7 @@ function CreateDetailItem({
 
       {hasDuplicateVariant ? (
         <p className="register-user-popup__hint parent-detail-item__duplicate-hint" role="alert">
-          Terdapat SKU dengan kombinasi Item Name + Varian yang sama. Ubah varian salah satu SKU agar tidak duplikat.
+          There are SKUs with the same Item Name + Variant combination. Change the variant of one SKU so it is not duplicated.
         </p>
       ) : null}
 
@@ -269,7 +269,7 @@ function CreateDetailItem({
                     </p>
                     {isDuplicateRow ? (
                       <p className="parent-detail-item__row-duplicate-note" role="alert">
-                        Varian duplikat
+                        Duplicate variant
                       </p>
                     ) : null}
                   </div>
@@ -288,9 +288,9 @@ function CreateDetailItem({
                           label={attribute.label}
                           value={item.variant_values_by_attribute_id?.[attribute.value] || ''}
                           options={variantValueOptions}
-                          placeholder={`Pilih ${attribute.label}`}
-                          searchPlaceholder={`Cari ${attribute.label}...`}
-                          emptyMessage="Value tidak ditemukan."
+                          placeholder={`Select ${attribute.label}`}
+                          searchPlaceholder={`Search ${attribute.label}...`}
+                          emptyMessage="Value not found."
                           loading={loadingVariantValues}
                           disabled={disabled || loadingVariantValues}
                           allowCreate={Boolean(onCreateVariantValue)}
@@ -314,7 +314,7 @@ function CreateDetailItem({
                           disabled={disabled || loadingVariantValues}
                         >
                           <option value="">
-                            {loadingVariantValues ? 'Memuat value...' : `Pilih ${attribute.label}`}
+                            {loadingVariantValues ? 'Loading value...' : `Select ${attribute.label}`}
                           </option>
                           {variantValueOptions.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -334,9 +334,9 @@ function CreateDetailItem({
                       label="Uom"
                       value={item.uom_id}
                       options={uomOptions}
-                      placeholder="Pilih UOM"
-                      searchPlaceholder="Cari UOM..."
-                      emptyMessage="UOM tidak ditemukan."
+                      placeholder="Select UOM"
+                      searchPlaceholder="Search UOM..."
+                      emptyMessage="UOM not found."
                       loading={loadingUoms}
                       disabled={disabled || loadingUoms}
                       allowCreate={Boolean(onCreateUom)}
@@ -356,7 +356,7 @@ function CreateDetailItem({
                       disabled={disabled || loadingUoms}
                     >
                       <option value="">
-                        {loadingUoms ? 'Memuat UOM...' : 'Pilih UOM'}
+                        {loadingUoms ? 'Loading UOM...' : 'Select UOM'}
                       </option>
                       {uomOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -415,8 +415,8 @@ function CreateDetailItem({
                     className="users-table__icon-button users-table__icon-button--danger parent-detail-item__remove"
                     onClick={() => handleRemoveItem(item.id)}
                     disabled={disabled || detailItems.length <= 1}
-                    title="Hapus SKU"
-                    aria-label={`Hapus SKU ${index + 1}`}
+                    title="Delete SKU"
+                    aria-label={`Delete SKU ${index + 1}`}
                   >
                     <Trash03 size={16} />
                   </button>

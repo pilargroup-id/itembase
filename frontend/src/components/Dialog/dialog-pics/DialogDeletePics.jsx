@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getPicsDisplayName(pics) {
-  return pics?.name || pics?.pics_name || pics?.code || pics?.pics_code || 'pics ini'
+  return pics?.name || pics?.pics_name || pics?.code || pics?.pics_code || 'this Pics entry'
 }
 
 function getDeleteId(pics) {
@@ -57,7 +57,7 @@ function DialogDeletePics({
     const deleteId = getDeleteId(pics)
 
     if (!deleteId) {
-      setErrorMessage('ID pics tidak ditemukan.')
+      setErrorMessage('Pics ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeletePics({
       onDeleted?.(pics)
       onConfirm?.(pics)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus pics.')
+      setErrorMessage(error?.message || 'Failed to delete pics.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeletePics({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeletePics({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data pics dari master pics.
+            This action will remove the pics data from the pics master.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeletePics({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

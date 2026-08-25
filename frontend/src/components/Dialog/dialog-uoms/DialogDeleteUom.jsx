@@ -5,7 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 
 function getUomDisplayName(uom) {
-  return uom?.name || uom?.uom_name || uom?.code || uom?.uom_code || 'uom ini'
+  return uom?.name || uom?.uom_name || uom?.code || uom?.uom_code || 'this UOM'
 }
 
 function getDeleteId(uom) {
@@ -57,7 +57,7 @@ function DialogDeleteUom({
     const deleteId = getDeleteId(uom)
 
     if (!deleteId) {
-      setErrorMessage('ID uom tidak ditemukan.')
+      setErrorMessage('UOM ID not found.')
       return
     }
 
@@ -69,7 +69,7 @@ function DialogDeleteUom({
       onDeleted?.(uom)
       onConfirm?.(uom)
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal menghapus uom.')
+      setErrorMessage(error?.message || 'Failed to delete UOM.')
     } finally {
       setIsSubmitting(false)
     }
@@ -107,7 +107,7 @@ function DialogDeleteUom({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -117,10 +117,10 @@ function DialogDeleteUom({
 
         <div className="dashboard-popup__body">
           <p className="dashboard-popup__text">
-            Apakah Anda yakin ingin menghapus <strong>{displayName}</strong>?
+            Are you sure you want to delete <strong>{displayName}</strong>?
           </p>
           <p className="dashboard-popup__text">
-            Tindakan ini akan menghapus data uom dari master uom.
+            This action will remove the UOM data from the UOM master list.
           </p>
           {errorMessage ? (
             <p className="register-user-popup__hint" role="alert">
@@ -136,7 +136,7 @@ function DialogDeleteUom({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"

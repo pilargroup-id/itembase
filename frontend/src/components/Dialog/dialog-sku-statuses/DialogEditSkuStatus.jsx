@@ -123,14 +123,14 @@ function DialogEditSkuStatus({
     const payload = buildPayload()
 
     if (!payload.code || !payload.name) {
-      setErrorMessage('Lengkapi code dan name sku status terlebih dahulu.')
+      setErrorMessage('Please complete the code and name for the SKU status first.')
       return
     }
 
     const skuStatusId = getSkuStatusId(skuStatus)
 
     if (!skuStatusId) {
-      setErrorMessage('ID sku status tidak ditemukan.')
+      setErrorMessage('SKU status ID not found.')
       return
     }
 
@@ -143,7 +143,7 @@ function DialogEditSkuStatus({
       onEdited?.(editedSkuStatus, payload)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal mengubah sku status.')
+      setErrorMessage(error?.message || 'Failed to update SKU status.')
     } finally {
       setIsSubmitting(false)
     }
@@ -182,7 +182,7 @@ function DialogEditSkuStatus({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -249,7 +249,7 @@ function DialogEditSkuStatus({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

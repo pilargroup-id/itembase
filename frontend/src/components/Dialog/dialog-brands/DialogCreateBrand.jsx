@@ -4,10 +4,8 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 import { XClose } from '../../template/TemplateIcons.jsx'
-import SearchableItemSelect from '../dialog-item/SearchableItemSelect.jsx'
 
 const initialFormValues = {
-  code: '',
   name: '',
   business_unit_id: '',
   department_id: [],
@@ -19,12 +17,6 @@ const brandFields = [
     name: 'name',
     label: 'Name',
     placeholder: 'Input Name Brand',
-  },
-  {
-    name: 'code',
-    label: 'Code',
-    placeholder: 'Code otomatis dari name',
-    readOnly: true,
   },
 ]
 
@@ -233,7 +225,7 @@ function DialogCreateBrand({
         }
 
         setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Gagal memuat data business unit.')
+        setErrorMessage(error?.message || 'Failed to load business unit data.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -285,7 +277,7 @@ function DialogCreateBrand({
           ...currentOptions,
           departments: [],
         }))
-        setErrorMessage(error?.message || 'Gagal memuat data channel.')
+        setErrorMessage(error?.message || 'Failed to load channel data.')
       } finally {
         if (isMounted) {
           setIsLoadingDepartments(false)
@@ -308,10 +300,6 @@ function DialogCreateBrand({
         ...currentValues,
         [name]: value,
         ...(name === 'business_unit_id' ? { department_id: [] } : {}),
-      }
-
-      if (name === 'name') {
-        nextValues.code = generateBrandCode(value)
       }
 
       return nextValues
@@ -361,17 +349,17 @@ function DialogCreateBrand({
     const payload = buildPayload()
 
     if (!payload.name) {
-      setErrorMessage('Lengkapi name brand terlebih dahulu.')
+      setErrorMessage('Please enter the brand name first.')
       return
     }
 
     if (!payload.code) {
-      setErrorMessage('Name brand belum menghasilkan code yang valid.')
+      setErrorMessage('Brand name has not generated a valid code yet.')
       return
     }
 
     if (!formValues.business_unit_id || !Array.isArray(payload.channels) || payload.channels.length === 0) {
-      setErrorMessage('Lengkapi business unit dan minimal satu channel terlebih dahulu.')
+      setErrorMessage('Please select a business unit and at least one channel first.')
       return
     }
 
@@ -384,7 +372,7 @@ function DialogCreateBrand({
       onCreated?.(createdBrand)
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Gagal membuat brand.')
+      setErrorMessage(error?.message || 'Failed to create brand.')
     } finally {
       setIsSubmitting(false)
     }
@@ -411,7 +399,7 @@ function DialogCreateBrand({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup brand-create-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-brand-title"
@@ -429,7 +417,7 @@ function DialogCreateBrand({
           <button
             type="button"
             className="dashboard-popup__close"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -468,18 +456,23 @@ function DialogCreateBrand({
                     <label className="register-user-popup__label" htmlFor="brand-business-unit">
                       Business Unit
                     </label>
-                    <SearchableItemSelect
+                    <select
                       id="brand-business-unit"
-                      label="Business Unit"
+                      name="business_unit_id"
+                      className="register-user-popup__select"
                       value={formValues.business_unit_id}
-                      options={masterOptions.businessUnits}
-                      placeholder="Pilih business unit"
-                      searchPlaceholder="Cari business unit..."
-                      emptyMessage="Business unit tidak ditemukan."
-                      loading={isLoadingMasters}
+                      onChange={handleInputChange}
                       disabled={isSubmitting || isLoadingMasters}
-                      onChange={(nextValue) => handleFieldChange('business_unit_id', nextValue)}
-                    />
+                    >
+                      <option value="">
+                        {isLoadingMasters ? 'Loading data...' : 'Select business unit'}
+                      </option>
+                      {masterOptions.businessUnits.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="register-user-popup__field">
@@ -491,11 +484,11 @@ function DialogCreateBrand({
                       label="Channel"
                       value={formValues.department_id}
                       options={masterOptions.departments}
-                      placeholder="Pilih channel"
+                      placeholder="Select channel"
                       emptyMessage={
                         formValues.business_unit_id
-                          ? 'Channel tidak ditemukan.'
-                          : 'Pilih business unit terlebih dahulu.'
+                          ? 'Channel not found.'
+                          : 'Select a business unit first.'
                       }
                       loading={isLoadingDepartments}
                       disabled={isChannelDisabled}
@@ -537,7 +530,7 @@ function DialogCreateBrand({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"

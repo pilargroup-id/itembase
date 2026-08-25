@@ -248,6 +248,8 @@ const api = {
   subBrands: {
     suggestions: (params, options) =>
       api.get('/item/item-parents/helpers/subbrands', { ...options, params }),
+    create: (data, options) =>
+      api.post('/item/item-parents/helpers/subbrands', data, options),
   },
   pics: createResource('/master/pics'),
   categories: createResource('/master/categories'),

@@ -550,6 +550,65 @@ async function suggestSubbrands(query = {}) {
     .slice(0, limit);
 }
 
+async function createSubbrand(payload, userId = null, req = null) {
+  const name = trimOrNull(payload.name ?? payload.sub_brand);
+
+  if (!name) {
+    return {
+      error: {
+        type: 'validation',
+        message: 'Validation failed',
+        errors: { name: 'Sub brand name is required' },
+      },
+    };
+  }
+
+  if (name.length > STRING_LIMITS.sub_brand) {
+    return {
+      error: {
+        type: 'validation',
+        message: 'Validation failed',
+        errors: {
+          name: `Sub brand name cannot be longer than ${STRING_LIMITS.sub_brand} characters`,
+        },
+      },
+    };
+  }
+
+  return ItemParentModel.transaction(async (connection) => {
+    const existing = await ItemParentModel.findSubbrandByName(name, connection);
+
+    if (existing) {
+      return {
+        error: {
+          type: 'validation',
+          message: 'Validation failed',
+          errors: { name: 'Sub brand already exists' },
+        },
+      };
+    }
+
+    const created = await ItemParentModel.createSubbrand(
+      { name, normalized_name: normalizeText(name) },
+      connection
+    );
+
+    await ActivityLogService.log({
+      user_id: userId,
+      action: 'CREATE',
+      entity_type: 'master_subbrands',
+      entity_id: created.id,
+      description: `Created sub brand ${created.name}`,
+      before_data: null,
+      after_data: created,
+      req,
+      connection,
+    });
+
+    return { data: created };
+  });
+}
+
 async function create(payload, userId, req = null) {
   const normalizedPayload = {
     subbrand_id: trimOrNull(payload.subbrand_id),
@@ -831,6 +890,7 @@ module.exports = {
   getAll,
   getById,
   suggestSubbrands,
+  createSubbrand,
   create,
   update,
   destroy,
