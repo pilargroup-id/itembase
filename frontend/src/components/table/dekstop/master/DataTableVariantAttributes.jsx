@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
+import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -216,6 +217,8 @@ function DataTableVariantAttributes({
     const [pageSize, setPageSize] = useState(DEFAULT_UOM_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
+    const [activeActionDialog, setActiveActionDialog] = useState(null)
+    const [selectedUom, setSelectedUom] = useState(null)
     const filterResetKey = useMemo(
         () => JSON.stringify({ pageSize, searchQuery, sortValue }),
         [pageSize, searchQuery, sortValue],
@@ -239,6 +242,9 @@ function DataTableVariantAttributes({
         () => getPageRows(sortedRows, currentPage, pageSize),
         [currentPage, pageSize, sortedRows],
     )
+
+    const selectedUomName =
+        selectedUom?.name || selectedUom?.uom_name || selectedUom?.code || "attribute ini"
 
     useEffect(() => {
         let isMounted = true
@@ -276,11 +282,20 @@ function DataTableVariantAttributes({
         }
     }, [refreshKey])
 
-    const toggleUomStatus = async (uom) => {
+    const closeActionDialog = () => {
+        setActiveActionDialog(null)
+        setSelectedUom(null)
+    }
+
+    const openActionDialog = (dialogType, uom) => {
+        setSelectedUom(uom)
+        setActiveActionDialog(dialogType)
+    }
+
+    const handleConfirmStatusChange = async (uom, newStatus) => {
         const uomId = getUomId(uom)
-        const currentStatus = getUomStatusValue(uom) === "1" ? 1 : 0
-        const newStatus = currentStatus === 1 ? 0 : 1
-        const previousUomRows = [...uomRows]
+
+        await api.variantAttributes.updateStatus(uomId, newStatus)
 
         setUomRows((currentRows) =>
             currentRows.map((row) =>
@@ -290,12 +305,7 @@ function DataTableVariantAttributes({
             ),
         )
 
-        try {
-            await api.variantAttributes.updateStatus(uomId, newStatus)
-        } catch (error) {
-            setUomRows(previousUomRows)
-            setErrorMessage(error?.message || "Gagal mengubah status variant attribute.")
-        }
+        closeActionDialog()
     }
 
     const tableColumns = [
@@ -306,17 +316,20 @@ function DataTableVariantAttributes({
             headerStyle: { width: "36%" },
             cellStyle: { width: "36%" },
             render: (uom) => (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                        type="checkbox"
-                        checked={getUomStatusValue(uom) === "1"}
-                        onChange={(event) => {
-                            event.stopPropagation()
-                            toggleUomStatus(uom)
-                        }}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label
+                        className="users-table__toggle item-table__status-toggle"
+                        onClick={(event) => event.stopPropagation()}
                         title={`Tandai ${uom.name || uom.uom_name || "attribute"} sebagai ${getUomStatusValue(uom) === "1" ? "non-aktif" : "aktif"}`}
-                    />
+                    >
+                        <input
+                            type="checkbox"
+                            checked={getUomStatusValue(uom) === "1"}
+                            onChange={() => openActionDialog("status", uom)}
+                        />
+                        <span className="users-table__toggle-track" aria-hidden="true" />
+                        <span className="users-table__toggle-thumb" aria-hidden="true" />
+                    </label>
                     <DataTableStatus inline variant={getUomStatusVariant(uom)}>
                         {getUomStatusLabel(uom)}
                     </DataTableStatus>
@@ -376,6 +389,16 @@ function DataTableVariantAttributes({
                 pagination={pagination}
             />
 
+            <DialogValidateStatusMaster
+                key={`status-attribute-${getUomId(selectedUom) ?? "empty"}`}
+                isOpen={activeActionDialog === "status"}
+                eyebrow="Ubah Status Variant Attribute"
+                title="Konfirmasi Perubahan Status"
+                entity={selectedUom}
+                displayName={selectedUomName}
+                onClose={closeActionDialog}
+                onConfirm={handleConfirmStatusChange}
+            />
         </div>
     )
 }

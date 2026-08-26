@@ -3,6 +3,7 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteCategories from "../../../Dialog/dialog-categories/DialogDeleteCategories.jsx"
 import DialogEditCategories from "../../../Dialog/dialog-categories/DialogEditCategories.jsx"
+import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeleteCategories from "../../../button/categories-buttons/ButtonDeleteCategories.jsx"
 import ButtonEditCategories from "../../../button/categories-buttons/ButtonEditCategories.jsx"
 import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
@@ -397,11 +398,10 @@ function DataTableCategories({
         setActiveActionDialog(dialogType)
     }
 
-    const toggleCategoriesStatus = async (categories) => {
+    const handleConfirmStatusChange = async (categories, newStatus) => {
         const categoriesId = getCategoriesId(categories)
-        const currentStatus = getCategoriesStatusValue(categories) === "1" ? 1 : 0
-        const newStatus = currentStatus === 1 ? 0 : 1
-        const previousCategoriesRows = [...categoriesRows]
+
+        await api.categories.updateStatus(categoriesId, newStatus)
 
         setCategoriesRows((currentRows) =>
             currentRows.map((row) =>
@@ -411,12 +411,7 @@ function DataTableCategories({
             ),
         )
 
-        try {
-            await api.categories.updateStatus(categoriesId, newStatus)
-        } catch (error) {
-            setCategoriesRows(previousCategoriesRows)
-            setErrorMessage(error?.message || "Gagal mengubah status categories.")
-        }
+        closeActionDialog()
     }
 
     const tableColumns = [
@@ -427,17 +422,20 @@ function DataTableCategories({
             headerStyle: { width: "15%" },
             cellStyle: { width: "15%" },
             render: (categories) => (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                        type="checkbox"
-                        checked={getCategoriesStatusValue(categories) === "1"}
-                        onChange={(event) => {
-                            event.stopPropagation()
-                            toggleCategoriesStatus(categories)
-                        }}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                        title={`Tandai ${categories.name || categories.category_name || "categories"} sebagai ${getCategoriesStatusValue(categories) === "1" ? "non-aktif" : "aktif"}`}
-                    />
+                <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label
+                        className="users-table__toggle item-table__status-toggle"
+                        onClick={(event) => event.stopPropagation()}
+                        title={`Tandai ${categories.detail_category || categories.name || categories.category_name || "categories"} sebagai ${getCategoriesStatusValue(categories) === "1" ? "non-aktif" : "aktif"}`}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={getCategoriesStatusValue(categories) === "1"}
+                            onChange={() => openActionDialog("status", categories)}
+                        />
+                        <span className="users-table__toggle-track" aria-hidden="true" />
+                        <span className="users-table__toggle-thumb" aria-hidden="true" />
+                    </label>
                     <DataTableStatus inline variant={getCategoriesStatusVariant(categories)}>
                         {getCategoriesStatusLabel(categories)}
                     </DataTableStatus>
@@ -603,6 +601,17 @@ function DataTableCategories({
                 categories={selectedCategories}
                 onClose={closeActionDialog}
                 onDeleted={handleDeleteConfirm}
+            />
+
+            <DialogValidateStatusMaster
+                key={`status-categories-${getCategoriesId(selectedCategories) ?? "empty"}`}
+                isOpen={activeActionDialog === "status"}
+                eyebrow="Ubah Status Categories"
+                title="Konfirmasi Perubahan Status"
+                entity={selectedCategories}
+                displayName={selectedCategoriesName}
+                onClose={closeActionDialog}
+                onConfirm={handleConfirmStatusChange}
             />
         </div>
     )

@@ -3,6 +3,7 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteBrand from "../../../Dialog/dialog-brands/DialogDeleteBrand.jsx"
 import DialogEditBrand from "../../../Dialog/dialog-brands/DialogEditBrand.jsx"
+import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeleteBrand from "../../../button/brands-buttons/ButtonDeleteBrand.jsx"
 import ButtonEditBrand from "../../../button/brands-buttons/ButtonEditBrand.jsx"
 import DataTable, {
@@ -358,11 +359,10 @@ function DataTableBrands({
         setActiveActionDialog(dialogType)
     }
 
-    const toggleBrandStatus = async (brand) => {
+    const handleConfirmStatusChange = async (brand, newStatus) => {
         const brandId = getBrandId(brand)
-        const currentStatus = getBrandStatusValue(brand) === "1" ? 1 : 0
-        const newStatus = currentStatus === 1 ? 0 : 1
-        const previousBrandRows = [...brandRows]
+
+        await api.brands.updateStatus(brandId, newStatus)
 
         setBrandRows((currentRows) =>
             currentRows.map((row) =>
@@ -372,12 +372,7 @@ function DataTableBrands({
             ),
         )
 
-        try {
-            await api.brands.updateStatus(brandId, newStatus)
-        } catch (error) {
-            setBrandRows(previousBrandRows)
-            setErrorMessage(error?.message || "Gagal mengubah status brand.")
-        }
+        closeActionDialog()
     }
 
     const tableColumns = [
@@ -388,17 +383,20 @@ function DataTableBrands({
             headerStyle: { width: "18%" },
             cellStyle: { width: "18%" },
             render: (brand) => (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                        type="checkbox"
-                        checked={getBrandStatusValue(brand) === "1"}
-                        onChange={(event) => {
-                            event.stopPropagation()
-                            toggleBrandStatus(brand)
-                        }}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label
+                        className="users-table__toggle item-table__status-toggle"
+                        onClick={(event) => event.stopPropagation()}
                         title={`Tandai ${brand.name || brand.brand_name || "brand"} sebagai ${getBrandStatusValue(brand) === "1" ? "non-aktif" : "aktif"}`}
-                    />
+                    >
+                        <input
+                            type="checkbox"
+                            checked={getBrandStatusValue(brand) === "1"}
+                            onChange={() => openActionDialog("status", brand)}
+                        />
+                        <span className="users-table__toggle-track" aria-hidden="true" />
+                        <span className="users-table__toggle-thumb" aria-hidden="true" />
+                    </label>
                     <DataTableStatus inline variant={getBrandStatusVariant(brand)}>
                         {getBrandStatusLabel(brand)}
                     </DataTableStatus>
@@ -521,6 +519,17 @@ function DataTableBrands({
                 brand={selectedBrand}
                 onClose={closeActionDialog}
                 onDeleted={handleDeleteConfirm}
+            />
+
+            <DialogValidateStatusMaster
+                key={`status-brand-${getBrandId(selectedBrand) ?? "empty"}`}
+                isOpen={activeActionDialog === "status"}
+                eyebrow="Ubah Status Brand"
+                title="Konfirmasi Perubahan Status"
+                entity={selectedBrand}
+                displayName={selectedBrandName}
+                onClose={closeActionDialog}
+                onConfirm={handleConfirmStatusChange}
             />
         </div>
     )
