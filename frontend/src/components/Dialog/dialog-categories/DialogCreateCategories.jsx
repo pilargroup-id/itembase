@@ -135,7 +135,9 @@ function DialogCreateCategories({
     sub_category: formValues.sub_category.trim(),
     main_category: formValues.main_category.trim(),
     brand_category: formValues.brand_category.trim(),
-    pic_id: formValues.pic_id,
+    users: formValues.pic_id
+      ? [{ central_user_id: formValues.pic_id, is_primary: 1 }]
+      : [],
     is_active: Number(formValues.is_active),
   })
 

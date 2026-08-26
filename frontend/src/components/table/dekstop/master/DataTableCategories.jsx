@@ -120,6 +120,22 @@ function renderCategoriesValue(value) {
     )
 }
 
+function getPrimaryCategoriesUser(categories) {
+    const users = Array.isArray(categories?.users) ? categories.users : []
+
+    if (users.length === 0) {
+        return null
+    }
+
+    return users.find((entry) => Number(entry?.is_primary) === 1) ?? users[0]
+}
+
+function getCategoriesPicName(categories) {
+    const primaryUser = getPrimaryCategoriesUser(categories)
+
+    return primaryUser?.user?.name || categories?.pic_name || categories?.pic_code || "-"
+}
+
 function matchesSearch(categories, searchQuery) {
     const normalizedQuery = String(searchQuery ?? "").trim().toLowerCase()
 
@@ -132,6 +148,7 @@ function matchesSearch(categories, searchQuery) {
         categories.sub_category,
         categories.main_category,
         categories.brand_category,
+        getPrimaryCategoriesUser(categories)?.user?.name,
         categories.pic_name,
         categories.pic_code,
         getCategoriesStatusLabel(categories),
@@ -263,36 +280,42 @@ function getPaginationSummary(firstItem, lastItem, totalItems) {
 const columns = [
     {
         key: "identity",
-        header: "Category",
-        headerStyle: { width: "30%" },
-        cellStyle: { width: "30%" },
+        header: "Detail Category",
+        headerStyle: { width: "24%" },
+        cellStyle: { width: "24%" },
         render: (categories) => (
             <DataTableIdentity
                 title={categories.detail_category || "-"}
-                subtitle={`PIC — ${categories.pic_name || categories.pic_code || "-"}`}
             />
         ),
+    },
+        {
+        key: "sub_category",
+        header: "Sub Category",
+        headerStyle: { width: "14%" },
+        cellStyle: { width: "14%" },
+        render: (categories) => renderCategoriesValue(categories.sub_category),
     },
     {
         key: "main_category",
         header: "Main Category",
-        headerStyle: { width: "15%" },
-        cellStyle: { width: "15%" },
+        headerStyle: { width: "14%" },
+        cellStyle: { width: "14%" },
         render: (categories) => renderCategoriesValue(categories.main_category),
-    },
-    {
-        key: "sub_category",
-        header: "Sub Category",
-        headerStyle: { width: "15%" },
-        cellStyle: { width: "15%" },
-        render: (categories) => renderCategoriesValue(categories.sub_category),
     },
     {
         key: "brand_category",
         header: "Brand Category",
-        headerStyle: { width: "15%" },
-        cellStyle: { width: "15%" },
+        headerStyle: { width: "14%" },
+        cellStyle: { width: "14%" },
         render: (categories) => renderCategoriesValue(categories.brand_category),
+    },
+    {
+        key: "pic",
+        header: "PIC",
+        headerStyle: { width: "14%" },
+        cellStyle: { width: "14%" },
+        render: (categories) => renderCategoriesValue(getCategoriesPicName(categories)),
     },
 
 ]
@@ -419,8 +442,8 @@ function DataTableCategories({
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "15%" },
-            cellStyle: { width: "15%" },
+            headerStyle: { width: "12%" },
+            cellStyle: { width: "12%" },
             render: (categories) => (
                 <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <label
@@ -447,8 +470,8 @@ function DataTableCategories({
             header: "Action",
             headerClassName: "users-table__action-header",
             cellClassName: "users-table__action-cell",
-            headerStyle: { width: "15%" },
-            cellStyle: { width: "15%", whiteSpace: "nowrap" },
+            headerStyle: { width: "8%" },
+            cellStyle: { width: "8%", whiteSpace: "nowrap" },
             render: (categories) => (
                 <div className="parent-action-buttons">
                     <ButtonEditCategories

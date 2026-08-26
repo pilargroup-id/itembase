@@ -464,7 +464,7 @@ function DataTablePorts({
         const deletedPortId = getPortId(deletedPort)
 
         if (deletedPortId) {
-            setPortRows((currentRows) =>
+            setPortRows((currentRows)  =>
                 currentRows.filter((Port) => getPortId(Port) !== deletedPortId),
             )
         }

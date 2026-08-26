@@ -5,6 +5,7 @@ import api from '../../../services/api.js'
 import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 
 const statusOptions = [
+  { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Item Active' },
   { value: 'inactive', label: 'Item Inactive' },
 ]
@@ -82,7 +83,7 @@ function DialogExportBundleContent({
   title = 'Export Bundle Management',
   onClose,
 }) {
-  const [selectedStatus, setSelectedStatus] = useState(statusOptions[0].value)
+  const [selectedStatus, setSelectedStatus] = useState('active')
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(true)
   const [columnSearch, setColumnSearch] = useState('')
   const [selectedFields, setSelectedFields] = useState(defaultSelectedFields)
@@ -139,7 +140,11 @@ function DialogExportBundleContent({
     setErrorMessage('')
 
     try {
-      const params = { status: selectedStatus }
+      const params = {}
+
+      if (selectedStatus !== 'all') {
+        params.status = selectedStatus
+      }
 
       if (selectedFields.length > 0) {
         params.fields = selectedFields.join(',')
@@ -234,7 +239,7 @@ function DialogExportBundleContent({
                     <div className="download-select__status">
                       <p className="download-select__column-group-title">Item Status</p>
                       <div
-                        className="download-select__status-group"
+                        className="download-select__status-group download-select__status-group--triple"
                         role="radiogroup"
                         aria-label="Select Item status"
                       >

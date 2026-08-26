@@ -15,7 +15,7 @@ const PortFields = [
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'Jakarta',
+    placeholder: 'Enter PORT..',
   },
 ]
 
@@ -192,7 +192,10 @@ function DialogEditPort({
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
                   {PortFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
+                    <div
+                      key={field.name}
+                      className="register-user-popup__field register-user-popup__field--full"
+                    >
                       <label
                         className="register-user-popup__label"
                         htmlFor={`Port-${field.name}`}
@@ -210,23 +213,6 @@ function DialogEditPort({
                       />
                     </div>
                   ))}
-
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="Port-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="Port-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
-                  </div>
                 </div>
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">

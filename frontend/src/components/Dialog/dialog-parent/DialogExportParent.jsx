@@ -5,9 +5,9 @@ import api from '../../../services/api.js'
 import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 
 const statusOptions = [
+  { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Parent Active' },
   { value: 'inactive', label: 'Parent Inactive' },
-  { value: 'all', label: 'All Status' },
 ]
 
 const optionalFields = [
@@ -76,7 +76,7 @@ function DialogExportParentContent({
   title = 'Export Item Parent Management',
   onClose,
 }) {
-  const [selectedStatus, setSelectedStatus] = useState(statusOptions[0].value)
+  const [selectedStatus, setSelectedStatus] = useState('active')
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(true)
   const [columnSearch, setColumnSearch] = useState('')
   const [selectedFields, setSelectedFields] = useState(defaultSelectedFields)
@@ -232,7 +232,7 @@ function DialogExportParentContent({
                     <div className="download-select__status">
                       <p className="download-select__column-group-title">Parent Status</p>
                       <div
-                        className="download-select__status-group"
+                        className="download-select__status-group download-select__status-group--triple"
                         role="radiogroup"
                         aria-label="Select Parent status"
                       >

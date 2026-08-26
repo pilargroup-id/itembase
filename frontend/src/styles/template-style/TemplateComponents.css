@@ -2277,6 +2277,10 @@ select {
   gap: 0.5rem;
 }
 
+.download-select__status-group--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .download-select__status-option {
   width: 100%;
   padding: 0.5rem 0.6rem;

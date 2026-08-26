@@ -59,6 +59,16 @@ function getCategoriesStatusValue(categories) {
   return '1'
 }
 
+function getPrimaryCategoriesUser(categories) {
+  const users = Array.isArray(categories?.users) ? categories.users : []
+
+  if (users.length === 0) {
+    return null
+  }
+
+  return users.find((entry) => Number(entry?.is_primary) === 1) ?? users[0]
+}
+
 function createFormValuesFromCategories(categories) {
   if (!categories) {
     return initialFormValues
@@ -69,7 +79,7 @@ function createFormValuesFromCategories(categories) {
     sub_category: categories.sub_category ?? '',
     main_category: categories.main_category ?? '',
     brand_category: categories.brand_category ?? '',
-    pic_id: categories.pic_id ?? '',
+    pic_id: getPrimaryCategoriesUser(categories)?.central_user_id ?? '',
     is_active: getCategoriesStatusValue(categories),
   }
 }
@@ -177,7 +187,9 @@ function DialogEditCategories({
     sub_category: formValues.sub_category.trim(),
     main_category: formValues.main_category.trim(),
     brand_category: formValues.brand_category.trim(),
-    pic_id: formValues.pic_id,
+    users: formValues.pic_id
+      ? [{ central_user_id: formValues.pic_id, is_primary: 1 }]
+      : [],
     is_active: Number(formValues.is_active),
   })
 

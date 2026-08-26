@@ -13,7 +13,7 @@ const uomFields = [
   {
     name: 'name',
     label: 'Name',
-    placeholder: 'Pieces',
+    placeholder: 'Enter Uom..',
   },
 ]
 
@@ -144,7 +144,10 @@ function DialogCreateUom({
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
                   {uomFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
+                    <div
+                      key={field.name}
+                      className="register-user-popup__field register-user-popup__field--full"
+                    >
                       <label
                         className="register-user-popup__label"
                         htmlFor={`uom-${field.name}`}
@@ -162,23 +165,6 @@ function DialogCreateUom({
                       />
                     </div>
                   ))}
-
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="uom-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="uom-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
-                  </div>
                 </div>
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">
