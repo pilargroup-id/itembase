@@ -510,11 +510,11 @@ const columns = [
         render: (parent) => renderParentValue(parent.sub_brand),
     },
     {
-        key: "mainCategory",
-        header: "Main Category",
+        key: "detailCategory",
+        header: "Detail Category",
         headerStyle: { width: "10%" },
         cellStyle: { width: "10%" },
-        render: (parent) => renderParentValue(parent.category?.main_category),
+        render: (parent) => renderParentValue(parent.category?.detail_category),
     },
     {
         key: "subCategory",
@@ -524,13 +524,13 @@ const columns = [
         render: (parent) => renderParentValue(parent.category?.sub_category),
     },
     {
-        key: "detailCategory",
-        header: "Detail Category",
+        key: "mainCategory",
+        header: "Main Category",
         headerStyle: { width: "10%" },
         cellStyle: { width: "10%" },
-        render: (parent) => renderParentValue(parent.category?.detail_category),
+        render: (parent) => renderParentValue(parent.category?.main_category),
     },
-    {
+{
         key: "brandCategory",
         header: "Brand Category",
         headerStyle: { width: "9%" },

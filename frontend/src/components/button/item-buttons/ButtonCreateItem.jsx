@@ -5,7 +5,7 @@ import { Boxes01 } from '../../template/TemplateIcons.jsx'
 
 function ButtonCreateItem({
   className = '',
-  children = 'Create Item',
+  children = 'Create SKU',
   dialogProps = {},
   iconSize = 18,
   onClick,

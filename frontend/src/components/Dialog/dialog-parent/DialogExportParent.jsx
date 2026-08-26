@@ -5,8 +5,9 @@ import api from '../../../services/api.js'
 import { ChevronDown, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 
 const statusOptions = [
-  { value: 'active', label: 'Item Active' },
-  { value: 'inactive', label: 'Item Inactive' },
+  { value: 'active', label: 'Parent Active' },
+  { value: 'inactive', label: 'Parent Inactive' },
+  { value: 'all', label: 'All Status' },
 ]
 
 const optionalFields = [
@@ -132,7 +133,11 @@ function DialogExportParentContent({
     setErrorMessage('')
 
     try {
-      const params = { status: selectedStatus }
+      const params = {}
+
+      if (selectedStatus !== 'all') {
+        params.status = selectedStatus
+      }
 
       if (selectedFields.length > 0) {
         params.fields = selectedFields.join(',')

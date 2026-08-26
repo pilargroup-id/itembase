@@ -274,6 +274,10 @@ const api = {
         params,
       }),
   },
+  directoryUsers: {
+    product: (params, options) =>
+      api.get('/directory/users/product', { ...options, params }),
+  },
   auth: {
     me: (options) => api.get('/auth/me', options),
   },

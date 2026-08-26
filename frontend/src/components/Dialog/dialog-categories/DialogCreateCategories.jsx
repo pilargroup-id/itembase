@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import SearchableSelect from '../../dropdown/searchable-select/SearchableSelect.jsx'
 
 const initialFormValues = {
   detail_category: '',
@@ -47,6 +48,7 @@ function DialogCreateCategories({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [picOptions, setPicOptions] = useState([])
+  const [isLoadingPics, setIsLoadingPics] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -64,17 +66,25 @@ function DialogCreateCategories({
 
     let isMounted = true
     const fetchPics = async () => {
+      setIsLoadingPics(true)
       try {
-        const response = await api.pics.list()
+        const response = await api.directoryUsers.product()
         if (isMounted) {
           const data = Array.isArray(response) ? response : (response?.data || response?.rows || response?.results || [])
           setPicOptions(data)
         }
       } catch (error) {
         console.error('Failed to fetch PICs', error)
+        if (isMounted) {
+          setPicOptions([])
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingPics(false)
+        }
       }
     }
-    
+
     fetchPics()
 
     return () => { isMounted = false }
@@ -98,12 +108,25 @@ function DialogCreateCategories({
     }
   }, [handleClose, isOpen, isSubmitting])
 
+  const picSelectOptions = picOptions.map((pic) => ({
+    value: String(pic.id),
+    label: pic.name || pic.username || pic.email || String(pic.id),
+    searchText: [pic.name, pic.username, pic.email, pic.job_position].filter(Boolean).join(' '),
+  }))
+
   const handleInputChange = (event) => {
     const { name, value } = event.target
 
     setFormValues((currentValues) => ({
       ...currentValues,
       [name]: value,
+    }))
+  }
+
+  const handlePicChange = (nextValue) => {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      pic_id: nextValue,
     }))
   }
 
@@ -211,21 +234,18 @@ function DialogCreateCategories({
                     <label className="register-user-popup__label" htmlFor="categories-pic-id">
                       PIC
                     </label>
-                    <select
+                    <SearchableSelect
                       id="categories-pic-id"
-                      name="pic_id"
-                      className="register-user-popup__select"
+                      label="PIC"
                       value={formValues.pic_id}
-                      onChange={handleInputChange}
+                      options={picSelectOptions}
+                      placeholder="Select PIC"
+                      searchPlaceholder="Search PIC..."
+                      emptyMessage="PIC not found."
+                      loading={isLoadingPics}
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select PIC</option>
-                      {picOptions.map((pic) => (
-                        <option key={pic.id} value={pic.id}>
-                          {pic.name || pic.code || pic.id}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={handlePicChange}
+                    />
                   </div>
 
                   <div className="register-user-popup__field">

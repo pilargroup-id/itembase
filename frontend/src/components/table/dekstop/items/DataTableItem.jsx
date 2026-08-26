@@ -445,7 +445,7 @@ const columns = [
     },
     {
         key: "parent",
-        header: "Parent",
+        header: "Parent Name",
         headerStyle: { width: "13%" },
         cellStyle: { width: "13%" },
         render: (item) => (
