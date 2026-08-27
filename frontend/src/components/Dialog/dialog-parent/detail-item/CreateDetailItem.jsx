@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { ChevronDown, Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
 
@@ -97,6 +97,7 @@ function buildHwdValue(currentValue, partIndex, nextPartValue) {
 
 const hwdFieldLabels = ['Height', 'Width', 'Depth']
 const hwdFieldNames = ['height', 'width', 'depth']
+const syncableDimensionFieldNames = ['uom_id', 'hwd', 'lead_time_days']
 
 export function createInitialDetailItem() {
   return {
@@ -127,6 +128,7 @@ function CreateDetailItem({
 }) {
   const detailItems = items.length ? items : [createInitialDetailItem()]
   const DetailSearchableSelect = SearchableSelect
+  const [syncAllDimensions, setSyncAllDimensions] = useState(false)
   const duplicateDetailItemIds = useMemo(
     () => getDuplicateDetailItemIds(items, itemName),
     [items, itemName],
@@ -159,16 +161,39 @@ function CreateDetailItem({
   }
 
   const handleFieldChange = (id, fieldName, value) => {
+    const isFirstRow = detailItems[0]?.id === id
+    const shouldSyncField =
+      syncAllDimensions && isFirstRow && syncableDimensionFieldNames.includes(fieldName)
+
     onChange?.(
-      detailItems.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [fieldName]: value,
-            }
-          : item,
-      ),
+      detailItems.map((item) => {
+        if (item.id === id) {
+          return { ...item, [fieldName]: value }
+        }
+
+        if (shouldSyncField) {
+          return { ...item, [fieldName]: value }
+        }
+
+        return item
+      }),
     )
+  }
+
+  const handleSyncAllDimensionsToggle = (event) => {
+    const checked = event.target.checked
+
+    setSyncAllDimensions(checked)
+
+    if (checked && detailItems.length > 1) {
+      const firstRowValues = Object.fromEntries(
+        syncableDimensionFieldNames.map((fieldName) => [fieldName, detailItems[0][fieldName]]),
+      )
+
+      onChange?.(
+        detailItems.map((item, index) => (index === 0 ? item : { ...item, ...firstRowValues })),
+      )
+    }
   }
 
   const handleVariantValueChange = (id, attributeId, value) => {
@@ -207,6 +232,22 @@ function CreateDetailItem({
         </div>
 
         <div className="parent-detail-item__actions">
+          {detailItems.length > 1 ? (
+            <label
+              className="parent-detail-item__sync-toggle"
+              title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
+            >
+              <input
+                type="checkbox"
+                className="register-user-popup__dropdown-checkbox"
+                checked={syncAllDimensions}
+                disabled={disabled}
+                onChange={handleSyncAllDimensionsToggle}
+              />
+              <span>Samakan dimensi carton</span>
+            </label>
+          ) : null}
+
           <button
             type="button"
             className="parent-detail-item__add"
@@ -276,6 +317,7 @@ function CreateDetailItem({
           <tbody>
             {detailItems.map((item, index) => {
               const isDuplicateRow = duplicateDetailItemIds.has(item.id)
+              const isSyncedFollowerRow = syncAllDimensions && index > 0
 
               return (
                 <tr
@@ -350,7 +392,11 @@ function CreateDetailItem({
                   )
                 })}
 
-                <td className="parent-detail-item__field--uom">
+                <td
+                  className={`parent-detail-item__field--uom${
+                    isSyncedFollowerRow ? ' parent-detail-item__field--synced' : ''
+                  }`}
+                >
                   {DetailSearchableSelect ? (
                     <DetailSearchableSelect
                       id={`parent-detail-uom-${item.id}`}
@@ -361,7 +407,7 @@ function CreateDetailItem({
                       searchPlaceholder="Search UOM..."
                       emptyMessage="UOM not found."
                       loading={loadingUoms}
-                      disabled={disabled || loadingUoms}
+                      disabled={disabled || loadingUoms || isSyncedFollowerRow}
                       allowCreate={Boolean(onCreateUom)}
                       onCreate={onCreateUom || undefined}
                       onChange={(nextValue) =>
@@ -376,7 +422,7 @@ function CreateDetailItem({
                       onChange={(event) =>
                         handleFieldChange(item.id, 'uom_id', event.target.value)
                       }
-                      disabled={disabled || loadingUoms}
+                      disabled={disabled || loadingUoms || isSyncedFollowerRow}
                     >
                       <option value="">
                         {loadingUoms ? 'Loading UOM...' : 'Select UOM'}
@@ -393,7 +439,9 @@ function CreateDetailItem({
                 {getHwdParts(item.hwd).map((partValue, partIndex) => (
                   <td
                     key={hwdFieldLabels[partIndex]}
-                    className="parent-detail-item__field--hwd"
+                    className={`parent-detail-item__field--hwd${
+                      isSyncedFollowerRow ? ' parent-detail-item__field--synced' : ''
+                    }`}
                   >
                     <input
                       id={`parent-detail-hwd-${hwdFieldNames[partIndex]}-${item.id}`}
@@ -411,12 +459,16 @@ function CreateDetailItem({
                           buildHwdValue(item.hwd, partIndex, event.target.value),
                         )
                       }
-                      disabled={disabled}
+                      disabled={disabled || isSyncedFollowerRow}
                     />
                   </td>
                 ))}
 
-                <td className="parent-detail-item__field--lead-time">
+                <td
+                  className={`parent-detail-item__field--lead-time${
+                    isSyncedFollowerRow ? ' parent-detail-item__field--synced' : ''
+                  }`}
+                >
                   <input
                     id={`parent-detail-lead-time-${item.id}`}
                     className="register-user-popup__input"
@@ -428,7 +480,7 @@ function CreateDetailItem({
                     onChange={(event) =>
                       handleFieldChange(item.id, 'lead_time_days', event.target.value)
                     }
-                    disabled={disabled}
+                    disabled={disabled || isSyncedFollowerRow}
                   />
                 </td>
 

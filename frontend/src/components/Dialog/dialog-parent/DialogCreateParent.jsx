@@ -1179,7 +1179,7 @@ function SearchableCreatableSelect({
 
 function DialogCreateParent({
   isOpen = false,
-  eyebrow = 'Item Parent',
+  eyebrow = 'Parent Name',
   title = 'Create ...',
   onClose,
   onCreated,
@@ -1197,6 +1197,7 @@ function DialogCreateParent({
   const [previousCreatedParent, setPreviousCreatedParent] = useState(null)
   const [duplicateParentMatch, setDuplicateParentMatch] = useState(null)
   const [isCheckingDuplicateParent, setIsCheckingDuplicateParent] = useState(false)
+  const [createSku, setCreateSku] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -1210,6 +1211,7 @@ function DialogCreateParent({
     setPreviousCreatedParent(null)
     setDuplicateParentMatch(null)
     setIsCheckingDuplicateParent(false)
+    setCreateSku(false)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -1649,9 +1651,15 @@ function DialogCreateParent({
       const createdParentResponse = await api.itemParents.create(payload)
       const parentData = getResourceData(createdParentResponse)
 
+      onCreated?.(parentData)
+
+      if (!createSku) {
+        handleClose()
+        return
+      }
+
       setCreatedParent(parentData)
       setDuplicateParentMatch(null)
-      onCreated?.(parentData)
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, createdParent ? 'Failed to create SKU.' : 'Failed to create item parent.'))
     } finally {
@@ -1746,7 +1754,9 @@ function DialogCreateParent({
       role="presentation"
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup${
+          createdParent ? ' parent-create-popup--sku-detail' : ''
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-parent-title"
@@ -1850,6 +1860,18 @@ function DialogCreateParent({
         </div>
 
         <div className="dashboard-popup__actions">
+          {!createdParent ? (
+            <label className="parent-create-popup__create-sku-toggle">
+              <input
+                type="checkbox"
+                className="register-user-popup__dropdown-checkbox"
+                checked={createSku}
+                disabled={isSubmitting}
+                onChange={(event) => setCreateSku(event.target.checked)}
+              />
+              <span>Create SKU</span>
+            </label>
+          ) : null}
           {createdParent ? (
             <button
               type="button"
