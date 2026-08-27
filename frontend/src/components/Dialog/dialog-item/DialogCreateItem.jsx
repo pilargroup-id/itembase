@@ -2,8 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
+import DialogEditItem from './DialogEditItem.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
+
+const DUPLICATE_VARIANT_ITEM_CODE_PATTERN = /variant combination already exists on item\s+(\S+)/i
+
+function parseDuplicateVariantItemCode(message) {
+  const match = DUPLICATE_VARIANT_ITEM_CODE_PATTERN.exec(String(message ?? ''))
+
+  return match ? match[1].replace(/[.,]+$/, '') : null
+}
 
 const initialFormValues = {
   item_kind: 'regular',
@@ -796,6 +805,65 @@ function ChannelCheckboxSelect({
   )
 }
 
+function ValidationAlertBanner({
+  message,
+  variantAttributeLabels = [],
+  onDismiss,
+  onViewItem,
+  isViewLoading = false,
+}) {
+  if (!message) {
+    return null
+  }
+
+  const duplicateItemCode = parseDuplicateVariantItemCode(message)
+  const isDuplicateVariant = Boolean(duplicateItemCode)
+  const title = isDuplicateVariant ? 'Kombinasi varian sudah ada' : 'Gagal'
+  const description = isDuplicateVariant
+    ? `Kombinasi ${
+        variantAttributeLabels.length > 0 ? variantAttributeLabels.join(', ') : 'varian'
+      } yang Anda pilih sudah tersedia pada item ${duplicateItemCode}.`
+    : message
+
+  return (
+    <div className="item-create-popup__validation-alert" role="alert">
+      <span className="item-create-popup__validation-alert-icon" aria-hidden="true">
+        <XCircle size={18} />
+      </span>
+
+      <div className="item-create-popup__validation-alert-body">
+        <p className="item-create-popup__validation-alert-title">{title}</p>
+        <p className="item-create-popup__validation-alert-message">{description}</p>
+      </div>
+
+      <div className="item-create-popup__validation-alert-actions">
+        {isDuplicateVariant ? (
+          <>
+            <button
+              type="button"
+              className="item-create-popup__validation-alert-view-button"
+              onClick={() => onViewItem?.(duplicateItemCode)}
+              disabled={isViewLoading}
+            >
+              {isViewLoading ? 'Memuat...' : 'Lihat Item'}
+            </button>
+            <span className="item-create-popup__validation-alert-divider" aria-hidden="true" />
+          </>
+        ) : null}
+
+        <button
+          type="button"
+          className="item-create-popup__validation-alert-close"
+          onClick={onDismiss}
+          aria-label="Tutup notifikasi"
+        >
+          <XClose size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function DialogCreateItem({
   isOpen = false,
   eyebrow = 'Create SKU',
@@ -821,6 +889,8 @@ function DialogCreateItem({
   const [syncAllDimensions, setSyncAllDimensions] = useState(false)
   const [isParentSectionOpen, setIsParentSectionOpen] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [viewItemTarget, setViewItemTarget] = useState(null)
+  const [isLoadingViewItem, setIsLoadingViewItem] = useState(false)
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -840,6 +910,8 @@ function DialogCreateItem({
     setSyncAllDimensions(false)
     setIsParentSectionOpen(true)
     setErrorMessage('')
+    setViewItemTarget(null)
+    setIsLoadingViewItem(false)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -1465,6 +1537,29 @@ function DialogCreateItem({
     setIsParentSectionOpen((currentValue) => !currentValue)
   }
 
+  const handleViewDuplicateItem = useCallback(async (itemCode) => {
+    if (!itemCode) {
+      return
+    }
+
+    setIsLoadingViewItem(true)
+
+    try {
+      const response = await api.items.list({ item_code: itemCode, limit: 1 })
+      const [matchedItem] = normalizeListResponse(response)
+
+      if (matchedItem) {
+        setViewItemTarget(matchedItem)
+      } else {
+        setErrorMessage(`Item ${itemCode} not found.`)
+      }
+    } catch (error) {
+      setErrorMessage(error?.message || 'Failed to load item detail.')
+    } finally {
+      setIsLoadingViewItem(false)
+    }
+  }, [])
+
   const handleMatrixRowToggle = (rowId) => {
     setErrorMessage('')
     setMatrixRows((currentRows) =>
@@ -1902,6 +1997,8 @@ function DialogCreateItem({
       className="dashboard-popup-overlay"
       role="presentation"
     >
+      <ErrorToast message={errorMessage} onDismiss={() => setErrorMessage('')} />
+
       <form
         className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup${
           formValues.parent_id ? '' : ' item-create-popup--compact'
@@ -1958,12 +2055,6 @@ function DialogCreateItem({
                 </div>
 
                 {renderVariantMatrix()}
-
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
 
                 {matrixRows.length > 0 ? (
                   <p className="parent-create-popup__section-description item-create-popup__matrix-footnote">

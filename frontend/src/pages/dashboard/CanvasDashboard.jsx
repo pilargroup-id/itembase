@@ -4,7 +4,6 @@ import Box from '@mui/material/Box'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 
-import ButtonExportDashboard from '../../components/button/dashboard-buttons/ButtonExportDashboard.jsx'
 import { Export01 } from '../../components/template/TemplateIcons.jsx'
 
 const NUMBER_FORMATTER = new Intl.NumberFormat('id-ID')
@@ -32,7 +31,7 @@ const FOCUS_COPY = {
     description: 'Perbandingan jumlah parent item dan SKU aktif di master item.',
   },
   sku: {
-    title: 'Komposisi Master Item',
+    title: 'Dashboard Itembase',
     description: 'Snapshot total SKU, parent item, dan status item saat ini.',
   },
   newItems: {
@@ -303,16 +302,6 @@ const focus = FOCUS_COPY[selectedKey] ?? FOCUS_COPY.sku
           <h2>{focus.title}</h2>
           <p className="dashboard-canvas__description">{focus.description}</p>
         </div>
-        <ButtonExportDashboard
-          variant="action"
-          className="dashboard-canvas__export"
-          dialogEyebrow="Export Dashboard"
-          dialogTitle="Export Dashboard"
-          aria-label="Export dashboard"
-        >
-          <Export01 size={18} aria-hidden="true" />
-          <span>Export</span>
-        </ButtonExportDashboard>
       </div>
 
       <div className="dashboard-chart-scroll">

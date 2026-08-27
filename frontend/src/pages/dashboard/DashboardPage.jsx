@@ -13,8 +13,8 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat('id-ID', {
 const MAX_PAGE_SIZE = 250
 
 const PARENT_METRIC_OPTIONS = [
-  { value: 'sku', label: 'SKU', cardLabel: 'Total SKU' },
-  { value: 'bundles', label: 'Bundle', cardLabel: 'Total Bundle' },
+  { value: 'sku', label: 'Reguler', detailLabel: 'reguler' },
+  { value: 'bundles', label: 'Bundle', detailLabel: 'bundle' },
 ]
 
 function normalizeRows(responseData) {
@@ -274,10 +274,10 @@ function DashboardPage({ activePage }) {
   )
   const parentMetricCounts = useMemo(
     () => ({
-      sku: summary.totalSku,
+      sku: itemRows.filter((item) => !isBundleItem(item)).length,
       bundles: itemRows.filter(isBundleItem).length,
     }),
-    [itemRows, summary.totalSku],
+    [itemRows],
   )
   const selectedParentMetricOption =
     PARENT_METRIC_OPTIONS.find((option) => option.value === selectedParentMetric) ??
@@ -294,7 +294,7 @@ function DashboardPage({ activePage }) {
       {
         key: 'sku',
         icon: Barcode,
-        label: selectedParentMetricOption.cardLabel,
+        label: 'Total SKU',
         value: parentMetricCounts[selectedParentMetric] ?? 0,
         control: (
           <DashboardCardMoreOptions
@@ -304,13 +304,13 @@ function DashboardPage({ activePage }) {
             onChange={setSelectedParentMetric}
           />
         ),
-        // detail: 'Semua SKU item terdaftar',
+        detail: `(${selectedParentMetricOption.detailLabel})`,
         tone: 'purple',
       },
       {
         key: 'newItems',
         icon: Calendar01,
-        label: 'New Item',
+        label: 'New SKU',
         value: selectedNewItems,
         control: (
           <DashboardCardMoreOptions
@@ -320,12 +320,13 @@ function DashboardPage({ activePage }) {
             onChange={setSelectedNewItemMonth}
           />
         ),
+        detail: `New SKU (${monthLabel})`,
         tone: 'gold',
       },
       {
         key: 'inactiveItems',
         icon: LayoutDashboard,
-        label: 'Inactive Item',
+        label: 'Inactive SKU',
         value: summary.inactiveItems,
         // detail: 'Item dengan status tidak aktif',
         tone: 'coral',
@@ -333,13 +334,14 @@ function DashboardPage({ activePage }) {
       {
         key: 'activeItems',
         icon: CheckSquare,
-        label: 'Active Item',
+        label: 'Active SKU',
         value: summary.activeItems,
         // detail: 'Item dengan status aktif',
         tone: 'green',
       },
     ],
     [
+      monthLabel,
       monthOptions,
       parentMetricCounts,
       selectedNewItemMonth,

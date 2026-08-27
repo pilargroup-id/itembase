@@ -343,9 +343,16 @@ function createFilterOptions(rows, filterConfig) {
 }
 
 function createItemApiParams(filters, searchQuery) {
-    const params = {}
+    const params = {
+        item_kind: "regular",
+    }
 
     itemFilterConfig.forEach((filterConfig) => {
+        // skip item_kind filter since we always force regular
+        if (filterConfig.apiParam === "item_kind") {
+            return
+        }
+
         const selectedValue = normalizeFilterValue(filters[filterConfig.key])
 
         if (!filterConfig.apiParam || !selectedValue || selectedValue === ALL_FILTER_VALUE) {

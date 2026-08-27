@@ -473,3 +473,23 @@ export function CheckSquare(props) {
     </IconBase>
   )
 }
+
+export function AlertTriangle(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m10.29 3.86-8.18 14.19A2 2 0 0 0 3.86 21h16.28a2 2 0 0 0 1.75-2.95L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </IconBase>
+  )
+}
+
+export function XCircle(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="14.5" y1="9.5" x2="9.5" y2="14.5" />
+      <line x1="9.5" y1="9.5" x2="14.5" y2="14.5" />
+    </IconBase>
+  )
+}

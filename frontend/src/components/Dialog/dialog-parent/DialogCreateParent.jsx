@@ -2,12 +2,20 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, {
   createInitialDetailItem,
   hasDuplicateVariantSelection,
 } from './detail-item/CreateDetailItem.jsx'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
+
+const DUPLICATE_PARENT_CODE_PATTERN = /parent combination already exists on\s+(\S+)/i
+
+function parseDuplicateParentCode(message) {
+  const match = DUPLICATE_PARENT_CODE_PATTERN.exec(String(message ?? ''))
+
+  return match ? match[1].replace(/[.,]+$/, '') : null
+}
 
 const initialFormValues = {
   subbrand_id: '',
@@ -405,6 +413,80 @@ function formatSubbrandScore(score) {
   return numericScore.toLocaleString('id-ID', {
     maximumFractionDigits: 2,
   })
+}
+
+function DuplicateParentAlertBanner({ duplicateParentMatch, onDismiss }) {
+  if (!duplicateParentMatch) {
+    return null
+  }
+
+  return (
+    <div className="item-create-popup__validation-alert" role="alert">
+      <span className="item-create-popup__validation-alert-icon" aria-hidden="true">
+        <XCircle size={18} />
+      </span>
+
+      <div className="item-create-popup__validation-alert-body">
+        <p className="item-create-popup__validation-alert-title">Parent sudah ada</p>
+        <p className="item-create-popup__validation-alert-message">
+          Parent dengan kombinasi Brand + Sub Brand + Item Name ini sudah ada (
+          <strong>{duplicateParentMatch.parent_code}</strong>).
+        </p>
+      </div>
+
+      <div className="item-create-popup__validation-alert-actions">
+        <button
+          type="button"
+          className="item-create-popup__validation-alert-close"
+          onClick={onDismiss}
+          aria-label="Tutup notifikasi"
+        >
+          <XClose size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ParentValidationAlertBanner({ message, onDismiss }) {
+  if (!message) {
+    return null
+  }
+
+  const duplicateParentCode = parseDuplicateParentCode(message)
+  const isDuplicate = Boolean(duplicateParentCode)
+  const title = isDuplicate ? 'Parent sudah ada' : 'Gagal'
+  const description = isDuplicate ? (
+    <>
+      Parent dengan kombinasi Brand + Sub Brand + Item Name ini sudah ada (<strong>{duplicateParentCode}</strong>).
+    </>
+  ) : (
+    message
+  )
+
+  return (
+    <div className="item-create-popup__validation-alert" role="alert">
+      <span className="item-create-popup__validation-alert-icon" aria-hidden="true">
+        <XCircle size={18} />
+      </span>
+
+      <div className="item-create-popup__validation-alert-body">
+        <p className="item-create-popup__validation-alert-title">{title}</p>
+        <p className="item-create-popup__validation-alert-message">{description}</p>
+      </div>
+
+      <div className="item-create-popup__validation-alert-actions">
+        <button
+          type="button"
+          className="item-create-popup__validation-alert-close"
+          onClick={onDismiss}
+          aria-label="Tutup notifikasi"
+        >
+          <XClose size={14} />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function SearchableMasterSelect({
@@ -1802,11 +1884,16 @@ function DialogCreateParent({
                         <div className="register-user-popup__grid parent-create-popup__grid parent-create-popup__grid--formula">
                           {parentFormulaFields.map(renderField)}
                         </div>
-                        {!createdParent && duplicateParentMatch ? (
-                          <p className="register-user-popup__hint" role="alert">
-                            A parent with this Brand + Sub Brand + Item Name combination already exists ({duplicateParentMatch.parent_code}).
-                          </p>
+                        {!createdParent ? (
+                          <DuplicateParentAlertBanner
+                            duplicateParentMatch={duplicateParentMatch}
+                            onDismiss={() => setDuplicateParentMatch(null)}
+                          />
                         ) : null}
+                        <ParentValidationAlertBanner
+                          message={errorMessage}
+                          onDismiss={() => setErrorMessage('')}
+                        />
                       </div>
 
                       <div className="parent-create-popup__section">
@@ -1847,12 +1934,6 @@ function DialogCreateParent({
                       onChange={handleDetailItemsChange}
                     />
                   </div>
-                ) : null}
-
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
                 ) : null}
               </div>
             </div>
