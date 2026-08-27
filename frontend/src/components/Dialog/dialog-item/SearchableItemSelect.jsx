@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { ChevronDown, Plus, SearchMd } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, RefreshCw05, SearchMd } from '../../template/TemplateIcons.jsx'
 
 function SearchableItemSelect({
   id,
@@ -303,8 +303,10 @@ function SearchableItemSelect({
           <input
             ref={triggerRef}
             id={id}
-            type="search"
-            className="register-user-popup__input parent-subbrand-search__input"
+            type="text"
+            className={`register-user-popup__input parent-subbrand-search__input${
+              loading ? ' parent-subbrand-search__input--loading' : ''
+            }`}
             value={searchTriggerValue}
             placeholder={searchTriggerPlaceholder}
             onFocus={handleFocusTrigger}
@@ -314,8 +316,13 @@ function SearchableItemSelect({
             aria-autocomplete="list"
             aria-expanded={isOpen}
             aria-haspopup="listbox"
-            disabled={disabled || (loading && !isOpen)}
+            disabled={disabled}
           />
+          {loading ? (
+            <span className="parent-subbrand-search__spinner" aria-hidden="true">
+              <RefreshCw05 size={16} />
+            </span>
+          ) : null}
         </div>
 
         {menuNode}
@@ -338,6 +345,13 @@ function SearchableItemSelect({
         <span className={`parent-master-select__value${selectedOption ? '' : ' parent-master-select__value--placeholder'}`}>
           {displayValue}
         </span>
+        {loading ? (
+          <RefreshCw05
+            size={16}
+            className="parent-master-select__spinner"
+            aria-hidden="true"
+          />
+        ) : null}
         <ChevronDown
           size={16}
           aria-hidden="true"

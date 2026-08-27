@@ -1562,12 +1562,14 @@ function DialogCreateItem({
     return (
       <div className="parent-create-popup__section item-create-popup__matrix-panel">
         <div className="parent-create-popup__section-header parent-detail-item__top">
-          <div>
-            <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
-            <p className="parent-create-popup__section-description">
-              Pratinjau item akan muncul di sini setelah nilai dipilih.
-            </p>
-          </div>
+          {hasParent ? (
+            <div>
+              <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
+              <p className="parent-create-popup__section-description">
+                Pratinjau item akan muncul di sini setelah nilai dipilih.
+              </p>
+            </div>
+          ) : null}
 
           {hasParent ? (
             <div className="parent-detail-item__actions">
@@ -1854,7 +1856,7 @@ function DialogCreateItem({
           }
           disabled={
             isSubmitting ||
-            isLoadingMasters ||
+            (field.name !== 'parent_id' && isLoadingMasters) ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
           remoteSearch={field.name === 'parent_id'}
@@ -1903,6 +1905,8 @@ function DialogCreateItem({
       <form
         className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup${
           formValues.parent_id ? '' : ' item-create-popup--compact'
+        }${
+          matrixRows.length > 0 ? ' item-create-popup--matrix' : ''
         }`}
         role="dialog"
         aria-modal="true"
