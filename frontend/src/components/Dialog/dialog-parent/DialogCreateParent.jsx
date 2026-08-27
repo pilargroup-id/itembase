@@ -1776,28 +1776,11 @@ function DialogCreateParent({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="parent-create-popup__parent-info">
-                  {createdParent ? (
-                    <button
-                      type="button"
-                      className="parent-create-popup__collapse-toggle"
-                      onClick={handleToggleParentSection}
-                      aria-expanded={isParentSectionOpen}
-                      aria-controls="parent-create-popup-parent-fields"
-                    >
-                      <span className="parent-create-popup__collapse-toggle-title">
-                        {dialogTitle}
-                      </span>
-                      <ChevronDown
-                        size={18}
-                        aria-hidden="true"
-                        className={`parent-create-popup__collapse-chevron${
-                          isParentSectionOpen ? ' parent-create-popup__collapse-chevron--open' : ''
-                        }`}
-                      />
-                    </button>
-                  ) : null}
-
+                <div
+                  className={`parent-create-popup__parent-info${
+                    createdParent ? ' parent-create-popup__parent-info--locked' : ''
+                  }`}
+                >
                   <div
                     id="parent-create-popup-parent-fields"
                     className={`parent-create-popup__collapsible${
@@ -1826,7 +1809,11 @@ function DialogCreateParent({
                 </div>
 
                 {createdParent ? (
-                  <div className="parent-create-popup__detail-reveal">
+                  <div
+                    className={`parent-create-popup__detail-reveal${
+                      isParentSectionOpen ? '' : ' parent-create-popup__detail-reveal--parent-hidden'
+                    }`}
+                  >
                     <CreateDetailItem
                       itemName={formValues.item_name}
                       items={detailItems}
@@ -1845,6 +1832,8 @@ function DialogCreateParent({
                       onCreateUom={handleCreateUom}
                       onCreateVariantValue={handleCreateVariantValue}
                       disabled={isSubmitting}
+                      isParentSectionOpen={isParentSectionOpen}
+                      onToggleParentSection={handleToggleParentSection}
                       onChange={handleDetailItemsChange}
                     />
                   </div>

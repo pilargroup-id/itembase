@@ -31,6 +31,7 @@ const itemFields = [
     searchPlaceholder: 'Search Parent...',
     emptyMessage: 'Parent not found.',
     fullRow: true,
+    searchTrigger: true,
   },
   {
     name: 'item_name',
@@ -59,6 +60,7 @@ const itemFields = [
     optionsKey: 'uoms',
     searchPlaceholder: 'Search UOM...',
     emptyMessage: 'UOM not found.',
+    searchTrigger: true,
   },
   {
     name: 'qty_per_pack',
@@ -571,6 +573,7 @@ function DialogEditItem({
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
           disabled={isSubmitting || isLoadingMasters}
+          searchTrigger={Boolean(field.searchTrigger)}
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
         />
       ) : (

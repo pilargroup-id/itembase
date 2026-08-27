@@ -16,6 +16,7 @@ function SearchableItemSelect({
   remoteSearch = false,
   forceOpenDown = false,
   allowCreate = false,
+  searchTrigger = false,
   onCreate,
   onChange,
   onSearchChange,
@@ -85,9 +86,14 @@ function SearchableItemSelect({
       )
       const spaceBelow = window.innerHeight - bounds.bottom - viewportMargin - gap
       const spaceAbove = bounds.top - viewportMargin - gap
-      const openUp = !forceOpenDown && spaceBelow < 190 && spaceAbove > spaceBelow
-      const optionsHeight = Math.max(96, Math.min(220, (openUp ? spaceAbove : spaceBelow) - 72))
-      const menuHeight = optionsHeight + 72
+      const openUpThreshold = searchTrigger ? 180 : 190
+      const openUp = !forceOpenDown && spaceBelow < openUpThreshold && spaceAbove > spaceBelow
+      const reservedChrome = searchTrigger ? 18 : 72
+      const optionsHeight = Math.max(
+        96,
+        Math.min(220, (openUp ? spaceAbove : spaceBelow) - reservedChrome),
+      )
+      const menuHeight = optionsHeight + reservedChrome
       const top = openUp
         ? Math.max(viewportMargin, bounds.top - gap - menuHeight)
         : Math.min(bounds.bottom + gap, window.innerHeight - viewportMargin - menuHeight)
@@ -108,7 +114,7 @@ function SearchableItemSelect({
       window.removeEventListener('resize', updateMenuPosition)
       window.removeEventListener('scroll', updateMenuPosition, true)
     }
-  }, [isOpen, forceOpenDown])
+  }, [isOpen, forceOpenDown, searchTrigger])
 
   useEffect(() => {
     if (!isOpen) {
@@ -147,10 +153,10 @@ function SearchableItemSelect({
   }, [isOpen])
 
   useEffect(() => {
-    if (isOpen && menuStyle) {
+    if (isOpen && menuStyle && !searchTrigger) {
       searchInputRef.current?.focus()
     }
-  }, [isOpen, menuStyle])
+  }, [isOpen, menuStyle, searchTrigger])
 
   const handleToggle = () => {
     if (disabled) {
@@ -162,6 +168,20 @@ function SearchableItemSelect({
     }
 
     setIsOpen((currentState) => !currentState)
+  }
+
+  const handleFocusTrigger = () => {
+    if (disabled) {
+      return
+    }
+
+    setIsOpen(true)
+  }
+
+  const handleSearchTriggerChange = (event) => {
+    setSearchQuery(event.target.value)
+    setCreateOptionError('')
+    setIsOpen(true)
   }
 
   const handleSelect = (nextValue) => {
@@ -195,6 +215,8 @@ function SearchableItemSelect({
   }
 
   const displayValue = loading ? 'Loading data...' : selectedOption?.label || placeholder
+  const searchTriggerValue = isOpen ? searchQuery : loading ? 'Loading data...' : selectedOption?.label || ''
+  const searchTriggerPlaceholder = loading ? 'Loading data...' : isOpen ? searchPlaceholder : placeholder
   const menuNode =
     isOpen && menuStyle && typeof document !== 'undefined'
       ? createPortal(
@@ -205,18 +227,20 @@ function SearchableItemSelect({
             aria-label={label}
             style={menuStyle}
           >
-            <div className="parent-master-select__search">
-              <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                className="parent-master-select__search-input"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={`Search ${label}`}
-              />
-            </div>
+            {searchTrigger ? null : (
+              <div className="parent-master-select__search">
+                <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  className="parent-master-select__search-input"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={`Search ${label}`}
+                />
+              </div>
+            )}
 
             <div className="parent-master-select__options">
               {filteredOptions.length > 0 ? (
@@ -270,6 +294,34 @@ function SearchableItemSelect({
           document.body,
         )
       : null
+
+  if (searchTrigger) {
+    return (
+      <div ref={rootRef} className="parent-subbrand-search">
+        <div className="parent-subbrand-search__control">
+          <SearchMd size={16} className="parent-subbrand-search__icon" aria-hidden="true" />
+          <input
+            ref={triggerRef}
+            id={id}
+            type="search"
+            className="register-user-popup__input parent-subbrand-search__input"
+            value={searchTriggerValue}
+            placeholder={searchTriggerPlaceholder}
+            onFocus={handleFocusTrigger}
+            onChange={handleSearchTriggerChange}
+            autoComplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={isOpen}
+            aria-haspopup="listbox"
+            disabled={disabled || loading}
+          />
+        </div>
+
+        {menuNode}
+      </div>
+    )
+  }
 
   return (
     <div ref={rootRef} className="parent-master-select">

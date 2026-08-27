@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { Plus, RefreshCw05, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
@@ -31,6 +31,7 @@ const itemFields = [
     searchPlaceholder: 'Search Parent...',
     emptyMessage: 'Parent not found.',
     half: true,
+    searchTrigger: true,
   },
   {
     name: 'item_name',
@@ -55,6 +56,7 @@ const itemFields = [
     emptyMessage: 'UOM not found.',
     forceOpenDown: true,
     allowCreate: true,
+    searchTrigger: true,
   },
   {
     name: 'qty_per_pack',
@@ -90,7 +92,7 @@ const itemFields = [
   },
   {
     name: 'gross_weight_pack',
-    label: 'Gross Weight / Pack',
+    label: 'G.Weight / Pack',
     placeholder: '0.00',
     type: 'number',
     compactDimension: true,
@@ -114,6 +116,12 @@ const dimensionFieldNames = [
   'gross_weight_pack',
   'production_time_days',
 ]
+
+const dimensionFields = itemFields.filter((field) => dimensionFieldNames.includes(field.name))
+
+const emptyMatrixRowDimensionValues = Object.fromEntries(
+  dimensionFieldNames.map((fieldName) => [fieldName, '']),
+)
 
 const numericFields = new Set([
   'qty_per_pack',
@@ -420,6 +428,25 @@ function buildCommonValues(formValues) {
   )
 }
 
+function buildRowDimensionValues(row) {
+  return Object.fromEntries(
+    dimensionFieldNames
+      .map((fieldName) => {
+        const trimmedValue = String(row[fieldName] ?? '').trim()
+
+        if (trimmedValue === '') {
+          return [fieldName, '']
+        }
+
+        return [
+          fieldName,
+          numericFields.has(fieldName) ? Number(trimmedValue) : trimmedValue,
+        ]
+      })
+      .filter(([, value]) => value !== ''),
+  )
+}
+
 function buildMatrixPayload(formValues, matrixRows) {
   return {
     item_parent_id: formValues.parent_id,
@@ -433,6 +460,7 @@ function buildMatrixPayload(formValues, matrixRows) {
           attribute_id: variant.attribute_id,
           value_id: variant.value_id,
         })),
+        ...buildRowDimensionValues(row),
       })),
   }
 }
@@ -790,7 +818,6 @@ function DialogCreateItem({
   const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
   const [matrixRows, setMatrixRows] = useState([])
-  const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
@@ -1192,6 +1219,7 @@ function DialogCreateItem({
             item_name: combination.suggested_item_name ?? '',
             selling_name: combination.suggested_selling_name ?? '',
             variants: Array.isArray(combination.variants) ? combination.variants : [],
+            ...emptyMatrixRowDimensionValues,
           })),
         )
       } catch (error) {
@@ -1221,7 +1249,6 @@ function DialogCreateItem({
     variantSelections,
     isLoadingParentConfig,
     isLoadingAnyVariantValue,
-    previewRefreshToken,
   ])
 
   const handleFieldChange = (name, value) => {
@@ -1380,25 +1407,6 @@ function DialogCreateItem({
     return newOption ?? null
   }, [variantValueOptionsByAttributeId])
 
-  const handlePreviewMatrix = () => {
-    if (!formValues.parent_id) {
-      setErrorMessage('Select a parent first before building the matrix.')
-      return
-    }
-
-    if (activeVariantAttributes.length === 0) {
-      setErrorMessage('This parent has no variant attributes.')
-      return
-    }
-
-    if (hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)) {
-      setErrorMessage('Select at least one value for each variant attribute.')
-      return
-    }
-
-    setPreviewRefreshToken((currentToken) => currentToken + 1)
-  }
-
   const handleMatrixRowChange = (rowId, fieldName, value) => {
     setErrorMessage('')
     setMatrixRows((currentRows) =>
@@ -1495,14 +1503,6 @@ function DialogCreateItem({
   const selectedMatrixRows = matrixRows.filter((row) => row.create)
   const isMatrixMode = activeVariantAttributes.length > 0
   const selectedParentItemName = selectedParentOption?.itemName
-  const canPreviewMatrix =
-    isMatrixMode &&
-    Boolean(formValues.parent_id) &&
-    !isSubmitting &&
-    !isPreviewingMatrix &&
-    !isLoadingParentConfig &&
-    !isLoadingAnyVariantValue &&
-    !hasIncompleteMatrixSelection(activeVariantAttributes, variantSelections)
 
   const isFieldReadOnly = (field) =>
     field.readOnly ||
@@ -1517,35 +1517,24 @@ function DialogCreateItem({
 
     return (
       <div className="parent-create-popup__section item-create-popup__matrix-panel">
-        <div className="parent-create-popup__section-header item-create-popup__matrix-header">
-          <div>
-            <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
-            <p className="parent-create-popup__section-description">
-              Select values for each variant attribute of this parent to create multiple items at once.
-            </p>
-          </div>
-
-          {hasAttributes ? (
-            <button
-              type="button"
-              className="dashboard-popup__button dashboard-popup__button--secondary item-create-popup__matrix-preview-button"
-              disabled={!canPreviewMatrix}
-              onClick={handlePreviewMatrix}
-            >
-              <RefreshCw05 size={16} aria-hidden="true" />
-              <span>{isPreviewingMatrix ? 'Previewing...' : 'Preview'}</span>
-            </button>
-          ) : null}
+        <div className="parent-create-popup__section-header">
+          <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
         </div>
 
         {!hasParent ? (
-          <p className="register-user-popup__hint">
-            Select a parent first to display the variant matrix.
-          </p>
+          <div className="item-create-popup__matrix-empty">
+            <p className="register-user-popup__hint">
+              Select a parent first to display the variant matrix.
+            </p>
+          </div>
         ) : isLoadingAttributes ? (
-          <p className="register-user-popup__hint">Loading parent variant attributes...</p>
+          <div className="item-create-popup__matrix-empty">
+            <p className="register-user-popup__hint">Loading parent variant attributes...</p>
+          </div>
         ) : !hasAttributes ? (
-          <p className="register-user-popup__hint">This parent has no variant attributes.</p>
+          <div className="item-create-popup__matrix-empty">
+            <p className="register-user-popup__hint">This parent has no variant attributes.</p>
+          </div>
         ) : (
           <>
             <div className="item-create-popup__variant-grid">
@@ -1600,6 +1589,12 @@ function DialogCreateItem({
                         <th>Create</th>
                         <th>Variant</th>
                         <th className="item-create-popup__matrix-th--name">SKU Name</th>
+                        {dimensionFields.map((field) => (
+                          <th key={field.name}>
+                            {field.label}
+                            {field.unitSuffix ? ` (${field.unitSuffix})` : ''}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -1649,6 +1644,45 @@ function DialogCreateItem({
                                 </p>
                               ) : null}
                             </td>
+                            {dimensionFields.map((field) => (
+                              <td
+                                key={field.name}
+                                className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}`}
+                              >
+                                {field.type === 'select' ? (
+                                  <SearchableItemSelect
+                                    id={`item-matrix-${row.id}-${field.name}`}
+                                    label={field.label}
+                                    value={row[field.name]}
+                                    options={masterOptions[field.optionsKey]}
+                                    placeholder={field.placeholder}
+                                    searchPlaceholder={field.searchPlaceholder}
+                                    emptyMessage={field.emptyMessage}
+                                    loading={isLoadingMasters}
+                                    disabled={isSubmitting || isLoadingMasters || !row.create}
+                                    forceOpenDown={Boolean(field.forceOpenDown)}
+                                    allowCreate={Boolean(field.allowCreate)}
+                                    searchTrigger={Boolean(field.searchTrigger)}
+                                    onCreate={field.name === 'uom_id' ? handleCreateUom : undefined}
+                                    onChange={(nextValue) =>
+                                      handleMatrixRowChange(row.id, field.name, nextValue)
+                                    }
+                                  />
+                                ) : (
+                                  <input
+                                    className="register-user-popup__input item-create-popup__dimension-input"
+                                    type="number"
+                                    step="any"
+                                    value={row[field.name]}
+                                    placeholder={field.placeholder}
+                                    disabled={isSubmitting || !row.create}
+                                    onChange={(event) =>
+                                      handleMatrixRowChange(row.id, field.name, event.target.value)
+                                    }
+                                  />
+                                )}
+                              </td>
+                            ))}
                           </tr>
                         )
                       })}
@@ -1731,6 +1765,7 @@ function DialogCreateItem({
               ? setParentSearchQuery
               : undefined
           }
+          searchTrigger={Boolean(field.searchTrigger)}
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
         />
       ) : (
@@ -1762,74 +1797,15 @@ function DialogCreateItem({
     </div>
   )
 
-  const renderDimensionTable = () => {
-    const dimensionFields = itemFields.filter((field) => dimensionFieldNames.includes(field.name))
-
-    return (
-      <div className="item-create-popup__dimension-table-wrap">
-        <table className="item-create-popup__dimension-table" aria-label="Carton dimensions">
-          <thead>
-            <tr>
-              {dimensionFields.map((field) => (
-                <th key={field.name} scope="col">
-                  {field.label}
-                  {field.unitSuffix ? ` (${field.unitSuffix})` : ''}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              {dimensionFields.map((field) => (
-                <td
-                  key={field.name}
-                  className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}`}
-                >
-                  {field.type === 'select' ? (
-                    <SearchableItemSelect
-                      id={`item-${field.name}`}
-                      label={field.label}
-                      value={formValues[field.name]}
-                      options={masterOptions[field.optionsKey]}
-                      placeholder={field.placeholder}
-                      searchPlaceholder={field.searchPlaceholder}
-                      emptyMessage={field.emptyMessage}
-                      loading={isLoadingMasters}
-                      disabled={isSubmitting || isLoadingMasters}
-                      forceOpenDown={Boolean(field.forceOpenDown)}
-                      allowCreate={Boolean(field.allowCreate)}
-                      onCreate={field.name === 'uom_id' ? handleCreateUom : undefined}
-                      onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
-                    />
-                  ) : (
-                    <input
-                      id={`item-${field.name}`}
-                      name={field.name}
-                      className="register-user-popup__input item-create-popup__dimension-input"
-                      type="number"
-                      step="any"
-                      value={formValues[field.name]}
-                      placeholder={field.placeholder}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    />
-                  )}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
   const dialogNode = (
     <div
       className="dashboard-popup-overlay"
       role="presentation"
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
+        className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup${
+          formValues.parent_id ? '' : ' item-create-popup--compact'
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-item-title"
@@ -1860,7 +1836,7 @@ function DialogCreateItem({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="parent-create-popup__section">
-                  <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px', marginBottom: '12px' }}>
+                  <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px' }}>
                     {itemFields
                       .filter((field) =>
                         [
@@ -1873,22 +1849,15 @@ function DialogCreateItem({
 
                 {renderVariantMatrix()}
 
-                <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
-                  <div className="parent-create-popup__section-header">
-                    <h3 className="parent-create-popup__section-title">Carton dimensions</h3>
-                    <p className="parent-create-popup__section-description">
-                      Complete the item dimension details from UOM to lead time.
-                    </p>
-                  </div>
-
-                  {renderDimensionTable()}
-                </div>
-
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">
                     {errorMessage}
                   </p>
                 ) : null}
+
+                <p className="parent-create-popup__section-description item-create-popup__matrix-footnote">
+                  Pilih nilai varian, lalu isi dimensi karton tiap item pada tabel di atas.
+                </p>
               </div>
             </div>
           </div>

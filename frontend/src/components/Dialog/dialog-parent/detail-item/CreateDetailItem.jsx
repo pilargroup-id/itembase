@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
 
 function normalizeDetailItemText(value) {
   return String(value ?? '')
@@ -121,6 +121,8 @@ function CreateDetailItem({
   onCreateUom = null,
   onCreateVariantValue = null,
   disabled = false,
+  isParentSectionOpen = true,
+  onToggleParentSection = null,
   onChange,
 }) {
   const detailItems = items.length ? items : [createInitialDetailItem()]
@@ -216,6 +218,27 @@ function CreateDetailItem({
             <Plus size={18} />
             <span>Create Item</span>
           </button>
+
+          {onToggleParentSection ? (
+            <button
+              type="button"
+              className="parent-detail-item__toggle-parent"
+              onClick={onToggleParentSection}
+              disabled={disabled}
+              aria-expanded={isParentSectionOpen}
+              title={isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}
+              aria-label={isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}
+            >
+              <ChevronDown
+                size={16}
+                aria-hidden="true"
+                className={`parent-detail-item__toggle-parent-chevron${
+                  isParentSectionOpen ? ' parent-detail-item__toggle-parent-chevron--open' : ''
+                }`}
+              />
+              <span>{isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
