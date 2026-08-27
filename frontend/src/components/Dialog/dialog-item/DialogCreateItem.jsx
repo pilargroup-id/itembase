@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, SearchMd, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
 
 const initialFormValues = {
@@ -818,6 +818,8 @@ function DialogCreateItem({
   const [variantValueOptionsByAttributeId, setVariantValueOptionsByAttributeId] = useState({})
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
   const [matrixRows, setMatrixRows] = useState([])
+  const [syncAllDimensions, setSyncAllDimensions] = useState(false)
+  const [isParentSectionOpen, setIsParentSectionOpen] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
   const resetDialogState = useCallback(() => {
@@ -835,6 +837,8 @@ function DialogCreateItem({
     setVariantValueOptionsByAttributeId({})
     setLoadingVariantValuesByAttributeId({})
     setMatrixRows([])
+    setSyncAllDimensions(false)
+    setIsParentSectionOpen(true)
     setErrorMessage('')
   }, [])
 
@@ -1281,11 +1285,16 @@ function DialogCreateItem({
 
     if (name === 'parent_id' || name === 'item_name') {
       setMatrixRows([])
+      setSyncAllDimensions(false)
     }
 
     if (name === 'parent_id') {
       setParentVariantAttributes([])
       setVariantSelections({})
+
+      if (!value) {
+        setIsParentSectionOpen(true)
+      }
     }
   }
 
@@ -1326,6 +1335,7 @@ function DialogCreateItem({
 
     setErrorMessage('')
     setMatrixRows([])
+    setSyncAllDimensions(false)
     setVariantSelections((currentSelections) => {
       const currentSelectedValueIds = getSelectedIds(currentSelections[normalizedAttributeId])
       const isCurrentlySelected = currentSelectedValueIds.includes(normalizedValueId)
@@ -1409,16 +1419,50 @@ function DialogCreateItem({
 
   const handleMatrixRowChange = (rowId, fieldName, value) => {
     setErrorMessage('')
-    setMatrixRows((currentRows) =>
-      currentRows.map((row) =>
-        row.id === rowId
-          ? {
-              ...row,
-              [fieldName]: value,
-            }
-          : row,
-      ),
-    )
+    setMatrixRows((currentRows) => {
+      const isFirstRow = currentRows[0]?.id === rowId
+      const shouldSyncDimension =
+        syncAllDimensions && isFirstRow && dimensionFieldNames.includes(fieldName)
+
+      return currentRows.map((row) => {
+        if (row.id === rowId) {
+          return { ...row, [fieldName]: value }
+        }
+
+        if (shouldSyncDimension) {
+          return { ...row, [fieldName]: value }
+        }
+
+        return row
+      })
+    })
+  }
+
+  const handleSyncAllDimensionsToggle = (event) => {
+    const checked = event.target.checked
+
+    setErrorMessage('')
+    setSyncAllDimensions(checked)
+
+    if (checked) {
+      setMatrixRows((currentRows) => {
+        if (currentRows.length <= 1) {
+          return currentRows
+        }
+
+        const firstRowDimensionValues = Object.fromEntries(
+          dimensionFieldNames.map((fieldName) => [fieldName, currentRows[0][fieldName]]),
+        )
+
+        return currentRows.map((row, index) =>
+          index === 0 ? row : { ...row, ...firstRowDimensionValues },
+        )
+      })
+    }
+  }
+
+  const handleToggleParentSection = () => {
+    setIsParentSectionOpen((currentValue) => !currentValue)
   }
 
   const handleMatrixRowToggle = (rowId) => {
@@ -1517,14 +1561,42 @@ function DialogCreateItem({
 
     return (
       <div className="parent-create-popup__section item-create-popup__matrix-panel">
-        <div className="parent-create-popup__section-header">
-          <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
+        <div className="parent-create-popup__section-header parent-detail-item__top">
+          <div>
+            <h3 className="parent-create-popup__section-title">Variant Matrix</h3>
+            <p className="parent-create-popup__section-description">
+              Pratinjau item akan muncul di sini setelah nilai dipilih.
+            </p>
+          </div>
+
+          {hasParent ? (
+            <div className="parent-detail-item__actions">
+              <button
+                type="button"
+                className="parent-detail-item__toggle-parent"
+                onClick={handleToggleParentSection}
+                disabled={isSubmitting}
+                aria-expanded={isParentSectionOpen}
+                title={isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}
+                aria-label={isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}
+              >
+                <ChevronDown
+                  size={16}
+                  aria-hidden="true"
+                  className={`parent-detail-item__toggle-parent-chevron${
+                    isParentSectionOpen ? ' parent-detail-item__toggle-parent-chevron--open' : ''
+                  }`}
+                />
+                <span>{isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {!hasParent ? (
           <div className="item-create-popup__matrix-empty">
             <p className="register-user-popup__hint">
-              Select a parent first to display the variant matrix.
+              Pilih parent terlebih dahulu untuk menampilkan variant matrix.
             </p>
           </div>
         ) : isLoadingAttributes ? (
@@ -1569,6 +1641,22 @@ function DialogCreateItem({
               <div className="item-create-popup__matrix-summary">
                 <span>{matrixRows.length} preview item</span>
                 <span>{selectedMatrixRows.length} selected</span>
+
+                {matrixRows.length > 1 ? (
+                  <label
+                    className="item-create-popup__matrix-sync-toggle"
+                    title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
+                  >
+                    <input
+                      type="checkbox"
+                      className="register-user-popup__dropdown-checkbox"
+                      checked={syncAllDimensions}
+                      disabled={isSubmitting}
+                      onChange={handleSyncAllDimensionsToggle}
+                    />
+                    <span>Samakan dimensi carton</span>
+                  </label>
+                ) : null}
               </div>
 
               {hasDuplicateMatrixSelection ? (
@@ -1598,8 +1686,9 @@ function DialogCreateItem({
                       </tr>
                     </thead>
                     <tbody>
-                      {matrixRows.map((row) => {
+                      {matrixRows.map((row, rowIndex) => {
                         const isDuplicateRow = duplicateMatrixRowIds.has(row.id)
+                        const isSyncedFollowerRow = syncAllDimensions && rowIndex > 0
 
                         return (
                           <tr
@@ -1647,7 +1736,11 @@ function DialogCreateItem({
                             {dimensionFields.map((field) => (
                               <td
                                 key={field.name}
-                                className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}`}
+                                className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}${
+                                  isSyncedFollowerRow
+                                    ? ' item-create-popup__dimension-cell--synced'
+                                    : ''
+                                }`}
                               >
                                 {field.type === 'select' ? (
                                   <SearchableItemSelect
@@ -1659,7 +1752,12 @@ function DialogCreateItem({
                                     searchPlaceholder={field.searchPlaceholder}
                                     emptyMessage={field.emptyMessage}
                                     loading={isLoadingMasters}
-                                    disabled={isSubmitting || isLoadingMasters || !row.create}
+                                    disabled={
+                                      isSubmitting ||
+                                      isLoadingMasters ||
+                                      !row.create ||
+                                      isSyncedFollowerRow
+                                    }
                                     forceOpenDown={Boolean(field.forceOpenDown)}
                                     allowCreate={Boolean(field.allowCreate)}
                                     searchTrigger={Boolean(field.searchTrigger)}
@@ -1675,7 +1773,7 @@ function DialogCreateItem({
                                     step="any"
                                     value={row[field.name]}
                                     placeholder={field.placeholder}
-                                    disabled={isSubmitting || !row.create}
+                                    disabled={isSubmitting || !row.create || isSyncedFollowerRow}
                                     onChange={(event) =>
                                       handleMatrixRowChange(row.id, field.name, event.target.value)
                                     }
@@ -1835,15 +1933,23 @@ function DialogCreateItem({
           <div className="register-user-popup__layout">
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
-                <div className="parent-create-popup__section">
-                  <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px' }}>
-                    {itemFields
-                      .filter((field) =>
-                        [
-                          'parent_id',
-                        ].includes(field.name),
-                      )
-                      .map(renderField)}
+                <div
+                  className={`parent-create-popup__collapsible${
+                    isParentSectionOpen ? '' : ' parent-create-popup__collapsible--collapsed'
+                  }`}
+                >
+                  <div className="parent-create-popup__collapsible-inner">
+                    <div className="parent-create-popup__section">
+                      <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px' }}>
+                        {itemFields
+                          .filter((field) =>
+                            [
+                              'parent_id',
+                            ].includes(field.name),
+                          )
+                          .map(renderField)}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1855,9 +1961,11 @@ function DialogCreateItem({
                   </p>
                 ) : null}
 
-                <p className="parent-create-popup__section-description item-create-popup__matrix-footnote">
-                  Pilih nilai varian, lalu isi dimensi karton tiap item pada tabel di atas.
-                </p>
+                {matrixRows.length > 0 ? (
+                  <p className="parent-create-popup__section-description item-create-popup__matrix-footnote">
+                    Pilih nilai varian, lalu isi dimensi karton tiap item pada tabel di atas.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

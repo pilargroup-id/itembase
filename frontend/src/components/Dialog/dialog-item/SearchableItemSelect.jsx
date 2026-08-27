@@ -314,7 +314,7 @@ function SearchableItemSelect({
             aria-autocomplete="list"
             aria-expanded={isOpen}
             aria-haspopup="listbox"
-            disabled={disabled || loading}
+            disabled={disabled || (loading && !isOpen)}
           />
         </div>
 

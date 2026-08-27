@@ -3782,6 +3782,9 @@ select {
 
 .parent-table-shell .mtickets-table {
   overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .parent-table-shell .mtickets-table .users-table {
@@ -5369,6 +5372,9 @@ select {
 }
 
 .users-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   padding: 1rem;
   border-bottom: 1px solid rgba(26, 42, 87, 0.08);
   background: rgba(24, 43, 88, 0.04);
@@ -7494,18 +7500,19 @@ select {
   backdrop-filter: blur(10px);
 }
 
-.item-create-popup .parent-create-popup__section + .item-create-popup__matrix-panel {
-  margin-top: 0.6rem;
+.item-create-popup .parent-create-popup__collapsible + .item-create-popup__matrix-panel {
+  margin-top: 1rem;
 }
 
 .item-create-popup__matrix-panel > .parent-create-popup__section-header {
+  padding-top: 0.5rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid rgba(26, 42, 87, 0.1);
+  align-items: center;
 }
 
 .item-create-popup__variant-grid + .item-create-popup__matrix-preview {
   padding-top: 0.75rem;
-  border-top: 1px solid rgba(26, 42, 87, 0.1);
 }
 
 .item-create-popup__matrix-empty {
@@ -7561,16 +7568,33 @@ select {
 .item-create-popup__matrix-summary {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   color: #5a6b88;
   font-size: 0.82rem;
   font-weight: 700;
 }
 
-.item-create-popup__matrix-summary span {
+.item-create-popup__matrix-summary > span {
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
   background: rgba(42, 157, 143, 0.1);
+}
+
+.item-create-popup__matrix-sync-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  margin-left: auto;
+  color: #1a2a57;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.item-create-popup__dimension-cell--synced {
+  background: rgba(42, 157, 143, 0.06);
 }
 
 .item-create-popup__matrix-table-wrap {
@@ -7583,7 +7607,7 @@ select {
 
 .item-create-popup__matrix-table {
   width: 100%;
-  min-width: 1320px;
+  min-width: 1420px;
   border-collapse: collapse;
 }
 
@@ -7615,7 +7639,7 @@ select {
 
 .item-create-popup__matrix-th--name,
 .item-create-popup__matrix-td--name {
-  min-width: 220px;
+  min-width: 320px;
   text-align: left;
 }
 
@@ -7654,7 +7678,7 @@ select {
 }
 
 .item-create-popup .item-create-popup__matrix-input {
-  min-width: 240px;
+  min-width: 300px;
   padding: 0.58rem 0.7rem;
   font-size: 0.84rem;
 }
