@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getSkuStatusDisplayName(skuStatus) {
   return skuStatus?.name || skuStatus?.sku_status_name || skuStatus?.code || skuStatus?.sku_status_code || 'this SKU status'
@@ -24,6 +25,7 @@ function DialogDeleteSkuStatus({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getSkuStatusDisplayName(skuStatus), [skuStatus])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeleteSkuStatus({
       await api.skuStatuses.remove(deleteId)
       onDeleted?.(skuStatus)
       onConfirm?.(skuStatus)
+      notifySuccess('SKU status deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete SKU status.')
     } finally {

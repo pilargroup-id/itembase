@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getPicUserDisplayName(picUser) {
   return picUser?.name || picUser?.pic_user_name || picUser?.code || picUser?.pic_user_code || 'this PIC user'
@@ -24,6 +25,7 @@ function DialogDeletePicUser({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getPicUserDisplayName(picUser), [picUser])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeletePicUser({
       await api.picUsers.remove(deleteId)
       onDeleted?.(picUser)
       onConfirm?.(picUser)
+      notifySuccess('PIC user deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete PIC user.')
     } finally {

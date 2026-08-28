@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   code: '',
@@ -33,6 +34,7 @@ function DialogCreatePicUser({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -95,6 +97,7 @@ function DialogCreatePicUser({
       const createdPicUser = await api.picUsers.create(payload)
 
       onCreated?.(createdPicUser)
+      notifySuccess('PIC user created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create PIC user.')

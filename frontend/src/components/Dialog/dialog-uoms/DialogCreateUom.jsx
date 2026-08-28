@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   name: '',
@@ -27,6 +28,7 @@ function DialogCreateUom({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -89,6 +91,7 @@ function DialogCreateUom({
       const createdUom = await api.uoms.create(payload)
 
       onCreated?.(createdUom)
+      notifySuccess('UOM created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create UOM.')

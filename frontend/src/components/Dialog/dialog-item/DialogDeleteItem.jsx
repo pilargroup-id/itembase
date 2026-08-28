@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getItemDisplayName(item, user) {
   return (
@@ -36,6 +37,7 @@ function DialogDeleteItem({
     () => getItemDisplayName(selectedItem, user),
     [selectedItem, user],
   )
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -80,6 +82,7 @@ function DialogDeleteItem({
       await api.items.update(deleteId, { is_active: 0 })
       onDeleted?.(selectedItem ?? user)
       onConfirm?.(selectedItem ?? user)
+      notifySuccess('SKU deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete item.')
     } finally {

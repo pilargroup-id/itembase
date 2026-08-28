@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const DEFAULT_COUNTRY_CODE = 'ID'
 
@@ -63,6 +64,7 @@ function DialogEditPort({
   const [formValues, setFormValues] = useState(() => createFormValuesFromPort(Port))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromPort(Port))
@@ -137,6 +139,7 @@ function DialogEditPort({
       const editedPort = await api.ports.update(PortId, payload)
 
       onEdited?.(editedPort, payload)
+      notifySuccess('Port updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update Port.')

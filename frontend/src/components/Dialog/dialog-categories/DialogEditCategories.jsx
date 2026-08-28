@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import SearchableSelect from '../../dropdown/searchable-select/SearchableSelect.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   detail_category: '',
@@ -97,6 +98,7 @@ function DialogEditCategories({
   const [errorMessage, setErrorMessage] = useState('')
   const [picOptions, setPicOptions] = useState([])
   const [isLoadingPics, setIsLoadingPics] = useState(false)
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromCategories(categories))
@@ -217,6 +219,7 @@ function DialogEditCategories({
       const editedCategories = await api.categories.update(categoriesId, payload)
 
       onEdited?.(editedCategories, payload)
+      notifySuccess('Category updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update categories.')

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   name: '',
@@ -61,6 +62,7 @@ function DialogEditUom({
   const [formValues, setFormValues] = useState(() => createFormValuesFromUom(uom))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromUom(uom))
@@ -134,6 +136,7 @@ function DialogEditUom({
       const editedUom = await api.uoms.update(uomId, payload)
 
       onEdited?.(editedUom, payload)
+      notifySuccess('UOM updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update UOM.')

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getUomDisplayName(uom) {
   return uom?.name || uom?.uom_name || uom?.code || uom?.uom_code || 'this UOM'
@@ -24,6 +25,7 @@ function DialogDeleteUom({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getUomDisplayName(uom), [uom])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeleteUom({
       await api.uoms.remove(deleteId)
       onDeleted?.(uom)
       onConfirm?.(uom)
+      notifySuccess('UOM deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete UOM.')
     } finally {

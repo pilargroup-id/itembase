@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
 import Sidebar from './components/template/Sidebar.jsx'
+import { AlertActionProvider } from './components/alert/alert-action/AlertActionContext.jsx'
 import ItemPages from './pages/items/items/ItemPages.jsx'
 import ParentsPage from './pages/items/parents/ParentsPage.jsx'
 import BundlesPage from './pages/items/bundles/BundlesPage.jsx'
@@ -364,6 +365,7 @@ function App() {
     .join(' ')
 
   return (
+    <AlertActionProvider>
     <div className={shellClassName}>
       <BackgroundMain />
 
@@ -511,6 +513,7 @@ function App() {
         </main>
       </div>
     </div>
+    </AlertActionProvider>
   )
 }
 

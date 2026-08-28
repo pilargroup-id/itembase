@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import SearchableSelect from '../../dropdown/searchable-select/SearchableSelect.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   detail_category: '',
@@ -49,6 +50,7 @@ function DialogCreateCategories({
   const [errorMessage, setErrorMessage] = useState('')
   const [picOptions, setPicOptions] = useState([])
   const [isLoadingPics, setIsLoadingPics] = useState(false)
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -158,6 +160,7 @@ function DialogCreateCategories({
       const createdCategories = await api.categories.create(payload)
 
       onCreated?.(createdCategories)
+      notifySuccess('Category created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create categories.')

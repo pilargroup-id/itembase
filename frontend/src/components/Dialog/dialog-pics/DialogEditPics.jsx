@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   pic1: '',
@@ -74,6 +75,7 @@ function DialogEditPics({
   const [errorMessage, setErrorMessage] = useState('')
   const [picUserOptions, setPicUserOptions] = useState([])
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromPics(pics))
@@ -182,6 +184,7 @@ function DialogEditPics({
     try {
       const editedPics = await api.pics.update(picsId, payload)
       onEdited?.(editedPics, payload)
+      notifySuccess('Pics updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update pics.')

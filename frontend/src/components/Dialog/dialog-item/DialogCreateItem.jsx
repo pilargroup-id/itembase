@@ -5,6 +5,7 @@ import api from '../../../services/api.js'
 import { ChevronDown, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import DialogEditItem from './DialogEditItem.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const DUPLICATE_VARIANT_ITEM_CODE_PATTERN = /variant combination already exists on item\s+(\S+)/i
 
@@ -896,6 +897,7 @@ function DialogCreateItem({
   const [errorMessage, setErrorMessage] = useState('')
   const [viewItemTarget, setViewItemTarget] = useState(null)
   const [isLoadingViewItem, setIsLoadingViewItem] = useState(false)
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -1617,6 +1619,7 @@ function DialogCreateItem({
         const createdItems = await api.items.createMatrix(payload)
 
         onCreated?.(createdItems)
+        notifySuccess('SKU created successfully.')
         handleClose()
         return
       }
@@ -1631,6 +1634,7 @@ function DialogCreateItem({
       const createdItem = await api.items.create(payload)
 
       onCreated?.(createdItem)
+      notifySuccess('SKU created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create item.')

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getPortDisplayName(Port) {
   return Port?.name || Port?.port_name || Port?.code || Port?.port_code || 'this Port'
@@ -24,6 +25,7 @@ function DialogDeletePort({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getPortDisplayName(Port), [Port])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeletePort({
       await api.ports.remove(deleteId)
       onDeleted?.(Port)
       onConfirm?.(Port)
+      notifySuccess('Port deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete Port.')
     } finally {

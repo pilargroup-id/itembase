@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getCategoriesDisplayName(categories) {
   return categories?.detail_category || categories?.sub_category || categories?.name || categories?.category_name || categories?.code || categories?.category_code || 'this category'
@@ -24,6 +25,7 @@ function DialogDeleteCategories({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getCategoriesDisplayName(categories), [categories])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeleteCategories({
       await api.categories.remove(deleteId)
       onDeleted?.(categories)
       onConfirm?.(categories)
+      notifySuccess('Category deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete categories.')
     } finally {

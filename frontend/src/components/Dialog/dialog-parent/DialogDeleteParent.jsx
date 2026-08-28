@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getParentDisplayName(parent, user) {
   return (
@@ -31,6 +32,7 @@ function DialogDeleteParent({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getParentDisplayName(parent, user), [parent, user])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -75,6 +77,7 @@ function DialogDeleteParent({
       await api.itemParents.remove(deleteId)
       onDeleted?.(parent ?? user)
       onConfirm?.(parent ?? user)
+      notifySuccess('Parent deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete item parent.')
     } finally {

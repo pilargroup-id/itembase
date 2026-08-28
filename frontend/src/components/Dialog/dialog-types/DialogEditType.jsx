@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 const initialFormValues = {
   name: '',
   is_active: '1',
@@ -59,6 +60,7 @@ function DialogEditType({
   const [formValues, setFormValues] = useState(() => createFormValuesFromType(Type))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromType(Type))
@@ -132,6 +134,7 @@ function DialogEditType({
       const editedType = await api.itemTypes.update(TypeId, payload)
 
       onEdited?.(editedType, payload)
+      notifySuccess('Type updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update Type.')

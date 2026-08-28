@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   code: '',
@@ -68,6 +69,7 @@ function DialogEditBrand({
   const [formValues, setFormValues] = useState(() => createFormValuesFromBrand(brand))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromBrand(brand))
@@ -141,6 +143,7 @@ function DialogEditBrand({
       const editedBrand = await api.brands.update(brandId, payload)
 
       onEdited?.(editedBrand, payload)
+      notifySuccess('Brand updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update brand.')

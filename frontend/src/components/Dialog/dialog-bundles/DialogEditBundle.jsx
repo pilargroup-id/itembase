@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { Minus, Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const BUNDLE_MIN_COMPONENTS = 2
 const BUNDLE_MAX_COMPONENTS = 5
@@ -403,6 +404,7 @@ function DialogEditBundle({
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const componentItemOptions = useMemo(
     () =>
@@ -703,6 +705,7 @@ function DialogEditBundle({
       const editedItem = await api.items.update(item.id, payload)
 
       onEdited?.(editedItem, payload)
+      notifySuccess('Bundle updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update bundle.')

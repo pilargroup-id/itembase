@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   code: '',
@@ -68,6 +69,7 @@ function DialogEditSkuStatus({
   const [formValues, setFormValues] = useState(() => createFormValuesFromSkuStatus(skuStatus))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromSkuStatus(skuStatus))
@@ -141,6 +143,7 @@ function DialogEditSkuStatus({
       const editedSkuStatus = await api.skuStatuses.update(skuStatusId, payload)
 
       onEdited?.(editedSkuStatus, payload)
+      notifySuccess('SKU status updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update SKU status.')

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose, ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   subbrand_id: '',
@@ -865,6 +866,7 @@ function DialogEditParent({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromParent(parent))
@@ -1042,6 +1044,7 @@ function DialogEditParent({
       const editedParent = await api.itemParents.update(parentId, payload)
 
       onEdited?.(getResourceData(editedParent), payload)
+      notifySuccess('Parent updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, 'Failed to update item parent.'))

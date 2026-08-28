@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   name: '',
@@ -34,6 +35,7 @@ function DialogCreateSubBrand({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -91,6 +93,7 @@ function DialogCreateSubBrand({
       const createdSubBrand = await api.subBrands.create({ name })
 
       onCreated?.(createdSubBrand)
+      notifySuccess('Sub brand created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, 'Failed to create sub brand.'))

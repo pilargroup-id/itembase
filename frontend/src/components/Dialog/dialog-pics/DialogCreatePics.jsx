@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   pic1: '',
@@ -22,6 +23,7 @@ function DialogCreatePics({
   const [errorMessage, setErrorMessage] = useState('')
   const [picUserOptions, setPicUserOptions] = useState([])
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -119,6 +121,7 @@ function DialogCreatePics({
     try {
       const createdPics = await api.pics.create(payload)
       onCreated?.(createdPics)
+      notifySuccess('Pics created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create Pics.')

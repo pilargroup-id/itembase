@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getPicsDisplayName(pics) {
   return pics?.name || pics?.pics_name || pics?.code || pics?.pics_code || 'this Pics entry'
@@ -24,6 +25,7 @@ function DialogDeletePics({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getPicsDisplayName(pics), [pics])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeletePics({
       await api.pics.remove(deleteId)
       onDeleted?.(pics)
       onConfirm?.(pics)
+      notifySuccess('Pics deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete pics.')
     } finally {

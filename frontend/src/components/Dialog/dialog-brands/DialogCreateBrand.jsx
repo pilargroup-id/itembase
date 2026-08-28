@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   name: '',
@@ -159,6 +160,7 @@ function DialogCreateBrand({
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -370,6 +372,7 @@ function DialogCreateBrand({
       const createdBrand = await api.brands.create(payload)
 
       onCreated?.(createdBrand)
+      notifySuccess('Brand created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create brand.')

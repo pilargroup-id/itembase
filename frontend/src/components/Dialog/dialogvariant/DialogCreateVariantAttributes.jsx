@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   name: '',
@@ -32,6 +33,7 @@ function DialogCreateVariantAttributes({
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -95,6 +97,7 @@ function DialogCreateVariantAttributes({
       const createdAttribute = await api.variantAttributes.create(payload)
 
       onCreated?.(createdAttribute)
+      notifySuccess('Variant attribute created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, 'Failed to create variant attribute.'))

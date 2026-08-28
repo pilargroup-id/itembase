@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const BUNDLE_MIN_COMPONENTS = 1
 const BUNDLE_MAX_COMPONENTS = 5
@@ -255,6 +256,7 @@ function DialogCreateBundle({
   const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [regularItemSearchQuery, setRegularItemSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
 
   const componentItemOptions = useMemo(
     () => mergeOptions(masterOptions.regularItems, selectedRegularItemOptions),
@@ -484,6 +486,7 @@ function DialogCreateBundle({
       const createdItem = await api.items.create(payload)
 
       onCreated?.(createdItem)
+      notifySuccess('Bundle created successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to create bundle.')

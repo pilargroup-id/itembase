@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableItemSelect.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const initialFormValues = {
   item_kind: 'regular',
@@ -329,6 +330,7 @@ function DialogEditItem({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const { notifySuccess } = useAlertAction()
   const parentOptions = useMemo(
     () => mergeOptions(masterOptions.parents, normalizeParentOptionFromItem(selectedItem)),
     [masterOptions.parents, selectedItem],
@@ -515,6 +517,7 @@ function DialogEditItem({
       const editedItem = await api.items.update(selectedItem.id, payload, undefined)
 
       onEdited?.(editedItem, payload)
+      notifySuccess('SKU updated successfully.')
       handleClose()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to update item.')

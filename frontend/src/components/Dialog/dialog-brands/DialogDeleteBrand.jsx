@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 function getBrandDisplayName(brand) {
   return brand?.name || brand?.brand_name || brand?.code || brand?.brand_code || 'this brand'
@@ -24,6 +25,7 @@ function DialogDeleteBrand({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const displayName = useMemo(() => getBrandDisplayName(brand), [brand])
+  const { notifySuccess } = useAlertAction()
 
   const handleClose = useCallback(() => {
     if (isSubmitting) {
@@ -68,6 +70,7 @@ function DialogDeleteBrand({
       await api.brands.remove(deleteId)
       onDeleted?.(brand)
       onConfirm?.(brand)
+      notifySuccess('Brand deleted successfully.')
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to delete brand.')
     } finally {

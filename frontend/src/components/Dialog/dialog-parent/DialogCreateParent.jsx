@@ -8,6 +8,7 @@ import CreateDetailItem, {
   hasDuplicateVariantSelection,
 } from './detail-item/CreateDetailItem.jsx'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
+import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const DUPLICATE_PARENT_CODE_PATTERN = /parent combination already exists on\s+(\S+)/i
 
@@ -1569,6 +1570,7 @@ function DialogCreateParent({
   const [duplicateParentMatch, setDuplicateParentMatch] = useState(null)
   const [isCheckingDuplicateParent, setIsCheckingDuplicateParent] = useState(false)
   const [createSku, setCreateSku] = useState(false)
+  const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
@@ -2064,6 +2066,7 @@ function DialogCreateParent({
           parent: createdParent,
           items: createdItems.map(getResourceData),
         })
+        notifySuccess('SKU created successfully.')
         handleClose()
         return
       }
@@ -2084,6 +2087,7 @@ function DialogCreateParent({
       const parentData = getResourceData(createdParentResponse)
 
       onCreated?.(parentData)
+      notifySuccess('Parent created successfully.')
 
       if (!createSku) {
         handleClose()
