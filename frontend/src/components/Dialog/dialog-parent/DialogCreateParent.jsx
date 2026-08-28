@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, ChevronLeft, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, {
   createInitialDetailItem,
   hasDuplicateVariantSelection,
@@ -1576,6 +1576,8 @@ function DialogCreateParent({
   const [duplicateParentMatch, setDuplicateParentMatch] = useState(null)
   const [isCheckingDuplicateParent, setIsCheckingDuplicateParent] = useState(false)
   const [createSku, setCreateSku] = useState(true)
+  const [isEditingParent, setIsEditingParent] = useState(false)
+  const parentEditSnapshotRef = useRef(null)
   const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
@@ -1592,6 +1594,8 @@ function DialogCreateParent({
     setDuplicateParentMatch(null)
     setIsCheckingDuplicateParent(false)
     setCreateSku(true)
+    setIsEditingParent(false)
+    parentEditSnapshotRef.current = null
   }, [])
 
   const handleClose = useCallback(() => {
@@ -1619,6 +1623,28 @@ function DialogCreateParent({
       setIsDeletingParent(false)
     }
   }, [createdParent, handleClose, onDeleted])
+
+  const handleBackToParent = useCallback(() => {
+    if (!createdParent) {
+      return
+    }
+
+    parentEditSnapshotRef.current = formValues
+    setErrorMessage('')
+    setIsEditingParent(true)
+    setIsParentSectionOpen(true)
+  }, [createdParent, formValues])
+
+  const handleCancelEditParent = useCallback(() => {
+    if (parentEditSnapshotRef.current) {
+      setFormValues(parentEditSnapshotRef.current)
+    }
+
+    parentEditSnapshotRef.current = null
+    setErrorMessage('')
+    setIsEditingParent(false)
+    setIsParentSectionOpen(false)
+  }, [])
 
   useEffect(() => {
     if (!isOpen) {
@@ -2024,8 +2050,64 @@ function DialogCreateParent({
     }
   }
 
+  const handleUpdateParent = async () => {
+    const parentId = getCreatedParentId(createdParent)
+
+    if (!parentId) {
+      setErrorMessage('Item parent ID not found.')
+      return
+    }
+
+    const payload = buildPayload()
+    const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => {
+      const value = payload[fieldName]
+
+      return Array.isArray(value) ? value.length === 0 : !value
+    })
+
+    if (hasEmptyRequiredValue || !payload.parent_name) {
+      setErrorMessage('Please complete all item parent fields first.')
+      return
+    }
+
+    const previousVariantAttributeIds = getSelectedIds(
+      parentEditSnapshotRef.current?.variant_attribute_ids ?? formValues.variant_attribute_ids,
+    )
+    const nextVariantAttributeIds = getSelectedIds(formValues.variant_attribute_ids)
+    const variantAttributesChanged =
+      previousVariantAttributeIds.join('|') !== nextVariantAttributeIds.join('|')
+
+    setIsSubmitting(true)
+    setErrorMessage('')
+
+    try {
+      const response = await api.itemParents.update(parentId, payload)
+      const updatedParent = getResourceData(response)
+
+      setCreatedParent((currentParent) => ({ ...currentParent, ...updatedParent }))
+
+      if (variantAttributesChanged) {
+        setDetailItems([createInitialDetailItem()])
+      }
+
+      notifySuccess('Parent updated successfully.')
+      parentEditSnapshotRef.current = null
+      setIsEditingParent(false)
+      setIsParentSectionOpen(false)
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, 'Failed to update item parent.'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
+
+    if (isEditingParent) {
+      await handleUpdateParent()
+      return
+    }
 
     const payload = buildPayload()
     const hasEmptyRequiredValue = requiredFieldNames.some((fieldName) => {
@@ -2133,6 +2215,8 @@ function DialogCreateParent({
     return null
   }
 
+  const isParentFieldsLocked = Boolean(createdParent) && !isEditingParent
+
   const renderField = (field) => (
     <div
       key={field.name}
@@ -2156,7 +2240,7 @@ function DialogCreateParent({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          disabled={isSubmitting || isLoadingMasters || isParentFieldsLocked}
           showOrder={field.showOrder}
           allowCreate={field.allowCreate}
           uppercase={field.name === 'variant_attribute_ids'}
@@ -2173,7 +2257,7 @@ function DialogCreateParent({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          disabled={isSubmitting || isLoadingMasters || isParentFieldsLocked}
           showOrder={field.showOrder}
           allowCreate={field.allowCreate}
           onCreate={undefined}
@@ -2189,7 +2273,7 @@ function DialogCreateParent({
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={isLoadingMasters}
-          disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          disabled={isSubmitting || isLoadingMasters || isParentFieldsLocked}
           searchable={field.searchable !== false}
           onChange={(nextValue) => handleSelectChange(field.name, nextValue)}
         />
@@ -2201,7 +2285,7 @@ function DialogCreateParent({
           placeholder={field.placeholder}
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
-          disabled={isSubmitting || Boolean(createdParent)}
+          disabled={isSubmitting || isParentFieldsLocked}
           onChange={handleSubBrandChange}
         />
       ) : (
@@ -2216,7 +2300,7 @@ function DialogCreateParent({
           onChange={field.readOnly ? undefined : handleInputChange}
           readOnly={field.readOnly}
           aria-readonly={field.readOnly ? 'true' : undefined}
-          disabled={isSubmitting || Boolean(createdParent)}
+          disabled={isSubmitting || isParentFieldsLocked}
         />
       )}
       {field.helperText ? (
@@ -2232,7 +2316,7 @@ function DialogCreateParent({
     >
       <form
         className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup${
-          createdParent ? ' parent-create-popup--sku-detail' : ''
+          createdParent && !isEditingParent ? ' parent-create-popup--sku-detail' : ''
         }`}
         role="dialog"
         aria-modal="true"
@@ -2265,7 +2349,7 @@ function DialogCreateParent({
               <div className="register-user-popup__form">
                 <div
                   className={`parent-create-popup__parent-info${
-                    createdParent ? ' parent-create-popup__parent-info--locked' : ''
+                    isParentFieldsLocked ? ' parent-create-popup__parent-info--locked' : ''
                   }`}
                 >
                   <div
@@ -2300,7 +2384,7 @@ function DialogCreateParent({
                   </div>
                 </div>
 
-                {createdParent ? (
+                {createdParent && !isEditingParent ? (
                   <div
                     className={`parent-create-popup__detail-reveal${
                       isParentSectionOpen ? '' : ' parent-create-popup__detail-reveal--parent-hidden'
@@ -2335,6 +2419,37 @@ function DialogCreateParent({
         </div>
 
         <div className="dashboard-popup__actions">
+          {createdParent && !isEditingParent ? (
+            <div className="item-create-popup__back-to-parent-group">
+              <button
+                type="button"
+                className="dashboard-popup__button dashboard-popup__button--secondary"
+                onClick={handleBackToParent}
+                disabled={isSubmitting || isDeletingParent}
+              >
+                <ChevronLeft size={16} aria-hidden="true" />
+                <span>Back to Parent</span>
+              </button>
+              <button
+                type="button"
+                className="dashboard-popup__button dashboard-popup__button--danger"
+                onClick={handleCancelCreatedParent}
+                disabled={isSubmitting || isDeletingParent}
+              >
+                {isDeletingParent ? 'Deleting...' : 'Delete Parent'}
+              </button>
+            </div>
+          ) : null}
+          {createdParent && isEditingParent ? (
+            <button
+              type="button"
+              className="dashboard-popup__button dashboard-popup__button--secondary"
+              onClick={handleCancelEditParent}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+          ) : null}
           {!createdParent ? (
             <label className="parent-create-popup__create-sku-toggle">
               <input
@@ -2347,16 +2462,6 @@ function DialogCreateParent({
               <span>Create SKU</span>
             </label>
           ) : null}
-          {createdParent ? (
-            <button
-              type="button"
-              className="dashboard-popup__button dashboard-popup__button--secondary"
-              onClick={handleCancelCreatedParent}
-              disabled={isSubmitting || isDeletingParent}
-            >
-              {isDeletingParent ? 'Deleting...' : 'Delete Parent'}
-            </button>
-          ) : null}
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
@@ -2365,14 +2470,19 @@ function DialogCreateParent({
               isDeletingParent ||
               (!createdParent && (isCheckingDuplicateParent || Boolean(duplicateParentMatch))) ||
               (Boolean(createdParent) &&
+                !isEditingParent &&
                 hasDuplicateVariantSelection(detailItems, formValues.item_name))
             }
           >
             {isSubmitting
-              ? 'Creating...'
-              : createdParent
-                ? 'Create SKU'
-                : 'Create parent'}
+              ? isEditingParent
+                ? 'Saving...'
+                : 'Creating...'
+              : isEditingParent
+                ? 'Save Parent'
+                : createdParent
+                  ? 'Create SKU'
+                  : 'Create parent'}
           </button>
         </div>
       </form>

@@ -2254,6 +2254,13 @@ select {
   box-shadow: 0 14px 30px rgba(180, 35, 24, 0.28);
 }
 
+.item-create-popup__back-to-parent-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-right: auto;
+}
+
 .dashboard-popup__spinner {
   animation: dashboard-popup-spin 0.8s linear infinite;
 }
@@ -6665,7 +6672,7 @@ select {
 }
 
 .parent-create-popup.parent-create-popup--sku-detail {
-  width: min(100%, 1500px);
+  width: min(100%, 1320px);
 }
 
 .brand-create-popup.parent-create-popup {
@@ -7130,13 +7137,13 @@ select {
 }
 
 .parent-detail-item__field--hwd {
-  min-width: 110px;
+  min-width: 85px;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
 
 .parent-detail-item__field--lead-time {
-  min-width: 120px;
+  min-width: 95px;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
@@ -7182,7 +7189,7 @@ select {
 }
 
 .parent-detail-item__table-hwd-header {
-  min-width: 110px;
+  min-width: 85px;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   white-space: normal;
@@ -7190,7 +7197,7 @@ select {
 }
 
 .parent-detail-item__table-leadtime-header {
-  min-width: 120px;
+  min-width: 95px;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   white-space: normal;

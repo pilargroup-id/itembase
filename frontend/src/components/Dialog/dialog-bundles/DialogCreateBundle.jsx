@@ -32,7 +32,7 @@ const bundleFields = [
   {
     name: 'selling_name',
     label: 'Selling Name',
-    placeholder: 'Enter Selling Name',
+    placeholder: 'Enter Selling Name (optional, auto from parent if blank)',
   },
 ]
 
@@ -176,7 +176,7 @@ function buildBundleFormulaPreview(components, regularItems) {
   return formulaParts.length > 0 ? `BUNDLE ${formulaParts.join(' + ')}` : ''
 }
 
-function buildPayload(formValues, components, resolvedUomId) {
+function buildPayload(formValues, components, resolvedUomId, fallbackSellingName) {
   const payload = Object.fromEntries(
     Object.entries(formValues)
       .map(([key, value]) => {
@@ -200,6 +200,15 @@ function buildPayload(formValues, components, resolvedUomId) {
 
   if (!payload.uom_id) {
     delete payload.uom_id
+  }
+
+  const resolvedSellingName =
+    String(formValues.selling_name ?? '').trim() || String(fallbackSellingName ?? '').trim()
+
+  if (resolvedSellingName) {
+    payload.selling_name = resolvedSellingName
+  } else {
+    delete payload.selling_name
   }
 
   const validComponents = components
@@ -253,6 +262,7 @@ function DialogCreateBundle({
   const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [selectedRegularItemOptions, setSelectedRegularItemOptions] = useState([])
+  const [selectedParentOption, setSelectedParentOption] = useState(null)
   const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [regularItemSearchQuery, setRegularItemSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -283,6 +293,7 @@ function DialogCreateBundle({
     setIsSubmitting(false)
     setMasterOptions(emptyMasterOptions)
     setSelectedRegularItemOptions([])
+    setSelectedParentOption(null)
     setParentSearchQuery('')
     setRegularItemSearchQuery('')
     setErrorMessage('')
@@ -407,18 +418,19 @@ function DialogCreateBundle({
 
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
-    setFormValues((currentValues) => {
-      const selectedParent =
-        name === 'parent_id'
-          ? masterOptions.parents.find((option) => option.value === String(value ?? ''))
-          : null
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      [name]: value,
+    }))
+  }
 
-      return {
-        ...currentValues,
-        [name]: value,
-        ...(name === 'parent_id' ? { selling_name: selectedParent?.sellingName || '' } : {}),
-      }
-    })
+  const handleParentChange = (value) => {
+    const selectedOption = masterOptions.parents.find(
+      (option) => option.value === String(value ?? ''),
+    )
+
+    setSelectedParentOption(selectedOption || null)
+    handleFieldChange('parent_id', value)
   }
 
   const handleInputChange = (event) => {
@@ -470,7 +482,12 @@ function DialogCreateBundle({
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const payload = buildPayload(formValues, components, resolvedUomOption?.uomId)
+    const payload = buildPayload(
+      formValues,
+      components,
+      resolvedUomOption?.uomId,
+      selectedParentOption?.sellingName,
+    )
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
@@ -531,7 +548,7 @@ function DialogCreateBundle({
               ? setParentSearchQuery
               : undefined
           }
-          onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+          onChange={(nextValue) => handleParentChange(nextValue)}
         />
       ) : (
         <input
@@ -542,7 +559,11 @@ function DialogCreateBundle({
           inputMode={field.type === 'number' ? 'numeric' : undefined}
           pattern={field.type === 'number' ? '[0-9]*' : undefined}
           value={formValues[field.name]}
-          placeholder={field.placeholder}
+          placeholder={
+            field.name === 'selling_name'
+              ? selectedParentOption?.sellingName || field.placeholder
+              : field.placeholder
+          }
           onChange={handleInputChange}
           disabled={isSubmitting}
         />
