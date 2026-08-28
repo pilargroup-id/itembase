@@ -67,6 +67,7 @@ const itemFields = [
     forceOpenDown: true,
     allowCreate: true,
     searchTrigger: true,
+    required: true,
   },
   {
     name: 'qty_per_pack',
@@ -476,7 +477,7 @@ function buildMatrixPayload(formValues, matrixRows) {
 }
 
 function hasRequiredValues(payload) {
-  if (!payload.item_kind || !payload.item_name) {
+  if (!payload.item_kind || !payload.item_name || !payload.uom_id) {
     return false
   }
 
@@ -1591,7 +1592,7 @@ function DialogCreateItem({
       if (activeVariantAttributes.length > 0) {
         const payload = buildMatrixPayload(formValues, matrixRows)
         const hasInvalidMatrixRow = payload.items.some(
-          (item) => !item.item_name || item.variants.length === 0,
+          (item) => !item.item_name || item.variants.length === 0 || !item.uom_id,
         )
 
         if (!payload.item_parent_id) {
@@ -1605,7 +1606,7 @@ function DialogCreateItem({
         }
 
         if (hasInvalidMatrixRow) {
-          setErrorMessage('Complete the item name in the matrix preview.')
+          setErrorMessage('Complete the item name and UOM in the matrix preview.')
           return
         }
 
@@ -1627,7 +1628,7 @@ function DialogCreateItem({
       const payload = buildPayload(formValues, masterOptions)
 
       if (!hasRequiredValues(payload)) {
-        setErrorMessage('Please enter the item name first.')
+        setErrorMessage('Please enter the item name and UOM first.')
         return
       }
 

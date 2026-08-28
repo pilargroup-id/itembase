@@ -239,24 +239,6 @@ function DialogCreatePics({
                       </div>
                     </div>
                   ) : null}
-
-                  {/* Status */}
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="pics-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="pics-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleSelectChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
-                  </div>
                 </div>
 
                 {errorMessage ? (

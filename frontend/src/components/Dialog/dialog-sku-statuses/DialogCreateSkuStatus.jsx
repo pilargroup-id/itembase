@@ -171,23 +171,6 @@ function DialogCreateSkuStatus({
                       />
                     </div>
                   ))}
-
-                  <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="sku-status-is-active">
-                      Status
-                    </label>
-                    <select
-                      id="sku-status-is-active"
-                      name="is_active"
-                      className="register-user-popup__select"
-                      value={formValues.is_active}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
-                    >
-                      <option value="1">active</option>
-                      <option value="0">inactive</option>
-                    </select>
-                  </div>
                 </div>
                 {errorMessage ? (
                   <p className="register-user-popup__hint" role="alert">

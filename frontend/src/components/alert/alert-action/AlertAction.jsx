@@ -25,7 +25,7 @@ function AlertActionItem({ id, message, severity = 'success', onClose }) {
           fontSize: '0.8125rem',
           py: 0.5,
           pointerEvents: 'auto',
-        }}
+        }} 
       >
         {message}
       </Alert>

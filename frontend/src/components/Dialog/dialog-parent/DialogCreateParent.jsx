@@ -239,6 +239,12 @@ function hasIncompleteDetailVariantSelection(detailItems, attributeIds) {
     )
 }
 
+function hasIncompleteDetailUom(detailItems) {
+  return detailItems
+    .filter((item) => item.create !== false)
+    .some((item) => !normalizeFieldValue(item.uom_id))
+}
+
 function getCreatedParentId(parent) {
   return parent?.id ?? parent?.parent_id ?? parent?.item_parent_id ?? ''
 }
@@ -1569,7 +1575,7 @@ function DialogCreateParent({
   const [previousCreatedParent, setPreviousCreatedParent] = useState(null)
   const [duplicateParentMatch, setDuplicateParentMatch] = useState(null)
   const [isCheckingDuplicateParent, setIsCheckingDuplicateParent] = useState(false)
-  const [createSku, setCreateSku] = useState(false)
+  const [createSku, setCreateSku] = useState(true)
   const { notifySuccess } = useAlertAction()
 
   const resetDialogState = useCallback(() => {
@@ -1585,7 +1591,7 @@ function DialogCreateParent({
     setPreviousCreatedParent(null)
     setDuplicateParentMatch(null)
     setIsCheckingDuplicateParent(false)
-    setCreateSku(false)
+    setCreateSku(true)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -1729,6 +1735,17 @@ function DialogCreateParent({
   const selectedDetailVariantAttributeIds = useMemo(
     () => getSelectedIds(formValues.variant_attribute_ids),
     [formValues.variant_attribute_ids],
+  )
+  const selectedDetailVariantAttributeOptions = useMemo(
+    () =>
+      selectedDetailVariantAttributeIds
+        .map((attributeId) =>
+          masterOptions.variantAttributes.find(
+            (attribute) => attribute.value === attributeId,
+          ),
+        )
+        .filter(Boolean),
+    [masterOptions.variantAttributes, selectedDetailVariantAttributeIds],
   )
   const selectedDetailVariantAttributeKey = selectedDetailVariantAttributeIds.join('|')
 
@@ -2047,6 +2064,11 @@ function DialogCreateParent({
           return
         }
 
+        if (hasIncompleteDetailUom(detailItems)) {
+          setErrorMessage('Please select UOM for all SKU details first.')
+          return
+        }
+
         if (hasDuplicateVariantSelection(detailItems, payload.item_name)) {
           setErrorMessage('There are SKUs with the same Item Name + Variant combination. Change the variant so it is not duplicated.')
           return
@@ -2288,9 +2310,7 @@ function DialogCreateParent({
                       itemName={formValues.item_name}
                       items={detailItems}
                       uomOptions={masterOptions.uoms}
-                      variantAttributeOptions={masterOptions.variantAttributes.filter((attribute) =>
-                        getSelectedIds(formValues.variant_attribute_ids).includes(attribute.value),
-                      )}
+                      variantAttributeOptions={selectedDetailVariantAttributeOptions}
                       getVariantValueOptions={(attributeId) =>
                         variantValueOptionsByAttributeId[String(attributeId ?? '')] || []
                       }

@@ -549,7 +549,8 @@ function CreateDetailItem({
                   SKU Name
                 </th>
                 <th scope="col" className="parent-detail-item__table-uom-header">
-                  Uom
+                  UOM
+                  <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                 </th>
                 {hwdFieldLabels.map((fieldLabel) => (
                   <th key={fieldLabel} scope="col" className="parent-detail-item__table-hwd-header">
