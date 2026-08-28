@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { ChevronDown, SearchMd } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Plus, SearchMd } from '../../template/TemplateIcons.jsx'
 
 function getSelectedOptionIds(value) {
   if (Array.isArray(value)) {
@@ -24,16 +24,20 @@ function CheckboxSelect({
   loading = false,
   disabled = false,
   showOrder = false,
+  allowCreate = false,
+  onCreate,
   onToggle,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [menuStyle, setMenuStyle] = useState(null)
+  const [isCreatingOption, setIsCreatingOption] = useState(false)
+  const [createOptionError, setCreateOptionError] = useState('')
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
   const searchInputRef = useRef(null)
-  const isSearchable = Boolean(searchPlaceholder)
+  const isSearchable = Boolean(searchPlaceholder) || allowCreate
   const selectedIds = getSelectedOptionIds(value)
   const selectedOptions = selectedIds
     .map((selectedId) => options.find((option) => option.value === selectedId))
@@ -49,6 +53,11 @@ function CheckboxSelect({
       String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
     )
   }, [isSearchable, options, searchQuery])
+  const trimmedQuery = searchQuery.trim()
+  const hasExactMatch = options.some(
+    (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  )
+  const canCreateOption = allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
 
   useEffect(() => {
     if (!isOpen) {
@@ -108,6 +117,7 @@ function CheckboxSelect({
     const closeDropdown = () => {
       setIsOpen(false)
       setSearchQuery('')
+      setCreateOptionError('')
     }
 
     const handlePointerDown = (event) => {
@@ -150,10 +160,34 @@ function CheckboxSelect({
       if (currentState) {
         setMenuStyle(null)
         setSearchQuery('')
+        setCreateOptionError('')
       }
 
       return !currentState
     })
+  }
+
+  const handleCreateOption = async () => {
+    if (!canCreateOption || isCreatingOption) {
+      return
+    }
+
+    setIsCreatingOption(true)
+    setCreateOptionError('')
+
+    try {
+      const newOption = await onCreate(trimmedQuery)
+
+      if (newOption?.value) {
+        onToggle?.(newOption.value)
+        setSearchQuery('')
+        searchInputRef.current?.focus()
+      }
+    } catch (error) {
+      setCreateOptionError(error?.message || 'Failed to add data.')
+    } finally {
+      setIsCreatingOption(false)
+    }
   }
 
   const displayValue = loading
@@ -184,7 +218,7 @@ function CheckboxSelect({
                   className="parent-master-select__search-input"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={searchPlaceholder}
+                  placeholder={searchPlaceholder || 'Cari atau tambah data...'}
                   aria-label={`Cari ${label}`}
                 />
               </div>
@@ -236,6 +270,25 @@ function CheckboxSelect({
                 <div className="parent-master-select__empty">{emptyMessage}</div>
               )}
             </div>
+
+            {canCreateOption ? (
+              <div className="parent-master-select__create">
+                <button
+                  type="button"
+                  className="parent-master-select__create-button"
+                  onClick={handleCreateOption}
+                  disabled={isCreatingOption}
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  <span>{isCreatingOption ? 'Adding...' : `Add "${trimmedQuery}"`}</span>
+                </button>
+                {createOptionError ? (
+                  <p className="parent-master-select__create-error" role="alert">
+                    {createOptionError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>,
           document.body,
         )

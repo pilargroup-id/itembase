@@ -7,6 +7,7 @@ import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogVali
 import ButtonDeleteUom from "../../../button/uoms-buttons/ButtonDeleteUom.jsx"
 import ButtonEditUom from "../../../button/uoms-buttons/ButtonEditUom.jsx"
 import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
 import FilterDropdownUom from "../../../dropdown/filter-uoms/FilterDropdownUom.jsx"
 import { uomFilterConfig } from "../../../dropdown/filter-uoms/FilterDropdownUom.config.js"
 import DataTable, {
@@ -522,6 +523,11 @@ function DataTableUom({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-actions">
+                    <ButtonExportMaster
+                        type="uoms"
+                        masterLabel="UOM"
+                        aria-label="Export UOM data"
+                    />
                     <ButtonImportMaster
                         type="uoms"
                         masterLabel="UOM"

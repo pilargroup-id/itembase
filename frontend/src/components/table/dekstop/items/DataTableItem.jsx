@@ -444,13 +444,6 @@ const columns = [
         render: (item) => renderItemValue(item.barcode),
     },
     {
-        key: "kind",
-        header: "Kind",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
-        render: (item) => renderItemValue(item.item_kind),
-    },
-    {
         key: "parent",
         header: "Parent Name",
         headerStyle: { width: "13%" },

@@ -87,10 +87,12 @@ const parentDetailFields = [
     name: 'variant_attribute_ids',
     label: 'Variant Attribute',
     placeholder: 'Select attribute',
-    type: 'checkbox-list',
+    type: 'searchable-checkbox-list',
     optionsKey: 'variantAttributes',
+    searchPlaceholder: 'Search or add attribute...',
     emptyMessage: 'Attribute not found.',
     showOrder: true,
+    allowCreate: true,
   },
 ]
 
@@ -227,11 +229,13 @@ function hasIncompleteDetailVariantSelection(detailItems, attributeIds) {
     return false
   }
 
-  return detailItems.some(
-    (item) => selectedAttributeIds.some(
-      (attributeId) => !normalizeFieldValue(item.variant_values_by_attribute_id?.[attributeId]),
-    ),
-  )
+  return detailItems
+    .filter((item) => item.create !== false)
+    .some(
+      (item) => selectedAttributeIds.some(
+        (attributeId) => !normalizeFieldValue(item.variant_values_by_attribute_id?.[attributeId]),
+      ),
+    )
 }
 
 function getCreatedParentId(parent) {
@@ -303,40 +307,42 @@ function compactPayload(payload) {
 function buildDetailItemPayloads(detailItems, itemName, parentId, attributeIds) {
   const selectedAttributeIds = getSelectedIds(attributeIds)
 
-  return detailItems.map((detailItem) => {
-    const normalizedItemName = normalizeFieldValue(itemName)
-    const normalizedVariant = normalizeFieldValue(detailItem.item_variant)
-    const [height, width, depth] = getHwdParts(detailItem.hwd)
-    const payload = compactPayload({
-      item_kind: 'regular',
-      parent_id: parentId,
-      item_name: normalizedVariant
-        ? `${normalizedItemName} ${normalizedVariant}`
-        : normalizedItemName,
-      selling_name: normalizedVariant
-        ? `${normalizedItemName} ${normalizedVariant}`
-        : normalizedItemName,
-      uom_id: normalizeFieldValue(detailItem.uom_id),
-      height: normalizeNumberPayloadValue(height),
-      width: normalizeNumberPayloadValue(width),
-      depth: normalizeNumberPayloadValue(depth),
-      production_time_days: normalizeNumberPayloadValue(detailItem.lead_time_days),
-      is_active: 1,
+  return detailItems
+    .filter((detailItem) => detailItem.create !== false)
+    .map((detailItem) => {
+      const normalizedItemName = normalizeFieldValue(itemName)
+      const normalizedVariant = normalizeFieldValue(detailItem.item_variant)
+      const [height, width, depth] = getHwdParts(detailItem.hwd)
+      const payload = compactPayload({
+        item_kind: 'regular',
+        parent_id: parentId,
+        item_name: normalizedVariant
+          ? `${normalizedItemName} ${normalizedVariant}`
+          : normalizedItemName,
+        selling_name: normalizedVariant
+          ? `${normalizedItemName} ${normalizedVariant}`
+          : normalizedItemName,
+        uom_id: normalizeFieldValue(detailItem.uom_id),
+        height: normalizeNumberPayloadValue(height),
+        width: normalizeNumberPayloadValue(width),
+        depth: normalizeNumberPayloadValue(depth),
+        production_time_days: normalizeNumberPayloadValue(detailItem.lead_time_days),
+        is_active: 1,
+      })
+
+      const variants = selectedAttributeIds
+        .map((attributeId) => ({
+          attribute_id: attributeId,
+          value_id: normalizeFieldValue(detailItem.variant_values_by_attribute_id?.[attributeId]),
+        }))
+        .filter((variant) => variant.value_id)
+
+      if (variants.length > 0) {
+        payload.variants = variants
+      }
+
+      return payload
     })
-
-    const variants = selectedAttributeIds
-      .map((attributeId) => ({
-        attribute_id: attributeId,
-        value_id: normalizeFieldValue(detailItem.variant_values_by_attribute_id?.[attributeId]),
-      }))
-      .filter((variant) => variant.value_id)
-
-    if (variants.length > 0) {
-      payload.variants = variants
-    }
-
-    return payload
-  })
 }
 
 function getResourceData(responseData) {
@@ -1259,15 +1265,298 @@ function SearchableCreatableSelect({
   )
 }
 
+function SearchableCheckboxSelect({
+  id,
+  label,
+  value = [],
+  options = [],
+  placeholder = 'Select data',
+  searchPlaceholder = 'Search data...',
+  emptyMessage = 'No data found.',
+  loading = false,
+  disabled = false,
+  showOrder = false,
+  allowCreate = false,
+  uppercase = false,
+  onCreate,
+  onToggle,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [menuStyle, setMenuStyle] = useState(null)
+  const [isCreatingOption, setIsCreatingOption] = useState(false)
+  const [createOptionError, setCreateOptionError] = useState('')
+  const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
+  const selectedIds = getSelectedIds(value)
+  const selectedOptions = selectedIds
+    .map((selectedId) => options.find((option) => option.value === selectedId))
+    .filter(Boolean)
+  const trimmedQuery = searchQuery.trim()
+  const normalizedQuery = trimmedQuery.toLowerCase()
+  const filteredOptions = normalizedQuery
+    ? options.filter((option) =>
+        String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
+      )
+    : options
+  const hasExactMatch = options.some(
+    (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  )
+  const canCreateOption = allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const updateMenuPosition = () => {
+      const triggerElement = triggerRef.current
+
+      if (!triggerElement) {
+        return
+      }
+
+      const bounds = triggerElement.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const viewportMargin = 12
+      const gap = 8
+      const menuWidth = Math.min(bounds.width, viewportWidth - viewportMargin * 2)
+      const left = Math.min(
+        Math.max(bounds.left, viewportMargin),
+        Math.max(viewportMargin, viewportWidth - menuWidth - viewportMargin),
+      )
+      const spaceBelow = viewportHeight - bounds.bottom - viewportMargin - gap
+      const spaceAbove = bounds.top - viewportMargin - gap
+      const openUp = spaceBelow < 180 && spaceAbove > spaceBelow
+      const optionsHeight = Math.max(96, Math.min(220, openUp ? spaceAbove : spaceBelow))
+      const top = openUp
+        ? Math.max(viewportMargin, bounds.top - gap - optionsHeight - 18)
+        : Math.min(bounds.bottom + gap, viewportHeight - viewportMargin - optionsHeight - 18)
+
+      setMenuStyle({
+        top,
+        left,
+        width: menuWidth,
+        '--parent-master-select-options-max-height': `${optionsHeight}px`,
+      })
+    }
+
+    updateMenuPosition()
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const closeDropdown = () => {
+      setIsOpen(false)
+      setSearchQuery('')
+      setCreateOptionError('')
+    }
+
+    const handlePointerDown = (event) => {
+      if (
+        !rootRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        closeDropdown()
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const handleFocusTrigger = () => {
+    if (disabled) {
+      return
+    }
+
+    setIsOpen(true)
+  }
+
+  const handleSearchInputChange = (event) => {
+    const nextValue = uppercase ? event.target.value.toUpperCase() : event.target.value
+
+    setSearchQuery(nextValue)
+    setCreateOptionError('')
+    setIsOpen(true)
+  }
+
+  const handleCreateOption = async () => {
+    if (!canCreateOption || isCreatingOption) {
+      return
+    }
+
+    setIsCreatingOption(true)
+    setCreateOptionError('')
+
+    try {
+      const newOption = await onCreate(trimmedQuery)
+
+      if (newOption?.value) {
+        onToggle?.(newOption.value)
+        setSearchQuery('')
+        triggerRef.current?.focus()
+      }
+    } catch (error) {
+      setCreateOptionError(error?.message || 'Failed to add data.')
+    } finally {
+      setIsCreatingOption(false)
+    }
+  }
+
+  const selectedLabel = selectedOptions
+    .map((option, index) => {
+      const optionLabel = uppercase ? option.label.toUpperCase() : option.label
+
+      return showOrder ? `${index + 1}. ${optionLabel}` : optionLabel
+    })
+    .join(', ')
+  const inputValue = isOpen ? searchQuery : loading ? 'Loading data...' : selectedLabel
+  const inputPlaceholder = loading ? 'Loading data...' : isOpen ? searchPlaceholder : placeholder
+
+  const menuNode =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="parent-master-select__menu item-create-popup__channel-menu"
+            role="listbox"
+            aria-label={label}
+            aria-multiselectable="true"
+            style={menuStyle}
+          >
+            <div className="parent-master-select__options item-create-popup__channel-options">
+              {loading ? (
+                <div className="parent-master-select__empty">Loading data...</div>
+              ) : filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
+                  const isChecked = selectedIds.includes(option.value)
+                  const orderNumber = isChecked ? selectedIds.indexOf(option.value) + 1 : 0
+
+                  return (
+                    <label
+                      key={option.value}
+                      className={[
+                        'parent-master-select__option',
+                        'item-create-popup__channel-option',
+                        isChecked ? 'parent-master-select__option--selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      htmlFor={`${id}-${option.value}`}
+                      role="option"
+                      aria-selected={isChecked}
+                    >
+                      <input
+                        id={`${id}-${option.value}`}
+                        type="checkbox"
+                        className="register-user-popup__dropdown-checkbox"
+                        checked={isChecked}
+                        disabled={disabled}
+                        onChange={() => onToggle?.(option.value)}
+                      />
+                      <span>{uppercase ? option.label.toUpperCase() : option.label}</span>
+                      {showOrder && orderNumber > 0 ? (
+                        <span
+                          className="checkbox-select__order-badge"
+                          title={`Urutan ke-${orderNumber}`}
+                        >
+                          {orderNumber}
+                        </span>
+                      ) : null}
+                    </label>
+                  )
+                })
+              ) : (
+                <div className="parent-master-select__empty">{emptyMessage}</div>
+              )}
+            </div>
+
+            {canCreateOption ? (
+              <div className="parent-master-select__create">
+                <button
+                  type="button"
+                  className="parent-master-select__create-button"
+                  onClick={handleCreateOption}
+                  disabled={isCreatingOption}
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  <span>{isCreatingOption ? 'Adding...' : `Add "${trimmedQuery}"`}</span>
+                </button>
+                {createOptionError ? (
+                  <p className="parent-master-select__create-error" role="alert">
+                    {createOptionError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <div ref={rootRef} className="parent-subbrand-search item-create-popup__channel-select">
+      <div className="parent-subbrand-search__control">
+        <SearchMd size={16} className="parent-subbrand-search__icon" aria-hidden="true" />
+        <input
+          ref={triggerRef}
+          id={id}
+          type="search"
+          className="register-user-popup__input parent-subbrand-search__input"
+          value={inputValue}
+          placeholder={inputPlaceholder}
+          onFocus={handleFocusTrigger}
+          onChange={handleSearchInputChange}
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          disabled={disabled || loading}
+        />
+      </div>
+
+      {menuNode}
+    </div>
+  )
+}
+
 function DialogCreateParent({
   isOpen = false,
   eyebrow = 'Parent Name',
   title = 'Create ...',
   onClose,
   onCreated,
+  onDeleted,
 }) {
   const [formValues, setFormValues] = useState(initialFormValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeletingParent, setIsDeletingParent] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
@@ -1284,6 +1573,7 @@ function DialogCreateParent({
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
     setIsSubmitting(false)
+    setIsDeletingParent(false)
     setErrorMessage('')
     setCreatedParent(null)
     setDetailItems([createInitialDetailItem()])
@@ -1300,6 +1590,27 @@ function DialogCreateParent({
     resetDialogState()
     onClose?.()
   }, [onClose, resetDialogState])
+
+  const handleCancelCreatedParent = useCallback(async () => {
+    const parentId = getCreatedParentId(createdParent)
+
+    if (!parentId) {
+      handleClose()
+      return
+    }
+
+    setIsDeletingParent(true)
+    setErrorMessage('')
+
+    try {
+      await api.itemParents.remove(parentId)
+      onDeleted?.(parentId)
+      handleClose()
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, 'Failed to delete item parent.'))
+      setIsDeletingParent(false)
+    }
+  }, [createdParent, handleClose, onDeleted])
 
   useEffect(() => {
     if (!isOpen) {
@@ -1603,7 +1914,7 @@ function DialogCreateParent({
   }, [masterOptions.uoms])
 
   const handleCreateVariantValue = useCallback(async (attributeId, name) => {
-    const trimmedName = normalizeFieldValue(name)
+    const trimmedName = normalizeFieldValue(name).toUpperCase()
 
     if (!trimmedName) {
       return null
@@ -1635,6 +1946,37 @@ function DialogCreateParent({
 
     return newOption ?? null
   }, [variantValueOptionsByAttributeId])
+
+  const handleCreateVariantAttribute = useCallback(async (name) => {
+    const trimmedName = normalizeFieldValue(name).toUpperCase()
+
+    if (!trimmedName) {
+      return null
+    }
+
+    const existingOption = masterOptions.variantAttributes.find(
+      (option) => option.label.toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    if (existingOption) {
+      return existingOption
+    }
+
+    const response = await api.variantAttributes.create({
+      name: trimmedName,
+      is_active: 1,
+    })
+    const newOption = normalizeMasterOptions([getResourceData(response)], 'variantAttributes')[0]
+
+    if (newOption) {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        variantAttributes: [...currentOptions.variantAttributes, newOption],
+      }))
+    }
+
+    return newOption ?? null
+  }, [masterOptions.variantAttributes])
 
   const handleToggleParentSection = () => {
     setIsParentSectionOpen((currentValue) => !currentValue)
@@ -1687,6 +2029,14 @@ function DialogCreateParent({
 
         if (!payload.item_name) {
           setErrorMessage('Parent item name not found to create SKU.')
+          return
+        }
+
+        if (
+          getSelectedIds(formValues.variant_attribute_ids).length > 0 &&
+          detailItems.filter((item) => item.create !== false).length === 0
+        ) {
+          setErrorMessage('Select at least one SKU from the variant matrix to create.')
           return
         }
 
@@ -1770,7 +2120,24 @@ function DialogCreateParent({
       >
         <span>{field.label}</span>
       </label>
-      {field.type === 'checkbox-list' ? (
+      {field.type === 'searchable-checkbox-list' ? (
+        <SearchableCheckboxSelect
+          id={`parent-${field.name}`}
+          label={field.label}
+          value={formValues[field.name]}
+          options={masterOptions[field.optionsKey]}
+          placeholder={field.placeholder}
+          searchPlaceholder={field.searchPlaceholder}
+          emptyMessage={field.emptyMessage}
+          loading={isLoadingMasters}
+          disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
+          showOrder={field.showOrder}
+          allowCreate={field.allowCreate}
+          uppercase={field.name === 'variant_attribute_ids'}
+          onCreate={field.name === 'variant_attribute_ids' ? handleCreateVariantAttribute : undefined}
+          onToggle={(nextValue) => handleCheckboxToggle(field.name, nextValue)}
+        />
+      ) : field.type === 'checkbox-list' ? (
         <CheckboxSelect
           id={`parent-${field.name}`}
           label={field.label}
@@ -1782,6 +2149,8 @@ function DialogCreateParent({
           loading={isLoadingMasters}
           disabled={isSubmitting || isLoadingMasters || Boolean(createdParent)}
           showOrder={field.showOrder}
+          allowCreate={field.allowCreate}
+          onCreate={undefined}
           onToggle={(nextValue) => handleCheckboxToggle(field.name, nextValue)}
         />
       ) : field.type === 'select' ? (
@@ -1858,7 +2227,7 @@ function DialogCreateParent({
             className="dashboard-popup__close parent-create-popup__close"
             aria-label="Close dialog"
             onClick={handleClose}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isDeletingParent}
           >
             <XClose size={22} />
           </button>
@@ -1926,6 +2295,7 @@ function DialogCreateParent({
                       }
                       loadingUoms={isLoadingMasters}
                       SearchableSelect={SearchableCreatableSelect}
+                      VariantMultiSelect={SearchableCheckboxSelect}
                       onCreateUom={handleCreateUom}
                       onCreateVariantValue={handleCreateVariantValue}
                       disabled={isSubmitting}
@@ -1957,10 +2327,10 @@ function DialogCreateParent({
             <button
               type="button"
               className="dashboard-popup__button dashboard-popup__button--secondary"
-              onClick={handleClose}
-              disabled={isSubmitting}
+              onClick={handleCancelCreatedParent}
+              disabled={isSubmitting || isDeletingParent}
             >
-              Cancel
+              {isDeletingParent ? 'Deleting...' : 'Delete Parent'}
             </button>
           ) : null}
           <button
@@ -1968,6 +2338,7 @@ function DialogCreateParent({
             className="dashboard-popup__button dashboard-popup__button--primary"
             disabled={
               isSubmitting ||
+              isDeletingParent ||
               (!createdParent && (isCheckingDuplicateParent || Boolean(duplicateParentMatch))) ||
               (Boolean(createdParent) &&
                 hasDuplicateVariantSelection(detailItems, formValues.item_name))

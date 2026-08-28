@@ -7,6 +7,7 @@ import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogVali
 import ButtonDeleteCategories from "../../../button/categories-buttons/ButtonDeleteCategories.jsx"
 import ButtonEditCategories from "../../../button/categories-buttons/ButtonEditCategories.jsx"
 import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
 import FilterDropdownCategories from "../../../dropdown/filter-categories/FilterDropdownCategories.jsx"
 import { categoriesFilterConfig } from "../../../dropdown/filter-categories/FilterDropdownCategories.config.js"
 import DataTable, {
@@ -562,6 +563,11 @@ function DataTableCategories({
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
                 <div className="parent-table-actions">
+                    <ButtonExportMaster
+                        type="categories"
+                        masterLabel="Category"
+                        aria-label="Export category data"
+                    />
                     <ButtonImportMaster
                         type="categories"
                         masterLabel="Category"

@@ -84,7 +84,7 @@ export const primaryNavigationItems = [
       },
       {
         id: 'nav-types',
-        label: 'Source',
+        label: 'Sources',
         href: '/types',
         icon: Globe,
       },
@@ -102,7 +102,7 @@ export const primaryNavigationItems = [
       },
       {
         id: 'variant',
-        label: 'Variant',
+        label: 'Variants',
         href: '/variant',
         icon: Shapes,
       }

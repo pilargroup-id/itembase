@@ -551,6 +551,7 @@ function ChannelCheckboxSelect({
   disabled = false,
   maxSelectable,
   allowCreate = false,
+  uppercase = false,
   onCreate,
   onToggle,
 }) {
@@ -667,7 +668,9 @@ function ChannelCheckboxSelect({
   }
 
   const handleSearchInputChange = (event) => {
-    setSearchQuery(event.target.value)
+    const nextValue = uppercase ? event.target.value.toUpperCase() : event.target.value
+
+    setSearchQuery(nextValue)
     setCreateOptionError('')
     setIsOpen(true)
   }
@@ -695,7 +698,9 @@ function ChannelCheckboxSelect({
     }
   }
 
-  const selectedLabel = selectedOptions.map((option) => option.label).join(', ')
+  const selectedLabel = selectedOptions
+    .map((option) => (uppercase ? option.label.toUpperCase() : option.label))
+    .join(', ')
   const inputValue = isOpen ? searchQuery : loading ? 'Loading data...' : selectedLabel
   const inputPlaceholder = loading ? 'Loading data...' : isOpen ? searchPlaceholder : placeholder
 
@@ -746,7 +751,7 @@ function ChannelCheckboxSelect({
                         disabled={isOptionDisabled}
                         onChange={() => onToggle?.(option.value)}
                       />
-                      <span>{option.label}</span>
+                      <span>{uppercase ? option.label.toUpperCase() : option.label}</span>
                     </label>
                   )
                 })
@@ -1456,7 +1461,7 @@ function DialogCreateItem({
   }, [masterOptions.uoms])
 
   const handleCreateVariantValue = useCallback(async (attributeId, name) => {
-    const trimmedName = String(name ?? '').trim()
+    const trimmedName = String(name ?? '').trim().toUpperCase()
 
     if (!trimmedName) {
       return null
@@ -1727,6 +1732,7 @@ function DialogCreateItem({
                     disabled={isSubmitting || Boolean(loadingVariantValuesByAttributeId[attribute.value])}
                     maxSelectable={MAX_VARIANT_VALUES_PER_ATTRIBUTE}
                     allowCreate
+                    uppercase
                     onCreate={(name) => handleCreateVariantValue(attribute.value, name)}
                     onToggle={(valueId) => handleVariantValueToggle(attribute.value, valueId)}
                   />
@@ -1997,7 +2003,13 @@ function DialogCreateItem({
       className="dashboard-popup-overlay"
       role="presentation"
     >
-      <ErrorToast message={errorMessage} onDismiss={() => setErrorMessage('')} />
+      <ValidationAlertBanner
+        message={errorMessage}
+        variantAttributeLabels={activeVariantAttributes.map((attribute) => attribute.label)}
+        onDismiss={() => setErrorMessage('')}
+        onViewItem={handleViewDuplicateItem}
+        isViewLoading={isLoadingViewItem}
+      />
 
       <form
         className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup${

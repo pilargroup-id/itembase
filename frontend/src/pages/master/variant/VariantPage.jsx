@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ButtonCreateVariant from '../../../components/button/variant-buttons/ButtonCreateVariant.jsx'
 import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
+import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
 import SearchVariant from '../../../components/search/SearchVariant.jsx'
 import DataTableVariantAttributes from '../../../components/table/dekstop/master/DataTableVariantAttributes.jsx'
 import DataTableVariantValue from '../../../components/table/dekstop/master/DataTableVariantValue.jsx'
@@ -60,6 +61,15 @@ function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
         })}
 
         <div className="variant-table-tabs__actions">
+          <ButtonExportMaster
+            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
+            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
+            aria-label={
+              activeVariantTab === 'attributes'
+                ? 'Export variant attribute data'
+                : 'Export variant value data'
+            }
+          />
           <ButtonImportMaster
             type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
             masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}

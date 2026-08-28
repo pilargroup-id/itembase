@@ -182,7 +182,7 @@ const pageDetails = {
     eyebrow: 'Item Management',
   },
   '/items': {
-    title: 'Items',
+    title: 'SKU',
     eyebrow: 'Item Management',
   },
   '/bundles': {
@@ -194,7 +194,7 @@ const pageDetails = {
     eyebrow: 'Master',
   },
   '/types': {
-    title: 'Types',
+    title: 'Source',
     eyebrow: 'Master',
   },
   '/ports': {

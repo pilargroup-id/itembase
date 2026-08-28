@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { Minus, Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
+import { Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
 
-const BUNDLE_MIN_COMPONENTS = 2
+const BUNDLE_MIN_COMPONENTS = 1
 const BUNDLE_MAX_COMPONENTS = 5
+const SINGLE_COMPONENT_MIN_QTY = 2
 
 const initialFormValues = {
   parent_id: '',
@@ -122,6 +123,18 @@ function findRegularItemOption(options, value) {
   return options.find((option) => option.value === normalizedValue) ?? null
 }
 
+function mergeOptions(...optionLists) {
+  const optionMap = new Map()
+
+  optionLists.flat().forEach((option) => {
+    if (option?.value && option?.label && !optionMap.has(option.value)) {
+      optionMap.set(option.value, option)
+    }
+  })
+
+  return Array.from(optionMap.values())
+}
+
 function sanitizeIntegerInput(value) {
   return String(value ?? '').replace(/[^\d]/g, '')
 }
@@ -212,9 +225,16 @@ function hasRequiredValues(payload, components) {
     (component) => component.component_item_id && isPositiveInteger(component.qty),
   )
 
+  if (
+    validComponents.length < BUNDLE_MIN_COMPONENTS ||
+    validComponents.length > BUNDLE_MAX_COMPONENTS
+  ) {
+    return false
+  }
+
   return (
-    validComponents.length >= BUNDLE_MIN_COMPONENTS &&
-    validComponents.length <= BUNDLE_MAX_COMPONENTS
+    validComponents.length > 1 ||
+    Number(validComponents[0].qty) >= SINGLE_COMPONENT_MIN_QTY
   )
 }
 
@@ -226,17 +246,23 @@ function DialogCreateBundle({
   onCreated,
 }) {
   const [formValues, setFormValues] = useState(initialFormValues)
-  const [components, setComponents] = useState([initialComponent(), initialComponent()])
+  const [components, setComponents] = useState([initialComponent()])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
+  const [selectedRegularItemOptions, setSelectedRegularItemOptions] = useState([])
   const [parentSearchQuery, setParentSearchQuery] = useState('')
+  const [regularItemSearchQuery, setRegularItemSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
+  const componentItemOptions = useMemo(
+    () => mergeOptions(masterOptions.regularItems, selectedRegularItemOptions),
+    [masterOptions.regularItems, selectedRegularItemOptions],
+  )
   const bundleFormulaPreview = useMemo(
-    () => buildBundleFormulaPreview(components, masterOptions.regularItems),
-    [components, masterOptions.regularItems],
+    () => buildBundleFormulaPreview(components, componentItemOptions),
+    [componentItemOptions, components],
   )
   const dialogTitle = bundleFormulaPreview || title
 
@@ -245,16 +271,18 @@ function DialogCreateBundle({
     [components],
   )
   const resolvedUomOption = useMemo(
-    () => findRegularItemOption(masterOptions.regularItems, resolvedComponentItemId),
-    [masterOptions.regularItems, resolvedComponentItemId],
+    () => findRegularItemOption(componentItemOptions, resolvedComponentItemId),
+    [componentItemOptions, resolvedComponentItemId],
   )
 
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
-    setComponents([initialComponent(), initialComponent()])
+    setComponents([initialComponent()])
     setIsSubmitting(false)
     setMasterOptions(emptyMasterOptions)
+    setSelectedRegularItemOptions([])
     setParentSearchQuery('')
+    setRegularItemSearchQuery('')
     setErrorMessage('')
   }, [])
   
@@ -271,12 +299,18 @@ function DialogCreateBundle({
     let isMounted = true
     const controller = new AbortController()
 
-    const loadMasterOptions = async () => {
+    const loadRegularItemOptions = async () => {
       setIsLoadingMasters(true)
 
       try {
+        const search = regularItemSearchQuery.trim()
         const items = await api.items.list(
-          { item_kind: 'regular' },
+          {
+            page: 1,
+            limit: 20,
+            item_kind: 'regular',
+            ...(search ? { search } : {}),
+          },
           { signal: controller.signal },
         )
 
@@ -293,8 +327,11 @@ function DialogCreateBundle({
           return
         }
 
-        setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Failed to load bundle master data.')
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          regularItems: [],
+        }))
+        setErrorMessage(error?.message || 'Failed to load regular items.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -302,13 +339,13 @@ function DialogCreateBundle({
       }
     }
 
-    loadMasterOptions()
+    loadRegularItemOptions()
 
     return () => {
       isMounted = false
       controller.abort()
     }
-  }, [isOpen])
+  }, [isOpen, regularItemSearchQuery])
 
   useEffect(() => {
     if (!isOpen) {
@@ -404,6 +441,18 @@ function DialogCreateBundle({
     )
   }
 
+  const handleRegularItemChange = (index, value) => {
+    const selectedOption = findRegularItemOption(masterOptions.regularItems, value)
+
+    if (selectedOption) {
+      setSelectedRegularItemOptions((currentOptions) =>
+        mergeOptions(currentOptions, [selectedOption]),
+      )
+    }
+
+    handleComponentChange(index, 'component_item_id', value)
+  }
+
   const handleAddComponent = () => {
     if (components.length < BUNDLE_MAX_COMPONENTS) {
       setComponents((current) => [...current, initialComponent()])
@@ -416,22 +465,6 @@ function DialogCreateBundle({
     }
   }
 
-  const handleQtyStep = (index, direction) => {
-    setErrorMessage('')
-    setComponents((currentComponents) =>
-      currentComponents.map((component, currentIndex) => {
-        if (currentIndex !== index) {
-          return component
-        }
-
-        const currentQty = Number(component.qty) || 0
-        const nextQty = Math.max(1, currentQty + direction)
-
-        return { ...component, qty: String(nextQty) }
-      }),
-    )
-  }
-
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -439,7 +472,7 @@ function DialogCreateBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Please complete Parent, UOM, and at least ${BUNDLE_MIN_COMPONENTS} component items with whole number qty.`,
+        `Please complete Parent, UOM, and ${BUNDLE_MIN_COMPONENTS}-${BUNDLE_MAX_COMPONENTS} component items with whole number qty. A single item must have a minimum qty of ${SINGLE_COMPONENT_MIN_QTY}.`,
       )
       return
     }
@@ -520,7 +553,7 @@ function DialogCreateBundle({
       role="presentation"
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup"
+        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup item-create-popup bundle-create-popup--create"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-bundle-title"
@@ -571,7 +604,7 @@ function DialogCreateBundle({
                     <div className="parent-create-popup__section-header">
                       <h3 className="parent-create-popup__section-title">Bundle Item List</h3>
                       <p className="parent-create-popup__section-description">
-                        Add at least {BUNDLE_MIN_COMPONENTS} regular items. Qty must be a whole number without decimals.
+                        Add {BUNDLE_MIN_COMPONENTS}-{BUNDLE_MAX_COMPONENTS} regular items. If there is only 1 item, its qty must be at least {SINGLE_COMPONENT_MIN_QTY}.
                       </p>
                     </div>
 
@@ -589,7 +622,7 @@ function DialogCreateBundle({
                         className="bundle-create-popup__component-card"
                       >
                         <div className="bundle-create-popup__component-grid">
-                          <div className="register-user-popup__field">
+                          <div className="register-user-popup__field bundle-create-popup__regular-item-field">
                             <label
                               className="register-user-popup__label"
                               htmlFor={`bundle-component-item-${index}`}
@@ -601,28 +634,28 @@ function DialogCreateBundle({
                               id={`bundle-component-item-${index}`}
                               label={`Component item ${index + 1}`}
                               value={component.component_item_id}
-                              options={masterOptions.regularItems}
+                              options={componentItemOptions}
                               placeholder="Select regular item..."
                               searchPlaceholder="Search item..."
                               emptyMessage="Item not found."
                               loading={isLoadingMasters}
                               disabled={isSubmitting || isLoadingMasters}
-                              onChange={(nextValue) =>
-                                handleComponentChange(index, 'component_item_id', nextValue)
-                              }
+                              remoteSearch
+                              onSearchChange={setRegularItemSearchQuery}
+                              onChange={(nextValue) => handleRegularItemChange(index, nextValue)}
                             />
                             {component.component_item_id ? (
                               <span className="bundle-create-popup__component-uom">
                                 UOM:{' '}
                                 {findRegularItemOption(
-                                  masterOptions.regularItems,
+                                  componentItemOptions,
                                   component.component_item_id,
                                 )?.uomLabel || '-'}
                               </span>
                             ) : null}
                           </div>
 
-                          <div className="register-user-popup__field">
+                          <div className="register-user-popup__field bundle-create-popup__qty-field">
                             <label
                               className="register-user-popup__label"
                               htmlFor={`bundle-component-qty-${index}`}
@@ -630,41 +663,19 @@ function DialogCreateBundle({
                               Qty
                               <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                             </label>
-                            <div className="bundle-create-popup__qty-control">
-                              <button
-                                type="button"
-                                className="bundle-create-popup__qty-button"
-                                onClick={() => handleQtyStep(index, -1)}
-                                disabled={isSubmitting || Number(component.qty) <= 1}
-                                title="Decrease qty"
-                                aria-label={`Decrease qty for bundle item ${index + 1}`}
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <input
-                                id={`bundle-component-qty-${index}`}
-                                className="register-user-popup__input bundle-create-popup__qty-input"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={component.qty}
-                                placeholder="0"
-                                onChange={(event) =>
-                                  handleComponentChange(index, 'qty', event.target.value)
-                                }
-                                disabled={isSubmitting}
-                              />
-                              <button
-                                type="button"
-                                className="bundle-create-popup__qty-button"
-                                onClick={() => handleQtyStep(index, 1)}
-                                disabled={isSubmitting}
-                                title="Increase qty"
-                                aria-label={`Increase qty for bundle item ${index + 1}`}
-                              >
-                                <Plus size={14} />
-                              </button>
-                            </div>
+                            <input
+                              id={`bundle-component-qty-${index}`}
+                              className="register-user-popup__input bundle-create-popup__qty-input"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={component.qty}
+                              placeholder="0"
+                              onChange={(event) =>
+                                handleComponentChange(index, 'qty', event.target.value)
+                              }
+                              disabled={isSubmitting}
+                            />
                           </div>
 
                           <div className="register-user-popup__field">
@@ -674,7 +685,7 @@ function DialogCreateBundle({
                             <div className="bundle-create-popup__component-actions">
                               <button
                                 type="button"
-                                className="bundle-create-popup__component-remove"
+                                className="bundle-create-popup__component-remove bundle-create-popup__component-remove--create"
                                 onClick={() => handleRemoveComponent(index)}
                                 disabled={
                                   isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS
@@ -703,7 +714,7 @@ function DialogCreateBundle({
 
                   <div className="bundle-create-popup__footer">
                     <p className="register-user-popup__hint">
-                      Minimum {BUNDLE_MIN_COMPONENTS} items and maximum {BUNDLE_MAX_COMPONENTS} regular items per bundle.
+                      A single-item bundle requires a minimum qty of {SINGLE_COMPONENT_MIN_QTY}.
                     </p>
                   </div>
                 </div>

@@ -10,6 +10,7 @@ function ButtonCreateParent({
   iconSize = 18,
   onClick,
   onCreated,
+  onDeleted,
   type = 'button',
   ...buttonProps
 }) {
@@ -35,6 +36,11 @@ function ButtonCreateParent({
     onCreated?.(createdParent)
   }
 
+  const handleDeleted = (deletedParentId) => {
+    dialogProps.onDeleted?.(deletedParentId)
+    onDeleted?.(deletedParentId)
+  }
+
   return (
     <>
       <button
@@ -53,6 +59,7 @@ function ButtonCreateParent({
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
         onCreated={handleCreated}
+        onDeleted={handleDeleted}
       />
     </>
   )

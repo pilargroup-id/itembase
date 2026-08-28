@@ -25,6 +25,7 @@ function ParentsPage({ activePage, searchQuery, onSearchQueryChange }) {
           />
           <ButtonCreateParent
             onCreated={() => setParentRefreshKey((currentKey) => currentKey + 1)}
+            onDeleted={() => setParentRefreshKey((currentKey) => currentKey + 1)}
           />
         </div>
       </div>

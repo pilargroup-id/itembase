@@ -3,6 +3,7 @@ import { useState } from 'react'
 import ButtonCreateBrand from '../../../components/button/brands-buttons/ButtonCreateBrand.jsx'
 import ButtonCreateSubBrands from '../../../components/button/sub-brands-buttons/SubButtonCreateBrand.jsx'
 import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
+import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
 import SearchBrand from '../../../components/search/SearchBrand.jsx'
 import DataTableBrands from '../../../components/table/dekstop/master/DataTableBrands.jsx'
 import DataTableSubBrands from '../../../components/table/dekstop/master/DataTableSubBrands.jsx'
@@ -35,6 +36,11 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
               <ButtonCreateBrand
                 onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
               />
+              <ButtonExportMaster
+                type="brands"
+                masterLabel="Brand"
+                aria-label="Export brand data"
+              />
               <ButtonImportMaster
                 type="brands"
                 masterLabel="Brand"
@@ -46,6 +52,11 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
             <>
               <ButtonCreateSubBrands
                 onCreated={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
+              <ButtonExportMaster
+                type="sub-brands"
+                masterLabel="Sub Brand"
+                aria-label="Export sub brand data"
               />
               <ButtonImportMaster
                 type="sub-brands"
