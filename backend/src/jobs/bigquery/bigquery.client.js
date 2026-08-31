@@ -35,6 +35,40 @@ async function truncateTable(tableName) {
   });
 }
 
+function getLoadErrors(metadata) {
+  if (!metadata || !metadata.status) return [];
+
+  const errors = [];
+
+  if (metadata.status.errorResult) {
+    errors.push(metadata.status.errorResult);
+  }
+
+  if (Array.isArray(metadata.status.errors)) {
+    for (const error of metadata.status.errors) {
+      const isDuplicate = errors.some(
+        (existing) =>
+          existing.reason === error.reason &&
+          existing.location === error.location &&
+          existing.message === error.message
+      );
+
+      if (!isDuplicate) errors.push(error);
+    }
+  }
+
+  return errors;
+}
+
+async function resolveLoadMetadata(loadResult) {
+  if (loadResult && typeof loadResult.getMetadata === 'function') {
+    const [metadata] = await loadResult.getMetadata();
+    return metadata;
+  }
+
+  return loadResult;
+}
+
 async function replaceTableRows(tableName, rows, fields) {
   if (!Array.isArray(rows)) {
     throw new TypeError(`Rows for ${tableName} must be an array`);
@@ -54,7 +88,7 @@ async function replaceTableRows(tableName, rows, fields) {
   await fs.promises.writeFile(tempFile, body, 'utf8');
 
   try {
-    const [job] = await dataset.table(tableName).load(tempFile, {
+    const [loadResult] = await dataset.table(tableName).load(tempFile, {
       location: config.bigquery.location,
       sourceFormat: 'NEWLINE_DELIMITED_JSON',
       writeDisposition: 'WRITE_TRUNCATE',
@@ -66,13 +100,13 @@ async function replaceTableRows(tableName, rows, fields) {
       maxBadRecords: 0,
     });
 
-    const [metadata] = await job.getMetadata();
-    const errors = metadata.status && metadata.status.errors;
+    const metadata = await resolveLoadMetadata(loadResult);
+    const errors = getLoadErrors(metadata);
 
-    if (Array.isArray(errors) && errors.length) {
+    if (errors.length) {
       throw new Error(
         `BigQuery load failed for ${tableName}: ${errors
-          .map((error) => error.message)
+          .map((error) => error.message || JSON.stringify(error))
           .join('; ')}`
       );
     }
