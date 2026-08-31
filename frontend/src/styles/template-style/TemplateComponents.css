@@ -5329,6 +5329,9 @@ select {
 }
 
 .users-table-wrapper {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 22px;
   overflow-x: auto;
   border: 1px solid rgba(26, 42, 87, 0.08);
@@ -5417,11 +5420,102 @@ select {
   text-transform: uppercase;
 }
 
+.users-table__th {
+  position: sticky;
+  padding-right: 3.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.users-table__resize-control {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  overflow: hidden;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
+}
+
+.users-table__resize-control:hover,
+.users-table__resize-control:focus-within,
+.users-table__th--resizing .users-table__resize-control {
+  opacity: 1;
+}
+
+.users-table__resize-button {
+  width: 16px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #61708a;
+  cursor: pointer;
+  font: 700 0.68rem/1 'IBM Plex Mono', monospace;
+}
+
+.users-table__resize-button:hover,
+.users-table__resize-button:focus-visible {
+  outline: none;
+  background: transparent;
+  color: var(--accent-teal-dark);
+}
+
+.users-table__col-resizer {
+  position: relative;
+  width: 7px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.users-table__col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(26, 42, 87, 0.2);
+  transition: background 0.15s ease;
+}
+
+.users-table__col-resizer:hover::after,
+.users-table__col-resizer:focus-visible::after,
+.users-table__th--resizing .users-table__col-resizer::after {
+  background: rgba(42, 157, 143, 0.55);
+}
+
+.users-table__col-resizer:focus-visible {
+  outline: none;
+}
+
 .users-table td {
   padding: 1rem;
   border-bottom: 1px solid rgba(26, 42, 87, 0.08);
   color: #425575;
   vertical-align: middle;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.users-table-wrapper--resizing {
+  cursor: col-resize;
+}
+
+.users-table-wrapper--resizing table,
+.users-table-wrapper--resizing th,
+.users-table-wrapper--resizing td {
+  user-select: none;
 }
 
 .users-table tbody tr {
@@ -5473,6 +5567,37 @@ select {
   align-items: center;
   gap: 0.85rem;
   min-width: 220px;
+}
+
+.users-table-wrapper--resized .users-table__identity {
+  min-width: 0;
+}
+
+.parent-table-shell .mtickets-table.users-table-wrapper--resized {
+  overflow-x: auto;
+}
+
+.users-table-wrapper--resized {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(42, 157, 143, 0.58) rgba(24, 43, 88, 0.06);
+}
+
+.users-table-wrapper--resized::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.users-table-wrapper--resized::-webkit-scrollbar-track {
+  background: rgba(24, 43, 88, 0.06);
+}
+
+.users-table-wrapper--resized::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(42, 157, 143, 0.58);
+}
+
+.users-table-wrapper--resized::-webkit-scrollbar-thumb:hover {
+  background: rgba(31, 130, 119, 0.78);
 }
 
 .users-table__identity-copy {

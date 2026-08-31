@@ -1,7 +1,14 @@
-import { Fragment, isValidElement, useState } from 'react'
+import { Fragment, isValidElement, useRef, useState } from 'react'
 
 import CreateButton from '../../button/CreateButton.jsx'
 import { ChevronDown } from '../../template/TemplateIcons.jsx'
+
+const MIN_COLUMN_WIDTH = 64
+const DETAIL_LEFT_COLUMN_KEY = '__detail-left'
+const DETAIL_RIGHT_COLUMN_KEY = '__detail-right'
+const DEFAULT_DETAIL_LEFT_WIDTH = 56
+const DEFAULT_DETAIL_RIGHT_WIDTH = 64
+const KEYBOARD_RESIZE_STEP = 12
 
 function getInitials(value = '') {
   return String(value)
@@ -47,6 +54,22 @@ function normalizePageSizeOptions(options, pageSize) {
   }
 
   return normalizedOptions
+}
+
+function getColumnWidthStyle(column, columnWidths) {
+  const resizedWidth = columnWidths[column.key]
+
+  if (resizedWidth) {
+    return `${resizedWidth}px`
+  }
+
+  return (
+    column.headerStyle?.width ??
+    column.cellStyle?.width ??
+    column.headerStyle?.minWidth ??
+    column.cellStyle?.minWidth ??
+    undefined
+  )
 }
 
 function getColumnValue(column, row, index, context) {
@@ -210,7 +233,17 @@ function DataTable({
   getRowClassName,
 }) {
   const [expandedRowKey, setExpandedRowKey] = useState(null)
+  const [columnWidths, setColumnWidths] = useState({})
+  const [resizingColumnKey, setResizingColumnKey] = useState(null)
+  const headerRefs = useRef({})
+  const detailLeftHeaderRef = useRef(null)
+  const detailRightHeaderRef = useRef(null)
+  const resizingRef = useRef(null)
   const hasDetail = Boolean(detail)
+  const hasCustomColumnWidths = Object.keys(columnWidths).length > 0
+  const customTableWidth = hasCustomColumnWidths
+    ? Object.values(columnWidths).reduce((total, width) => total + width, 0)
+    : null
   const visibleExpandedRowKey = rows.some(
     (row, index) => String(getRowId(row, index)) === expandedRowKey,
   )
@@ -258,14 +291,175 @@ function DataTable({
     pagination.onPageSizeChange(nextPageSize)
   }
 
+  const lockAllColumnWidths = () => {
+    const nextWidths = {}
+
+    if (hasDetail && detail.position === 'left') {
+      nextWidths[DETAIL_LEFT_COLUMN_KEY] =
+        detailLeftHeaderRef.current?.getBoundingClientRect().width ?? DEFAULT_DETAIL_LEFT_WIDTH
+    }
+
+    columns.forEach((column) => {
+      nextWidths[column.key] =
+        headerRefs.current[column.key]?.getBoundingClientRect().width ?? MIN_COLUMN_WIDTH
+    })
+
+    if (hasDetail && detail.position !== 'left' && detail.position !== 'none') {
+      nextWidths[DETAIL_RIGHT_COLUMN_KEY] =
+        detailRightHeaderRef.current?.getBoundingClientRect().width ?? DEFAULT_DETAIL_RIGHT_WIDTH
+    }
+
+    return nextWidths
+  }
+
+  const handleResizeStart = (event, column) => {
+    event.stopPropagation()
+
+    const columnKey = column.key
+    const baseWidths = hasCustomColumnWidths ? columnWidths : lockAllColumnWidths()
+    const startWidth =
+      baseWidths[columnKey] ??
+      headerRefs.current[columnKey]?.getBoundingClientRect().width ??
+      MIN_COLUMN_WIDTH
+
+    resizingRef.current = {
+      columnKey,
+      startX: event.clientX,
+      startWidth,
+    }
+
+    if (!hasCustomColumnWidths) {
+      setColumnWidths(baseWidths)
+    }
+
+    event.target.setPointerCapture(event.pointerId)
+    setResizingColumnKey(columnKey)
+  }
+
+  const handleResizeMove = (event) => {
+    const resizing = resizingRef.current
+
+    if (!resizing) {
+      return
+    }
+
+    const nextWidth = Math.max(
+      MIN_COLUMN_WIDTH,
+      Math.round(resizing.startWidth + (event.clientX - resizing.startX)),
+    )
+
+    setColumnWidths((current) => ({ ...current, [resizing.columnKey]: nextWidth }))
+  }
+
+  const handleResizeEnd = (event) => {
+    if (!resizingRef.current) {
+      return
+    }
+
+    resizingRef.current = null
+    setResizingColumnKey(null)
+
+    if (event.target.hasPointerCapture?.(event.pointerId)) {
+      event.target.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const handleResizeKeyDown = (event, column) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const direction = event.key === 'ArrowRight' ? 1 : -1
+    const step = event.shiftKey ? KEYBOARD_RESIZE_STEP * 2 : KEYBOARD_RESIZE_STEP
+
+    resizeColumnByStep(column, direction, step)
+  }
+
+  const resizeColumnByStep = (column, direction, step = KEYBOARD_RESIZE_STEP) => {
+    const baseWidths = hasCustomColumnWidths ? columnWidths : lockAllColumnWidths()
+    const currentWidth =
+      baseWidths[column.key] ??
+      headerRefs.current[column.key]?.getBoundingClientRect().width ??
+      MIN_COLUMN_WIDTH
+
+    setColumnWidths({
+      ...baseWidths,
+      [column.key]: Math.max(MIN_COLUMN_WIDTH, Math.round(currentWidth + direction * step)),
+    })
+  }
+
+  const handleResizeButtonClick = (event, column, direction) => {
+    event.preventDefault()
+    event.stopPropagation()
+    resizeColumnByStep(column, direction)
+  }
+
+  const handleResizeFocus = () => {
+    if (!hasCustomColumnWidths) {
+      setColumnWidths(lockAllColumnWidths())
+    }
+  }
+
+  const handleResetColumnWidths = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setColumnWidths({})
+  }
+
   return (
     <>
-      <div className={['users-table-wrapper', className].filter(Boolean).join(' ')}>
-        <table className="users-table" aria-label={tableLabel}>
+      <div
+        className={[
+          'users-table-wrapper',
+          resizingColumnKey ? 'users-table-wrapper--resizing' : '',
+          hasCustomColumnWidths ? 'users-table-wrapper--resized' : '',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <table
+          className="users-table"
+          aria-label={tableLabel}
+          style={
+            hasCustomColumnWidths
+              ? { tableLayout: 'fixed', width: `${customTableWidth}px`, minWidth: '100%' }
+              : undefined
+          }
+        >
+          <colgroup>
+            {hasDetail && detail.position === 'left' ? (
+              <col
+                style={{
+                  width: columnWidths[DETAIL_LEFT_COLUMN_KEY]
+                    ? `${columnWidths[DETAIL_LEFT_COLUMN_KEY]}px`
+                    : undefined,
+                }}
+              />
+            ) : null}
+
+            {columns.map((column) => (
+              <col key={column.key} style={{ width: getColumnWidthStyle(column, columnWidths) }} />
+            ))}
+
+            {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
+              <col
+                style={{
+                  width: columnWidths[DETAIL_RIGHT_COLUMN_KEY]
+                    ? `${columnWidths[DETAIL_RIGHT_COLUMN_KEY]}px`
+                    : undefined,
+                }}
+              />
+            ) : null}
+          </colgroup>
+
           <thead>
             <tr>
               {hasDetail && detail.position === 'left' ? (
-                <th scope="col" className="users-table__detail-header">
+                <th scope="col" ref={detailLeftHeaderRef} className="users-table__detail-header">
                   {detail.columnLabel ?? ''}
                 </th>
               ) : null}
@@ -273,16 +467,72 @@ function DataTable({
               {columns.map((column) => (
                 <th
                   key={column.key}
+                  ref={(node) => {
+                    headerRefs.current[column.key] = node
+                  }}
                   scope="col"
-                  className={column.headerClassName}
+                  className={[
+                    'users-table__th',
+                    column.headerClassName,
+                    resizingColumnKey === column.key ? 'users-table__th--resizing' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   style={column.headerStyle}
                 >
                   {column.header}
+                  <span className="users-table__resize-control">
+                    <button
+                      type="button"
+                      className="users-table__resize-button"
+                      aria-label={`Perkecil kolom ${
+                        typeof column.header === 'string' ? column.header : column.key
+                      }`}
+                      title="Perkecil kolom"
+                      onClick={(event) => handleResizeButtonClick(event, column, -1)}
+                    >
+                      &lt;
+                    </button>
+
+                    <span
+                      className="users-table__col-resizer"
+                      role="separator"
+                      tabIndex={0}
+                      aria-orientation="vertical"
+                      aria-valuemin={MIN_COLUMN_WIDTH}
+                      aria-valuenow={Math.round(columnWidths[column.key] ?? MIN_COLUMN_WIDTH)}
+                      aria-label={`Geser batas kolom ${
+                        typeof column.header === 'string' ? column.header : column.key
+                      }`}
+                      title="Geser untuk mengubah lebar. Klik dua kali untuk mereset semua kolom."
+                      onPointerDown={(event) => handleResizeStart(event, column)}
+                      onPointerMove={handleResizeMove}
+                      onPointerUp={handleResizeEnd}
+                      onPointerCancel={handleResizeEnd}
+                      onLostPointerCapture={handleResizeEnd}
+                      onFocus={handleResizeFocus}
+                      onKeyDown={(event) => handleResizeKeyDown(event, column)}
+                      onDoubleClick={handleResetColumnWidths}
+                      onClick={(event) => event.stopPropagation()}
+                    />
+
+                    <button
+                      type="button"
+                      className="users-table__resize-button"
+                      aria-label={`Perlebar kolom ${
+                        typeof column.header === 'string' ? column.header : column.key
+                      }`}
+                      title="Perlebar kolom"
+                      onClick={(event) => handleResizeButtonClick(event, column, 1)}
+                    >
+                      &gt;
+                    </button>
+                  </span>
                 </th>
               ))}
 
               {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
-                <th scope="col" className="users-table__detail-header">
+                <th scope="col" ref={detailRightHeaderRef} className="users-table__detail-header">
                   {detail.columnLabel ?? 'Detail'}
                 </th>
               ) : null}
