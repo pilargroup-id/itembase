@@ -1762,7 +1762,7 @@ function DialogCreateItem({
                       disabled={isSubmitting}
                       onChange={handleSyncAllDimensionsToggle}
                     />
-                    <span>Samakan dimensi carton</span>
+                    <span>Equalize Dimensions</span>
                   </label>
                 ) : null}
               </div>
