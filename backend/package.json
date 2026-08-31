@@ -5,9 +5,11 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "sync:bq": "node src/jobs/bigquery/sync-itembase.js"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^9.0.3",
     "axios": "^1.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",

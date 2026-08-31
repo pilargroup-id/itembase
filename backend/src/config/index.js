@@ -36,6 +36,11 @@ const config = {
     password: process.env.DB_PASSWORD || '',
     name: process.env.DB_NAME || 'itembase',
   },
+  bigquery: {
+    projectId: process.env.BIGQUERY_PROJECT_ID || 'even-gearbox-255203',
+    dataset: process.env.BIGQUERY_DATASET || 'itembase',
+    location: process.env.BIGQUERY_LOCATION || 'US',
+  },
   dev: {
     authEnabled: process.env.DEV_AUTH_ENABLED === 'true',
     authUsername: process.env.DEV_AUTH_USERNAME,
