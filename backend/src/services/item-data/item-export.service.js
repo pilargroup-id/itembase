@@ -57,6 +57,7 @@ const PARENT_OPTIONAL_COLUMNS = [
 ];
 
 const ALLOWED_STATUSES = ['active', 'inactive'];
+const ALLOWED_KINDS = ['regular', 'bundle'];
 
 function makeError(message) {
   return Object.assign(new Error(message), { statusCode: 422 });
@@ -69,6 +70,15 @@ function normalizeStatus(value) {
     throw makeError('Status must be active or inactive');
   }
   return status;
+}
+
+function normalizeKind(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const kind = String(value).trim().toLowerCase();
+  if (!ALLOWED_KINDS.includes(kind)) {
+    throw makeError('Kind must be regular or bundle');
+  }
+  return kind;
 }
 
 function splitValues(value) {
@@ -208,15 +218,18 @@ function filenameSuffix(status) {
 
 async function exportItems(query = {}) {
   const status = normalizeStatus(query.status);
+  const kind = normalizeKind(query.kind);
   const columns = selectedColumns(query, ITEM_DEFAULT_COLUMNS, ITEM_OPTIONAL_COLUMNS);
-  const rows = await ExportModel.exportItems(status);
+  const rows = await ExportModel.exportItems(status, kind);
   const { businessUnits, users } = await loadDirectories(rows, columns);
   const headers = columns.map((column) => column.header);
+  const kindLabel = kind === 'bundle' ? 'Bundles' : kind === 'regular' ? 'Items' : 'Items';
+  const filenamePrefix = kind === 'bundle' ? 'bundles' : 'items';
 
   return {
-    filename: `items-${filenameSuffix(status)}.xlsx`,
+    filename: `${filenamePrefix}-${filenameSuffix(status)}.xlsx`,
     buffer: await createWorkbookBuffer([{
-      name: status === 'active' ? 'Active Items' : status === 'inactive' ? 'Inactive Items' : 'All Items',
+      name: status === 'active' ? `Active ${kindLabel}` : status === 'inactive' ? `Inactive ${kindLabel}` : `All ${kindLabel}`,
       headers,
       rows: rows.map((row) => mapItemRow(row, businessUnits, users)),
     }]),

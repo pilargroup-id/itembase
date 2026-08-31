@@ -5,10 +5,22 @@ function normalizeItemStatus(status) {
   return String(status).trim().toLowerCase() === 'inactive' ? 0 : 1;
 }
 
-async function exportItems(status = null) {
+async function exportItems(status = null, kind = null) {
   const isActive = normalizeItemStatus(status);
-  const whereSql = isActive === null ? '' : 'WHERE i.is_active = ?';
-  const params = isActive === null ? [] : [isActive];
+  const conditions = [];
+  const params = [];
+
+  if (isActive !== null) {
+    conditions.push('i.is_active = ?');
+    params.push(isActive);
+  }
+
+  if (kind) {
+    conditions.push('i.item_kind = ?');
+    params.push(kind);
+  }
+
+  const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const [rows] = await db.query(`
     SELECT

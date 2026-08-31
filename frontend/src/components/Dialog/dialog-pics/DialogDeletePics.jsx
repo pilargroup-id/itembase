@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 function getPicsDisplayName(pics) {
   return pics?.name || pics?.pics_name || pics?.code || pics?.pics_code || 'this Pics entry'
@@ -125,11 +126,10 @@ function DialogDeletePics({
           <p className="dashboard-popup__text">
             This action will remove the pics data from the pics master.
           </p>
-          {errorMessage ? (
-            <p className="register-user-popup__hint" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+          <ValidationAlertBanner
+            message={errorMessage}
+            onDismiss={() => setErrorMessage('')}
+          />
         </div>
 
         <div className="dashboard-popup__actions">

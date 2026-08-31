@@ -15,8 +15,9 @@ const optionalFields = [
   { key: 'sub_category', label: 'Sub Category' },
   { key: 'brand_category', label: 'Brand Category' },
   { key: 'pic', label: 'PIC' },
-  { key: 'item_created_date', label: 'Item Created Date' },
-  { key: 'item_updated_date', label: 'Item Updated Date' },
+  { key: 'sku_created_date', label: 'SKU Created Date' },
+  { key: 'sku_updated_date', label: 'SKU Updated Date' },
+  { key: 'sku_status_date', label: 'SKU Status Date' },
   { key: 'port', label: 'Port' },
   { key: 'item_source', label: 'Item Source' },
   { key: 'selling_name', label: 'Selling Name' },
@@ -29,7 +30,7 @@ const optionalFields = [
   { key: 'lead_time', label: 'Lead Time' },
 ]
 
-const defaultSelectedFields = ['main_category', 'sub_category', 'brand_category', 'pic']
+const defaultSelectedFields = ['main_category', 'sub_category', 'brand_category', 'pic', 'sku_status_date']
 
 function getFilteredFields(searchQuery) {
   const normalizedSearch = searchQuery.trim().toLowerCase()
@@ -140,7 +141,7 @@ function DialogExportBundleContent({
     setErrorMessage('')
 
     try {
-      const params = {}
+      const params = { kind: 'bundle' }
 
       if (selectedStatus !== 'all') {
         params.status = selectedStatus
@@ -152,7 +153,7 @@ function DialogExportBundleContent({
 
       const blob = await api.itemData.export(params)
 
-      saveBlob(blob, `items-${selectedStatus}.xlsx`)
+      saveBlob(blob, `bundles-${selectedStatus}.xlsx`)
       onClose?.()
     } catch (error) {
       setErrorMessage(error?.message || 'Failed to export file.')

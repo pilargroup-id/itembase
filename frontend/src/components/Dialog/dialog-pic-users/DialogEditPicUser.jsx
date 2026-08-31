@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 const initialFormValues = {
   code: '',
@@ -218,11 +219,10 @@ function DialogEditPicUser({
                     </div>
                   ))}
                 </div>
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <ValidationAlertBanner
+                  message={errorMessage}
+                  onDismiss={() => setErrorMessage('')}
+                />
               </div>
             </div>
           </div>

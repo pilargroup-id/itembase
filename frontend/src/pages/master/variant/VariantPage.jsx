@@ -27,6 +27,25 @@ function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
         </div>
 
         <div className="users-table-card__actions">
+          <ButtonExportMaster
+            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
+            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
+            aria-label={
+              activeVariantTab === 'attributes'
+                ? 'Export variant attribute data'
+                : 'Export variant value data'
+            }
+          />
+          <ButtonImportMaster
+            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
+            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
+            aria-label={
+              activeVariantTab === 'attributes'
+                ? 'Import variant attribute data'
+                : 'Import variant value data'
+            }
+            onImported={() => setUomRefreshKey((currentKey) => currentKey + 1)}
+          />
           <SearchVariant value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateVariant
             variantType={activeVariantTab}
@@ -59,28 +78,6 @@ function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
             </button>
           )
         })}
-
-        <div className="variant-table-tabs__actions">
-          <ButtonExportMaster
-            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
-            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
-            aria-label={
-              activeVariantTab === 'attributes'
-                ? 'Export variant attribute data'
-                : 'Export variant value data'
-            }
-          />
-          <ButtonImportMaster
-            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
-            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
-            aria-label={
-              activeVariantTab === 'attributes'
-                ? 'Import variant attribute data'
-                : 'Import variant value data'
-            }
-            onImported={() => setUomRefreshKey((currentKey) => currentKey + 1)}
-          />
-        </div>
       </div>
 
       {activeVariantTab === 'attributes' ? (

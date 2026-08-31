@@ -5,8 +5,6 @@ import DialogDeleteType from "../../../Dialog/dialog-types/DialogDeleteType.jsx"
 import DialogEditType from "../../../Dialog/dialog-types/DialogEditType.jsx"
 import ButtonDeleteType from "../../../button/types-buttons/ButtonDeleteType.jsx"
 import ButtonEditType from "../../../button/types-buttons/ButtonEditType.jsx"
-import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
-import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
 import FilterDropdownType from "../../../dropdown/filter-types/FilterDropdownType.jsx"
 import { TypeFilterConfig } from "../../../dropdown/filter-types/FilterDropdownType.config.js"
 import DataTable, {
@@ -431,20 +429,6 @@ function DataTableType({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
-                <div className="parent-table-actions">
-                    <ButtonExportMaster
-                        type="item-sources"
-                        masterLabel="Type"
-                        aria-label="Export type data"
-                    />
-                    <ButtonImportMaster
-                        type="item-sources"
-                        masterLabel="Type"
-                        aria-label="Import type data"
-                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
-                    />
-                </div>
-
                 <div className="parent-table-filters" aria-label="Filter Type">
                     <FilterDropdownType
                         className="parent-table-filter parent-table-filter--sort"

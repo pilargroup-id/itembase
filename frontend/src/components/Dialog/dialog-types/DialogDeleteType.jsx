@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 function getTypeDisplayName(Type) {
   return Type?.name || Type?.Type_name || Type?.code || Type?.Type_code || 'this Type'
@@ -125,11 +126,10 @@ function DialogDeleteType({
           <p className="dashboard-popup__text">
             This action will remove the Type data from the Types master list.
           </p>
-          {errorMessage ? (
-            <p className="register-user-popup__hint" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+          <ValidationAlertBanner
+            message={errorMessage}
+            onDismiss={() => setErrorMessage('')}
+          />
         </div>
 
         <div className="dashboard-popup__actions">

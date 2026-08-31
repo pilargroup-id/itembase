@@ -5,6 +5,7 @@ import api from '../../../services/api.js'
 import CheckboxSelect from '../../dropdown/filter/CheckBox.jsx'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 const initialFormValues = {
   name: '',
@@ -499,11 +500,10 @@ function DialogCreateBrand({
                     />
                   </div>
                 </div>
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <ValidationAlertBanner
+                  message={errorMessage}
+                  onDismiss={() => setErrorMessage('')}
+                />
               </div>
             </div>
           </div>

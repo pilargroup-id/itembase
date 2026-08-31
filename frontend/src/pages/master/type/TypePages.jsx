@@ -1,6 +1,8 @@
 import { useState } from 'react'
 
 import ButtonCreateBrand from '../../../components/button/types-buttons/ButtonCreateType.jsx'
+import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
+import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
 import SearchType from '../../../components/search/SearchType.jsx'
 import DataTableType from '../../../components/table/dekstop/master/DataTableType.jsx'
 
@@ -19,6 +21,17 @@ function TypePages({ activePage, searchQuery, onSearchQueryChange }) {
         </div>
 
         <div className="users-table-card__actions">
+          <ButtonExportMaster
+            type="item-sources"
+            masterLabel="Type"
+            aria-label="Export type data"
+          />
+          <ButtonImportMaster
+            type="item-sources"
+            masterLabel="Type"
+            aria-label="Import type data"
+            onImported={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
+          />
           <SearchType value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateBrand
             onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}

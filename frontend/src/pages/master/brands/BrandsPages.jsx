@@ -30,12 +30,8 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
         </div>
 
         <div className="users-table-card__actions">
-          <SearchBrand value={searchQuery} onChange={onSearchQueryChange} />
           {activeBrandTab === 'brands' ? (
             <>
-              <ButtonCreateBrand
-                onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
-              />
               <ButtonExportMaster
                 type="brands"
                 masterLabel="Brand"
@@ -47,12 +43,13 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
                 aria-label="Import brand data"
                 onImported={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
               />
+              <SearchBrand value={searchQuery} onChange={onSearchQueryChange} />
+              <ButtonCreateBrand
+                onCreated={() => setBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
             </>
           ) : (
             <>
-              <ButtonCreateSubBrands
-                onCreated={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
-              />
               <ButtonExportMaster
                 type="sub-brands"
                 masterLabel="Sub Brand"
@@ -63,6 +60,10 @@ function BrandsPages({ activePage, searchQuery, onSearchQueryChange }) {
                 masterLabel="Sub Brand"
                 aria-label="Import sub brand data"
                 onImported={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
+              />
+              <SearchBrand value={searchQuery} onChange={onSearchQueryChange} />
+              <ButtonCreateSubBrands
+                onCreated={() => setSubBrandRefreshKey((currentKey) => currentKey + 1)}
               />
             </>
           )}

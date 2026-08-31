@@ -1,6 +1,8 @@
 import { useState } from 'react'
 
 import ButtonCreateCategories from '../../../components/button/categories-buttons/ButtonCreateCategories.jsx'
+import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
+import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
 import SearchCategories from '../../../components/search/SearchCategories.jsx'
 import DataTableCategories from '../../../components/table/dekstop/master/DataTableCategories.jsx'
 
@@ -19,6 +21,17 @@ function CategoriesPages({ activePage, searchQuery, onSearchQueryChange }) {
         </div>
 
         <div className="users-table-card__actions">
+          <ButtonExportMaster
+            type="categories"
+            masterLabel="Category"
+            aria-label="Export category data"
+          />
+          <ButtonImportMaster
+            type="categories"
+            masterLabel="Category"
+            aria-label="Import category data"
+            onImported={() => setCategoriesRefreshKey((currentKey) => currentKey + 1)}
+          />
           <SearchCategories value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateCategories
             onCreated={() => setCategoriesRefreshKey((currentKey) => currentKey + 1)}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { XClose } from '../../template/TemplateIcons.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 function getEntityStatusValue(entity) {
   if (entity?.is_active !== undefined && entity?.is_active !== null) {
@@ -117,11 +118,10 @@ function DialogValidateStatusMaster({
               ? 'The data will become active again and can be used.'
               : 'The data will be deactivated and will no longer be available for use.'}
           </p>
-          {errorMessage ? (
-            <p className="register-user-popup__hint" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+          <ValidationAlertBanner
+            message={errorMessage}
+            onDismiss={() => setErrorMessage('')}
+          />
         </div>
 
         <div className="dashboard-popup__actions">

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
+import { Plus, Trash03, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
@@ -245,6 +245,36 @@ function hasRequiredValues(payload, components) {
   return (
     validComponents.length > 1 ||
     Number(validComponents[0].qty) >= SINGLE_COMPONENT_MIN_QTY
+  )
+}
+
+function BundleValidationAlertBanner({ message, onDismiss }) {
+  if (!message) {
+    return null
+  }
+
+  return (
+    <div className="item-create-popup__validation-alert" role="alert">
+      <span className="item-create-popup__validation-alert-icon" aria-hidden="true">
+        <XCircle size={18} />
+      </span>
+
+      <div className="item-create-popup__validation-alert-body">
+        <p className="item-create-popup__validation-alert-title">Gagal</p>
+        <p className="item-create-popup__validation-alert-message">{message}</p>
+      </div>
+
+      <div className="item-create-popup__validation-alert-actions">
+        <button
+          type="button"
+          className="item-create-popup__validation-alert-close"
+          onClick={onDismiss}
+          aria-label="Tutup notifikasi"
+        >
+          <XClose size={14} />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -743,11 +773,10 @@ function DialogCreateBundle({
                   </div>
                 </div>
 
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <BundleValidationAlertBanner
+                  message={errorMessage}
+                  onDismiss={() => setErrorMessage('')}
+                />
               </div>
             </div>
           </div>

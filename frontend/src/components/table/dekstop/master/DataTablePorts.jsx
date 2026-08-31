@@ -6,8 +6,6 @@ import DialogEditPort from "../../../Dialog/dialog-ports/DialogEditPort.jsx"
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeletePort from "../../../button/ports-buttons/ButtonDeletePort.jsx"
 import ButtonEditPort from "../../../button/ports-buttons/ButtonEditPort.jsx"
-import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
-import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
 import FilterDropdownPort from "../../../dropdown/filter-port/FilterDropdownPort.jsx"
 import { PortFilterConfig } from "../../../dropdown/filter-port/FilterDropdownPort.config.js"
 import DataTable, {
@@ -522,20 +520,6 @@ function DataTablePorts({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar">
-                <div className="parent-table-actions">
-                    <ButtonExportMaster
-                        type="ports"
-                        masterLabel="Port"
-                        aria-label="Export port data"
-                    />
-                    <ButtonImportMaster
-                        type="ports"
-                        masterLabel="Port"
-                        aria-label="Import port data"
-                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
-                    />
-                </div>
-
                 <div className="parent-table-filters" aria-label="Filter Port">
                     <FilterDropdownPort
                         className="parent-table-filter parent-table-filter--sort"

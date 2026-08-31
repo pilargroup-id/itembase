@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 function getPicUserDisplayName(picUser) {
   return picUser?.name || picUser?.pic_user_name || picUser?.code || picUser?.pic_user_code || 'this PIC user'
@@ -125,11 +126,10 @@ function DialogDeletePicUser({
           <p className="dashboard-popup__text">
             This action will remove the PIC user data from the PIC user master.
           </p>
-          {errorMessage ? (
-            <p className="register-user-popup__hint" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+          <ValidationAlertBanner
+            message={errorMessage}
+            onDismiss={() => setErrorMessage('')}
+          />
         </div>
 
         <div className="dashboard-popup__actions">

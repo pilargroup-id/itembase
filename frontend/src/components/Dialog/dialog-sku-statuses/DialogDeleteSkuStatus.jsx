@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 function getSkuStatusDisplayName(skuStatus) {
   return skuStatus?.name || skuStatus?.sku_status_name || skuStatus?.code || skuStatus?.sku_status_code || 'this SKU status'
@@ -125,11 +126,10 @@ function DialogDeleteSkuStatus({
           <p className="dashboard-popup__text">
             This action will remove the SKU status data from the SKU statuses master list.
           </p>
-          {errorMessage ? (
-            <p className="register-user-popup__hint" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+          <ValidationAlertBanner
+            message={errorMessage}
+            onDismiss={() => setErrorMessage('')}
+          />
         </div>
 
         <div className="dashboard-popup__actions">

@@ -5,6 +5,7 @@ import api from '../../../services/api.js'
 import { XClose } from '../../template/TemplateIcons.jsx'
 import SearchableSelect from '../../dropdown/searchable-select/SearchableSelect.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 const initialFormValues = {
   detail_category: '',
@@ -312,11 +313,10 @@ function DialogEditCategories({
                     />
                   </div>
                 </div>
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <ValidationAlertBanner
+                  message={errorMessage}
+                  onDismiss={() => setErrorMessage('')}
+                />
               </div>
             </div>
           </div>

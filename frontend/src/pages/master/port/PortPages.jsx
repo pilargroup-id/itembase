@@ -1,6 +1,8 @@
 import { useState } from 'react'
 
 import ButtonCreatePort from '../../../components/button/ports-buttons/ButtonCreatePort.jsx'
+import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
+import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
 import SearchPort from '../../../components/search/SearchPort.jsx'
 import DataTablePorts from '../../../components/table/dekstop/master/DataTablePorts.jsx'
 
@@ -19,11 +21,22 @@ function PortsPages({ activePage, searchQuery, onSearchQueryChange }) {
         </div>
 
         <div className="users-table-card__actions">
+          <ButtonExportMaster
+            type="ports"
+            masterLabel="Port"
+            aria-label="Export port data"
+          />
+          <ButtonImportMaster
+            type="ports"
+            masterLabel="Port"
+            aria-label="Import port data"
+            onImported={() => setPortRefreshKey((currentKey) => currentKey + 1)}
+          />
           <SearchPort value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreatePort
             onCreated={() => setPortRefreshKey((currentKey) => currentKey + 1)}
           />
-        </div>  
+        </div>
       </div>
 
       <DataTablePorts

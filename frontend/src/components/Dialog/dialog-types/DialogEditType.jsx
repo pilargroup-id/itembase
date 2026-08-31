@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
+import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 const initialFormValues = {
   name: '',
   is_active: '1',
@@ -199,11 +200,10 @@ function DialogEditType({
                     </div>
                   ))}
                 </div>
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <ValidationAlertBanner
+                  message={errorMessage}
+                  onDismiss={() => setErrorMessage('')}
+                />
               </div>
             </div>
           </div>

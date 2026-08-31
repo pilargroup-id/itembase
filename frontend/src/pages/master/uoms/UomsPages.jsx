@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import ButtonCreateUom from '../../../components/button/uoms-buttons/ButtonCreateUom.jsx'
+import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
+import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
 import SearchUom from '../../../components/search/SearchUom.jsx'
 import DataTableUom from '../../../components/table/dekstop/master/DataTableUom.jsx'
 
@@ -18,6 +20,17 @@ function UomsPages({ activePage, searchQuery, onSearchQueryChange }) {
         </div>
 
         <div className="users-table-card__actions">
+          <ButtonExportMaster
+            type="uoms"
+            masterLabel="UOM"
+            aria-label="Export UOM data"
+          />
+          <ButtonImportMaster
+            type="uoms"
+            masterLabel="UOM"
+            aria-label="Import UOM data"
+            onImported={() => setUomRefreshKey((currentKey) => currentKey + 1)}
+          />
           <SearchUom value={searchQuery} onChange={onSearchQueryChange} />
           <ButtonCreateUom
             onCreated={() => setUomRefreshKey((currentKey) => currentKey + 1)}
