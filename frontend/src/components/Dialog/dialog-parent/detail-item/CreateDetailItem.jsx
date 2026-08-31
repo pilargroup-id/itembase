@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { ChevronDown, Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
+import { Check, ChevronDown, Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
 
 function normalizeDetailItemText(value) {
   return String(value ?? '')
@@ -158,7 +158,12 @@ function cartesianCombineAttributeValues(attributes, selectionsByAttributeId) {
   )
 }
 
-function buildVariantLabelFromValues(attributes, valuesByAttributeId, getVariantValueOptions) {
+function buildVariantLabelFromValues(
+  attributes,
+  valuesByAttributeId,
+  getVariantValueOptions,
+  separator = ' ',
+) {
   return attributes
     .map((attribute) => {
       const selectedValueId = valuesByAttributeId[attribute.value]
@@ -169,7 +174,7 @@ function buildVariantLabelFromValues(attributes, valuesByAttributeId, getVariant
       return selectedValue?.label ? selectedValue.label.toUpperCase() : ''
     })
     .filter(Boolean)
-    .join(' ')
+    .join(separator)
 }
 
 function buildMatrixDetailItems(attributes, combinations, previousItems, getVariantValueOptions) {
@@ -260,6 +265,11 @@ function CreateDetailItem({
   disabled = false,
   isParentSectionOpen = true,
   onToggleParentSection = null,
+  isEditingParent = false,
+  onToggleEditParent = null,
+  onSaveParent = null,
+  onDeleteParent = null,
+  isDeletingParent = false,
   onChange,
 }) {
   const isMatrixMode = variantAttributeOptions.length > 0
@@ -413,22 +423,6 @@ function CreateDetailItem({
         </div>
 
         <div className="parent-detail-item__actions">
-          {(isMatrixMode ? hasCompleteMatrixSelection : true) && detailItems.length > 1 ? (
-            <label
-              className="parent-detail-item__sync-toggle"
-              title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
-            >
-              <input
-                type="checkbox"
-                className="register-user-popup__dropdown-checkbox"
-                checked={syncAllDimensions}
-                disabled={disabled}
-                onChange={handleSyncAllDimensionsToggle}
-              />
-              <span>Samakan dimensi carton</span>
-            </label>
-          ) : null}
-
           {!isMatrixMode ? (
             <button
               type="button"
@@ -443,12 +437,55 @@ function CreateDetailItem({
             </button>
           ) : null}
 
+          {isEditingParent && onSaveParent ? (
+            <button
+              type="button"
+              className="parent-detail-item__save-parent"
+              onClick={onSaveParent}
+              disabled={disabled}
+            >
+              <Check size={16} aria-hidden="true" />
+              <span>{disabled ? 'Saving...' : 'Save Parent'}</span>
+            </button>
+          ) : null}
+
+          {isEditingParent && onDeleteParent ? (
+            <button
+              type="button"
+              className="parent-detail-item__delete-parent"
+              onClick={onDeleteParent}
+              disabled={disabled}
+            >
+              <Trash03 size={16} aria-hidden="true" />
+              <span>{isDeletingParent ? 'Deleting...' : 'Delete Parent'}</span>
+            </button>
+          ) : null}
+
+          {isParentSectionOpen && onToggleEditParent ? (
+            <label
+              className="parent-detail-item__edit-toggle-wrapper"
+              title="Enable to edit parent fields"
+            >
+              <span>Edit Parent</span>
+              <span className="users-table__toggle parent-detail-item__edit-toggle">
+                <input
+                  type="checkbox"
+                  checked={isEditingParent}
+                  disabled={disabled}
+                  onChange={onToggleEditParent}
+                />
+                <span className="users-table__toggle-track" aria-hidden="true" />
+                <span className="users-table__toggle-thumb" aria-hidden="true" />
+              </span>
+            </label>
+          ) : null}
+
           {onToggleParentSection ? (
             <button
               type="button"
               className="parent-detail-item__toggle-parent"
               onClick={onToggleParentSection}
-              disabled={disabled}
+              disabled={disabled || isEditingParent}
               aria-expanded={isParentSectionOpen}
               title={isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}
               aria-label={isParentSectionOpen ? 'Hide Parent' : 'Show Parent'}
@@ -531,7 +568,24 @@ function CreateDetailItem({
           Select at least one value for each variant attribute to generate the SKU matrix.
         </p>
       ) : (
-        <div className="parent-detail-item__table-wrapper">
+        <>
+          {detailItems.length > 1 ? (
+            <label
+              className="parent-detail-item__sync-toggle parent-detail-item__sync-toggle--above-table"
+              title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
+            >
+              <input
+                type="checkbox"
+                className="register-user-popup__dropdown-checkbox"
+                checked={syncAllDimensions}
+                disabled={disabled}
+                onChange={handleSyncAllDimensionsToggle}
+              />
+              <span>Equalize Dimensions</span>
+            </label>
+          ) : null}
+
+          <div className="parent-detail-item__table-wrapper">
           <table className="parent-detail-item__table" aria-label="SKU detail">
             <thead>
               <tr>
@@ -600,7 +654,12 @@ function CreateDetailItem({
                     {isMatrixMode ? (
                       <td className="parent-detail-item__table-variant-cell">
                         <span className="parent-detail-item__row-variant">
-                          {normalizeDetailItemText(item.item_variant) || '-'}
+                          {buildVariantLabelFromValues(
+                            variantAttributeOptions,
+                            item.variant_values_by_attribute_id || {},
+                            getVariantValueOptions,
+                            ' / ',
+                          ) || '-'}
                         </span>
                       </td>
                     ) : null}
@@ -735,7 +794,8 @@ function CreateDetailItem({
               })}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )

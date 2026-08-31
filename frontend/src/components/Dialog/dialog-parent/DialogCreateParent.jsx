@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { ChevronDown, ChevronLeft, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, Edit03, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, {
   createInitialDetailItem,
   hasDuplicateVariantSelection,
@@ -1624,17 +1624,6 @@ function DialogCreateParent({
     }
   }, [createdParent, handleClose, onDeleted])
 
-  const handleBackToParent = useCallback(() => {
-    if (!createdParent) {
-      return
-    }
-
-    parentEditSnapshotRef.current = formValues
-    setErrorMessage('')
-    setIsEditingParent(true)
-    setIsParentSectionOpen(true)
-  }, [createdParent, formValues])
-
   const handleCancelEditParent = useCallback(() => {
     if (parentEditSnapshotRef.current) {
       setFormValues(parentEditSnapshotRef.current)
@@ -1645,6 +1634,27 @@ function DialogCreateParent({
     setIsEditingParent(false)
     setIsParentSectionOpen(false)
   }, [])
+
+  const handleToggleEditParent = useCallback((event) => {
+    if (!createdParent) {
+      return
+    }
+
+    if (event.target.checked) {
+      parentEditSnapshotRef.current = formValues
+      setErrorMessage('')
+      setIsEditingParent(true)
+      return
+    }
+
+    if (parentEditSnapshotRef.current) {
+      setFormValues(parentEditSnapshotRef.current)
+    }
+
+    parentEditSnapshotRef.current = null
+    setErrorMessage('')
+    setIsEditingParent(false)
+  }, [createdParent, formValues])
 
   useEffect(() => {
     if (!isOpen) {
@@ -2225,10 +2235,19 @@ function DialogCreateParent({
       }`}
     >
       <label
-        className="register-user-popup__label"
+        className={`register-user-popup__label${
+          isEditingParent ? ' register-user-popup__label--editable' : ''
+        }`}
         htmlFor={`parent-${field.name}`}
       >
         <span>{field.label}</span>
+        {isEditingParent ? (
+          <Edit03
+            size={12}
+            className="register-user-popup__label-edit-icon"
+            aria-hidden="true"
+          />
+        ) : null}
       </label>
       {field.type === 'searchable-checkbox-list' ? (
         <SearchableCheckboxSelect
@@ -2316,7 +2335,7 @@ function DialogCreateParent({
     >
       <form
         className={`dashboard-popup register-user-popup mtickets-create-popup parent-create-popup${
-          createdParent && !isEditingParent ? ' parent-create-popup--sku-detail' : ''
+          createdParent ? ' parent-create-popup--sku-detail' : ''
         }`}
         role="dialog"
         aria-modal="true"
@@ -2384,7 +2403,7 @@ function DialogCreateParent({
                   </div>
                 </div>
 
-                {createdParent && !isEditingParent ? (
+                {createdParent ? (
                   <div
                     className={`parent-create-popup__detail-reveal${
                       isParentSectionOpen ? '' : ' parent-create-popup__detail-reveal--parent-hidden'
@@ -2406,9 +2425,14 @@ function DialogCreateParent({
                       VariantMultiSelect={SearchableCheckboxSelect}
                       onCreateUom={handleCreateUom}
                       onCreateVariantValue={handleCreateVariantValue}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isDeletingParent}
                       isParentSectionOpen={isParentSectionOpen}
                       onToggleParentSection={handleToggleParentSection}
+                      isEditingParent={isEditingParent}
+                      onToggleEditParent={handleToggleEditParent}
+                      onSaveParent={handleUpdateParent}
+                      onDeleteParent={handleCancelCreatedParent}
+                      isDeletingParent={isDeletingParent}
                       onChange={handleDetailItemsChange}
                     />
                   </div>
@@ -2419,27 +2443,6 @@ function DialogCreateParent({
         </div>
 
         <div className="dashboard-popup__actions">
-          {createdParent && !isEditingParent ? (
-            <div className="item-create-popup__back-to-parent-group">
-              <button
-                type="button"
-                className="dashboard-popup__button dashboard-popup__button--secondary"
-                onClick={handleBackToParent}
-                disabled={isSubmitting || isDeletingParent}
-              >
-                <ChevronLeft size={16} aria-hidden="true" />
-                <span>Back to Parent</span>
-              </button>
-              <button
-                type="button"
-                className="dashboard-popup__button dashboard-popup__button--danger"
-                onClick={handleCancelCreatedParent}
-                disabled={isSubmitting || isDeletingParent}
-              >
-                {isDeletingParent ? 'Deleting...' : 'Delete Parent'}
-              </button>
-            </div>
-          ) : null}
           {createdParent && isEditingParent ? (
             <button
               type="button"
@@ -2468,6 +2471,7 @@ function DialogCreateParent({
             disabled={
               isSubmitting ||
               isDeletingParent ||
+              isEditingParent ||
               (!createdParent && (isCheckingDuplicateParent || Boolean(duplicateParentMatch))) ||
               (Boolean(createdParent) &&
                 !isEditingParent &&
@@ -2475,14 +2479,10 @@ function DialogCreateParent({
             }
           >
             {isSubmitting
-              ? isEditingParent
-                ? 'Saving...'
-                : 'Creating...'
-              : isEditingParent
-                ? 'Save Parent'
-                : createdParent
-                  ? 'Create SKU'
-                  : 'Create parent'}
+              ? 'Creating...'
+              : createdParent
+                ? 'Create SKU'
+                : 'Create parent'}
           </button>
         </div>
       </form>
