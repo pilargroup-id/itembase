@@ -322,7 +322,7 @@ const api = {
         api.get(`/item-data/templates/masters/${type}`, { ...options, responseType: 'blob' }),
     },
     export: (params, options) =>
-      api.get('/item-data/export', { ...options, params, responseType: 'blob' }),
+      api.get('/item-data/export/items', { ...options, params, responseType: 'blob' }),
     exportParents: (params, options) =>
       api.get('/item-data/export/parents', { ...options, params, responseType: 'blob' }),
     exportMaster: (type, params, options) =>
