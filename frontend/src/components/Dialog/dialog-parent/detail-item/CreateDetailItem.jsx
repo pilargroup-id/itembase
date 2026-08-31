@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { Check, ChevronDown, Plus, Trash03 } from '../../../template/TemplateIcons.jsx'
+import { AlertTriangle, Check, ChevronDown, Plus, Trash03, XClose } from '../../../template/TemplateIcons.jsx'
 
 function normalizeDetailItemText(value) {
   return String(value ?? '')
@@ -552,9 +552,27 @@ function CreateDetailItem({
       ) : null}
 
       {matrixSelectionError ? (
-        <p className="register-user-popup__hint parent-detail-item__duplicate-hint" role="alert">
-          {matrixSelectionError}
-        </p>
+        <div className="item-create-popup__validation-alert" role="alert">
+          <span className="item-create-popup__validation-alert-icon" aria-hidden="true">
+            <AlertTriangle size={18} />
+          </span>
+
+          <div className="item-create-popup__validation-alert-body">
+            <p className="item-create-popup__validation-alert-title">Batas nilai variant tercapai</p>
+            <p className="item-create-popup__validation-alert-message">{matrixSelectionError}</p>
+          </div>
+
+          <div className="item-create-popup__validation-alert-actions">
+            <button
+              type="button"
+              className="item-create-popup__validation-alert-close"
+              onClick={() => setMatrixSelectionError('')}
+              aria-label="Tutup notifikasi"
+            >
+              <XClose size={14} />
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {hasDuplicateVariant ? (

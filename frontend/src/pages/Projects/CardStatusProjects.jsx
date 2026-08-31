@@ -1,3 +1,9 @@
+const NUMBER_FORMATTER = new Intl.NumberFormat('id-ID')
+
+function formatNumber(value) {
+    return NUMBER_FORMATTER.format(value ?? 0)
+}
+
 const STATUS_CARD_PROJECTS = [
     {
         title: 'Waiting',
@@ -64,7 +70,7 @@ function CardStatusProjects({ activeStatus = '', onStatusChange, statusCounts = 
                             </div>
                         </div>
 
-                        <strong className="dashboard-card__value mtickets-status-card__value">{cardValue}</strong>
+                        <strong className="dashboard-card__value mtickets-status-card__value">{formatNumber(cardValue)}</strong>
 
                         <div className="dashboard-card__footer-text">
                             {isActive ? 'Click again to reset' : 'Click to filter'}

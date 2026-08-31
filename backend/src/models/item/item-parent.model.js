@@ -46,6 +46,10 @@ function buildWhereClause(query = {}) {
     conditions.push('EXISTS (SELECT 1 FROM item_parent_ports ipp_f WHERE ipp_f.item_parent_id = ip.id AND ipp_f.port_id = ?)');
     params.push(query.port_id);
   }
+  if (query.has_sku === 'yes' || query.has_sku === 'no') {
+    const comparison = query.has_sku === 'yes' ? '>' : '=';
+    conditions.push(`(SELECT COUNT(*) FROM items ci_f WHERE ci_f.parent_id = ip.id) ${comparison} 0`);
+  }
   return { whereSql: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', params };
 }
 

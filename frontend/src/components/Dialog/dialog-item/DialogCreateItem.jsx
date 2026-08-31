@@ -40,7 +40,7 @@ const itemFields = [
     optionsKey: 'parents',
     searchPlaceholder: 'Search Parent...',
     emptyMessage: 'Parent not found.',
-    half: true,
+    fullRow: true,
     searchTrigger: true,
   },
   {
@@ -894,6 +894,8 @@ function DialogCreateItem({
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
   const [matrixRows, setMatrixRows] = useState([])
   const [syncAllDimensions, setSyncAllDimensions] = useState(false)
+  const [existingParentItems, setExistingParentItems] = useState([])
+  const [isLoadingExistingParentItems, setIsLoadingExistingParentItems] = useState(false)
   const [isParentSectionOpen, setIsParentSectionOpen] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [viewItemTarget, setViewItemTarget] = useState(null)
@@ -916,6 +918,8 @@ function DialogCreateItem({
     setLoadingVariantValuesByAttributeId({})
     setMatrixRows([])
     setSyncAllDimensions(false)
+    setExistingParentItems([])
+    setIsLoadingExistingParentItems(false)
     setIsParentSectionOpen(true)
     setErrorMessage('')
     setViewItemTarget(null)
@@ -1085,6 +1089,50 @@ function DialogCreateItem({
     }
 
     loadParentConfig()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [isOpen, formValues.parent_id])
+
+  useEffect(() => {
+    if (!isOpen || !formValues.parent_id) {
+      return undefined
+    }
+
+    let isMounted = true
+    const controller = new AbortController()
+
+    const loadExistingParentItems = async () => {
+      setIsLoadingExistingParentItems(true)
+
+      try {
+        const response = await api.items.list(
+          { parent_id: formValues.parent_id, limit: 250, sort: 'code-desc' },
+          { signal: controller.signal },
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setExistingParentItems(normalizeListResponse(response))
+      } catch (error) {
+        if (!isMounted || error?.name === 'AbortError') {
+          return
+        }
+
+        setExistingParentItems([])
+        setErrorMessage(error?.message || 'Failed to load existing SKU for this parent.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingExistingParentItems(false)
+        }
+      }
+    }
+
+    loadExistingParentItems()
 
     return () => {
       isMounted = false
@@ -1371,10 +1419,8 @@ function DialogCreateItem({
     if (name === 'parent_id') {
       setParentVariantAttributes([])
       setVariantSelections({})
-
-      if (!value) {
-        setIsParentSectionOpen(true)
-      }
+      setExistingParentItems([])
+      setIsParentSectionOpen(!value)
     }
   }
 
@@ -2060,13 +2106,45 @@ function DialogCreateItem({
                     <div className="parent-create-popup__section">
                       <div className="register-user-popup__grid item-create-popup__identity-grid" style={{ rowGap: '12px' }}>
                         {itemFields
-                          .filter((field) =>
-                            [
-                              'parent_id',
-                            ].includes(field.name),
-                          )
+                          .filter((field) => ['parent_id'].includes(field.name))
                           .map(renderField)}
                       </div>
+
+                      {formValues.parent_id ? (
+                        <div className="item-create-popup__existing-skus">
+                          <p className="item-create-popup__existing-skus-title">
+                            Existing SKU on this Parent
+                            {!isLoadingExistingParentItems ? ` (${existingParentItems.length})` : ''}
+                          </p>
+
+                          {isLoadingExistingParentItems ? (
+                            <p className="register-user-popup__hint">Loading existing SKU...</p>
+                          ) : existingParentItems.length > 0 ? (
+                            <ul className="item-create-popup__existing-skus-list">
+                              {existingParentItems.map((item) => (
+                                <li key={item.id} className="item-create-popup__existing-sku-row">
+                                  <span className="item-create-popup__existing-sku-code">
+                                    {item.item_code}
+                                  </span>
+                                  <span className="item-create-popup__existing-sku-name">
+                                    {item.item_name}
+                                    {item.variant_summary ? ` — ${item.variant_summary}` : ''}
+                                  </span>
+                                  {Number(item.is_active) === 0 ? (
+                                    <span className="item-create-popup__existing-sku-inactive">
+                                      Inactive
+                                    </span>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="register-user-popup__hint">
+                              There is no SKU under this parent yet.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

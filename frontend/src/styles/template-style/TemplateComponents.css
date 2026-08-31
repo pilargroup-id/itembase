@@ -1833,6 +1833,7 @@ select {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  min-height: 30px;
 }
 
 .dashboard-home .status-badge {
@@ -7728,6 +7729,76 @@ select {
   line-height: 1;
   overflow: visible;
   text-overflow: clip;
+  white-space: nowrap;
+}
+
+.item-create-popup__existing-skus {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(26, 42, 87, 0.1);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.76);
+}
+
+.item-create-popup__existing-skus-title {
+  margin: 0;
+  color: #1a2a57;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.item-create-popup__existing-skus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 160px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.item-create-popup__existing-sku-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(26, 42, 87, 0.08);
+  font-size: 0.8rem;
+}
+
+.item-create-popup__existing-sku-code {
+  flex-shrink: 0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(42, 157, 143, 0.12);
+  color: #1a2a57;
+  font-weight: 700;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.item-create-popup__existing-sku-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #344054;
+}
+
+.item-create-popup__existing-sku-inactive {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(180, 35, 24, 0.1);
+  color: #b42318;
+  font-weight: 700;
+  font-size: 0.68rem;
   white-space: nowrap;
 }
 

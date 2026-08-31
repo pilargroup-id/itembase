@@ -14,6 +14,20 @@ export const parentFilterConfig = [
         getValue: (parent) => String(parent.status ?? "").toLowerCase(),
     },
     {
+        key: "skuStatus",
+        apiParam: "has_sku",
+        label: "SKU",
+        placeholder: "All SKU Status",
+        searchPlaceholder: "Search SKU status...",
+        emptyMessage: "SKU status not found.",
+        searchable: false,
+        options: [
+            { value: "yes", label: "Sudah Ada SKU" },
+            { value: "no", label: "Belum Ada SKU" },
+        ],
+        getValue: (parent) => (Number(parent.item_count ?? 0) > 0 ? "yes" : "no"),
+    },
+    {
         key: "mainCategory",
         apiParam: "main_category",
         label: "Main Category",
