@@ -42,9 +42,7 @@ const config = {
     location: process.env.BIGQUERY_LOCATION || 'US',
   },
   gsheet: {
-    spreadsheetId:
-      process.env.GSHEET_SPREADSHEET_ID ||
-      '1dC97umnpd5ioXEaBte7F_cIAzf32WU0CVlxbJf8qEKs',
+    spreadsheetId: process.env.GSHEET_SPREADSHEET_ID,
     writeChunkRows: Math.max(
       parseInt(process.env.GSHEET_WRITE_CHUNK_ROWS, 10) || 1000,
       100
