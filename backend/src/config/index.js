@@ -65,11 +65,6 @@ if (!config.pilargroup.internalSyncSecret) {
   process.exit(1);
 }
 
-if (!config.gsheet.spreadsheetId) {
-  console.error('[config] GSHEET_SPREADSHEET_ID is not set. Exiting.');
-  process.exit(1);
-}
-
 if (config.app.env === 'development' && config.dev.authEnabled) {
   if (!config.dev.authUsername || !config.dev.authPassword) {
     console.error('[config] DEV_AUTH_ENABLED=true but DEV_AUTH_USERNAME or DEV_AUTH_PASSWORD is missing. Exiting.');

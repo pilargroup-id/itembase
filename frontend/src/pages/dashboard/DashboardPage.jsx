@@ -234,7 +234,7 @@ function DashboardCardMoreOptions({ ariaLabel, options, value, onChange }) {
   )
 }
 
-function DashboardPage({ activePage }) {
+function DashboardPage({ activePage, isAuthReady = true }) {
   const currentMonthKey = useMemo(() => getMonthKey(new Date()), [])
   const [summary, setSummary] = useState({
     totalParents: 0,
@@ -353,6 +353,10 @@ function DashboardPage({ activePage }) {
   )
 
   useEffect(() => {
+    if (!isAuthReady) {
+      return undefined
+    }
+
     let isCurrent = true
     const controller = new AbortController()
 
@@ -405,7 +409,7 @@ function DashboardPage({ activePage }) {
       isCurrent = false
       controller.abort()
     }
-  }, [])
+  }, [isAuthReady])
 
   return (
     <section className="dashboard-home" aria-label={activePage.title}>

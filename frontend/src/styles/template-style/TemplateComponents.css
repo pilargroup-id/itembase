@@ -3797,7 +3797,8 @@ select {
 }
 
 .mtickets-table .users-table th {
-  background: rgba(26, 42, 87, 0.05);
+  /* Solid (not the old 5%-alpha navy) so the body doesn't show through while scrolling. */
+  background: #f4f4f7;
   padding: 0.82rem 0.88rem;
   font-size: 0.72rem;
 }
@@ -5614,7 +5615,7 @@ select {
 
 .users-table-wrapper--resized {
   scrollbar-width: thin;
-  scrollbar-color: rgba(42, 157, 143, 0.58) rgba(24, 43, 88, 0.06);
+  scrollbar-color: rgba(127, 127, 127, 0.55) rgba(24, 43, 88, 0.06);
 }
 
 .users-table-wrapper--resized::-webkit-scrollbar {
@@ -5628,11 +5629,11 @@ select {
 
 .users-table-wrapper--resized::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(42, 157, 143, 0.58);
+  background: rgba(127, 127, 127, 0.55);
 }
 
 .users-table-wrapper--resized::-webkit-scrollbar-thumb:hover {
-  background: rgba(31, 130, 119, 0.78);
+  background: rgba(90, 90, 90, 0.75);
 }
 
 .users-table__identity-copy {

@@ -240,6 +240,7 @@ function App() {
   const [activePath, setActivePath] = useState(getCurrentPath)
   const [authUser, setAuthUser] = useState(getStoredAuthUser)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isAuthReady, setIsAuthReady] = useState(false)
   const [authError, setAuthError] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -262,6 +263,8 @@ function App() {
     } else {
       api.clearToken()
     }
+
+    setIsAuthReady(true)
 
     return () => {
       api.setTokenGetter(null)
@@ -421,6 +424,7 @@ function App() {
                 activePage={activePage}
                 searchQuery={searchQuery}
                 onNavigate={navigateToPage}
+                isAuthReady={isAuthReady}
               />
             ) : isParentsPage ? (
               <ParentsPage
