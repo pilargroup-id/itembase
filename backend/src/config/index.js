@@ -36,6 +36,18 @@ const config = {
     password: process.env.DB_PASSWORD || '',
     name: process.env.DB_NAME || 'itembase',
   },
+  bigquery: {
+    projectId: process.env.BIGQUERY_PROJECT_ID || 'even-gearbox-255203',
+    dataset: process.env.BIGQUERY_DATASET || 'itembase',
+    location: process.env.BIGQUERY_LOCATION || 'US',
+  },
+  gsheet: {
+    spreadsheetId: process.env.GSHEET_SPREADSHEET_ID,
+    writeChunkRows: Math.max(
+      parseInt(process.env.GSHEET_WRITE_CHUNK_ROWS, 10) || 1000,
+      100
+    ),
+  },
   dev: {
     authEnabled: process.env.DEV_AUTH_ENABLED === 'true',
     authUsername: process.env.DEV_AUTH_USERNAME,
@@ -50,6 +62,11 @@ if (!config.jwt.secret) {
 
 if (!config.pilargroup.internalSyncSecret) {
   console.error('[config] INTERNAL_SYNC_SECRET is not set. Exiting.');
+  process.exit(1);
+}
+
+if (!config.gsheet.spreadsheetId) {
+  console.error('[config] GSHEET_SPREADSHEET_ID is not set. Exiting.');
   process.exit(1);
 }
 
