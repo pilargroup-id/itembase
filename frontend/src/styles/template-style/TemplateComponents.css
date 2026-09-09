@@ -2,8 +2,12 @@
 
 :root {
   font-family: 'Manrope', 'Segoe UI', sans-serif;
+  color-scheme: light;
   --text: #1f2a44;
   --page-background: #edf3f9;
+  --surface: #ffffff;
+  --surface-muted: #f8f9fa;
+  --border-color: rgba(26, 42, 87, 0.1);
   --primary-blue: #1a2a57;
   --secondary-blue: #2d4a8c;
   --accent-teal: #2a9d8f;
@@ -28,6 +32,33 @@
   --radius-lg: 28px;
   --radius-md: 20px;
   --radius-sm: 14px;
+}
+
+/* Theme tokens. Add data-theme="dark" to #root (or body) to opt into dark mode. */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --text: #e5edf8;
+  --page-background: #0f172a;
+  --surface: #17233b;
+  --surface-muted: #1e2d48;
+  --border-color: rgba(148, 163, 184, 0.2);
+  --light-gray: #243451;
+  --sidebar-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --panel-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --text: #e5edf8;
+    --page-background: #0f172a;
+    --surface: #17233b;
+    --surface-muted: #1e2d48;
+    --border-color: rgba(148, 163, 184, 0.2);
+    --light-gray: #243451;
+    --sidebar-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    --panel-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
+  }
 }
 
 * {
@@ -2113,9 +2144,9 @@ select {
 
 .dashboard-popup {
   width: min(100%, 480px);
-  border: 1px solid rgba(26, 42, 87, 0.12);
+  border: 1px solid var(--border-color);
   border-radius: 24px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 28px 80px rgba(10, 18, 40, 0.32);
   overflow: hidden;
 }
@@ -5433,7 +5464,9 @@ select {
   z-index: 2;
   padding: 1rem;
   border-bottom: 1px solid rgba(26, 42, 87, 0.08);
-  background: rgba(24, 43, 88, 0.04);
+  /* Opaque background keeps table rows from showing through while scrolling. */
+  background: var(--surface, #ffffff);
+  box-shadow: 0 2px 0 rgba(26, 42, 87, 0.05);
   color: var(--neutral-gray);
   font-size: 0.76rem;
   font-family: 'IBM Plex Mono', monospace;
@@ -10145,33 +10178,67 @@ select {
   }
 }
 
-/* Laptop-width refinements (~1025px-1600px): most dialogs and grids only get a "roomier"
-   treatment below 1024px (tablet/mobile) or stay at full desktop density above that, so a
-   typical laptop window (1366-1536px) always saw the densest 4/5-column layouts and dialogs
-   stretched almost edge-to-edge (e.g. the item-create-popup matrix variant at 1560px wide).
-   This tier keeps that same "roomier" spacing for laptop-sized windows too. */
+/* Keep laptop windows compact so the interface does not feel zoomed in. */
 @media (min-width: 1025px) and (max-width: 1600px) {
+  :root {
+    --sidebar-width: 240px;
+    --sidebar-collapsed-width: 68px;
+  }
+
   .dashboard-main {
-    padding: 28px;
+    padding: 16px;
   }
 
   .dashboard-home__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .dashboard-popup-overlay {
-    padding: 40px;
+    padding: 24px;
   }
 
   .item-create-popup {
-    width: min(100%, 1040px);
+    width: min(100%, 960px);
   }
 
   .item-create-popup.item-create-popup--matrix {
-    width: min(100%, 1240px);
+    width: min(100%, 1120px);
   }
 
   .item-create-popup:not(.item-create-popup--compact) .register-user-popup__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Laptop screens commonly have less vertical space and are often rendered with
+   display scaling. Keep the shell dense while preserving the monitor layout. */
+@media (min-width: 1025px) and (max-width: 1600px) and (max-height: 1000px) {
+  .sidebar-logo {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .sidebar-profile {
+    padding: 1rem;
+  }
+
+  .sidebar-nav {
+    padding: 1rem 0;
+  }
+
+  .nav-item {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .header-content {
+    padding: 1rem 1.25rem 0.85rem;
+  }
+
+  .header-brand-logo {
+    height: 44px;
+  }
+
+  .dashboard-main {
+    padding: 14px 16px;
   }
 }
