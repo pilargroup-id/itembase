@@ -181,6 +181,7 @@ select {
 }
 
 .sidebar-logo {
+  flex-shrink: 0;
   padding: 2rem 1.5rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
@@ -275,17 +276,21 @@ select {
 .sidebar-bottom {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
   padding: 1.5rem 0;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-teal) rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-bottom {
+  flex-shrink: 0;
   padding: 1rem 0;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -312,11 +317,12 @@ select {
 
 .nav-item {
   position: relative;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 0 8px;
-  padding: 12px 1.5rem;
+  padding: 13px 1.5rem;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
@@ -440,6 +446,7 @@ select {
 }
 
 .nav-submenu {
+  flex-shrink: 0;
   display: grid;
   gap: 4px;
   max-height: 0;
@@ -3759,7 +3766,7 @@ select {
 }
 
 .mtickets-table .users-table th {
-  background: #f4f7fb;
+  background: rgba(26, 42, 87, 0.05);
   padding: 0.82rem 0.88rem;
   font-size: 0.72rem;
 }
@@ -3815,16 +3822,31 @@ select {
 
 .parent-table-shell .mtickets-table .users-table th,
 .parent-table-shell .mtickets-table .users-table td {
-  padding: 0.58rem 0.42rem;
-  font-size: 0.72rem;
+  padding: 0.62rem 0.55rem;
+  font-size: 0.76rem;
   line-height: 1.35;
+}
+
+.parent-table-shell .mtickets-table .users-table td {
   white-space: normal;
   word-break: break-word;
 }
 
 .parent-table-shell .mtickets-table .users-table th {
-  font-size: 0.58rem;
-  line-height: 1.25;
+  padding-right: 1.7rem;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-overflow: clip;
+}
+
+.parent-table-shell .mtickets-table .users-table th.users-table__action-header {
+  padding-right: 0.55rem;
+}
+
+.parent-table-shell .mtickets-table .users-table__action-header .users-table__resize-control {
+  display: none;
 }
 
 .parent-table-shell .mtickets-table .users-table__identity {
@@ -5431,11 +5453,11 @@ select {
 .users-table__resize-control {
   position: absolute;
   top: 50%;
-  right: 5px;
+  right: 3px;
   z-index: 3;
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  height: 16px;
   overflow: hidden;
   transform: translateY(-50%);
   border: 0;
@@ -5450,49 +5472,29 @@ select {
   opacity: 1;
 }
 
-.users-table__resize-button {
-  width: 16px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #61708a;
-  cursor: pointer;
-  font: 700 0.68rem/1 'IBM Plex Mono', monospace;
-}
-
-.users-table__resize-button:hover,
-.users-table__resize-button:focus-visible {
-  outline: none;
-  background: transparent;
-  color: var(--accent-teal-dark);
-}
-
 .users-table__col-resizer {
   position: relative;
-  width: 7px;
-  height: 22px;
+  width: 14px;
+  height: 16px;
   flex-shrink: 0;
   cursor: col-resize;
   touch-action: none;
 }
 
 .users-table__col-resizer::after {
-  content: '';
+  content: '|';
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: rgba(26, 42, 87, 0.2);
-  transition: background 0.15s ease;
+  inset: 0;
+  color: #61708a;
+  font: 700 0.56rem/16px 'IBM Plex Mono', monospace;
+  text-align: center;
+  transition: color 0.15s ease;
 }
 
 .users-table__col-resizer:hover::after,
 .users-table__col-resizer:focus-visible::after,
 .users-table__th--resizing .users-table__col-resizer::after {
-  background: rgba(42, 157, 143, 0.55);
+  color: var(--accent-teal-dark);
 }
 
 .users-table__col-resizer:focus-visible {
@@ -10140,5 +10142,36 @@ select {
   .team-performance-chart__legend-item {
     width: 100%;
     justify-content: flex-start;
+  }
+}
+
+/* Laptop-width refinements (~1025px-1600px): most dialogs and grids only get a "roomier"
+   treatment below 1024px (tablet/mobile) or stay at full desktop density above that, so a
+   typical laptop window (1366-1536px) always saw the densest 4/5-column layouts and dialogs
+   stretched almost edge-to-edge (e.g. the item-create-popup matrix variant at 1560px wide).
+   This tier keeps that same "roomier" spacing for laptop-sized windows too. */
+@media (min-width: 1025px) and (max-width: 1600px) {
+  .dashboard-main {
+    padding: 28px;
+  }
+
+  .dashboard-home__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-popup-overlay {
+    padding: 40px;
+  }
+
+  .item-create-popup {
+    width: min(100%, 1040px);
+  }
+
+  .item-create-popup.item-create-popup--matrix {
+    width: min(100%, 1240px);
+  }
+
+  .item-create-popup:not(.item-create-popup--compact) .register-user-popup__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

@@ -391,12 +391,6 @@ function DataTable({
     })
   }
 
-  const handleResizeButtonClick = (event, column, direction) => {
-    event.preventDefault()
-    event.stopPropagation()
-    resizeColumnByStep(column, direction)
-  }
-
   const handleResizeFocus = () => {
     if (!hasCustomColumnWidths) {
       setColumnWidths(lockAllColumnWidths())
@@ -479,21 +473,10 @@ function DataTable({
                     .filter(Boolean)
                     .join(' ')}
                   style={column.headerStyle}
+                  title={typeof column.header === 'string' ? column.header : undefined}
                 >
                   {column.header}
                   <span className="users-table__resize-control">
-                    <button
-                      type="button"
-                      className="users-table__resize-button"
-                      aria-label={`Perkecil kolom ${
-                        typeof column.header === 'string' ? column.header : column.key
-                      }`}
-                      title="Perkecil kolom"
-                      onClick={(event) => handleResizeButtonClick(event, column, -1)}
-                    >
-                      &lt;
-                    </button>
-
                     <span
                       className="users-table__col-resizer"
                       role="separator"
@@ -516,17 +499,6 @@ function DataTable({
                       onClick={(event) => event.stopPropagation()}
                     />
 
-                    <button
-                      type="button"
-                      className="users-table__resize-button"
-                      aria-label={`Perlebar kolom ${
-                        typeof column.header === 'string' ? column.header : column.key
-                      }`}
-                      title="Perlebar kolom"
-                      onClick={(event) => handleResizeButtonClick(event, column, 1)}
-                    >
-                      &gt;
-                    </button>
                   </span>
                 </th>
               ))}

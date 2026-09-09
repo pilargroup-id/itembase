@@ -485,8 +485,8 @@ const columns = [
     {
         key: "identity",
         header: "Parent Item",
-        headerStyle: { width: "12%" },
-        cellStyle: { width: "12%" },
+        headerStyle: { width: "11%" },
+        cellStyle: { width: "11%" },
         render: (parent) => (
             <DataTableIdentity
                 title={parent.parent_name || parent.item_name || "-"}
@@ -533,22 +533,22 @@ const columns = [
 {
         key: "brandCategory",
         header: "Brand Category",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
+        headerStyle: { width: "10%" },
+        cellStyle: { width: "10%" },
         render: (parent) => renderParentValue(parent.category?.brand_category),
     },
     {
         key: "itemType",
         header: "Item Source",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
+        headerStyle: { width: "8%" },
+        cellStyle: { width: "8%" },
         render: (parent) => renderParentValue(parent.item_type?.name),
     },
     {
         key: "port",
         header: "Port",
-        headerStyle: { width: "6%" },
-        cellStyle: { width: "6%" },
+        headerStyle: { width: "7%" },
+        cellStyle: { width: "7%" },
         render: (parent) => renderParentValue(formatParentPorts(parent)),
     },
 ]
@@ -748,8 +748,8 @@ function DataTableParents({
         {
             key: "itemName",
             header: "Item Name",
-            headerStyle: { width: "13%" },
-            cellStyle: { width: "13%" },
+            headerStyle: { width: "11%" },
+            cellStyle: { width: "11%" },
             render: (parent) => (
                 <DataTableIdentity
                     title={parent.item_name || "-"}
