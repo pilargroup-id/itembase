@@ -2618,6 +2618,7 @@ select {
 }
 
 .mtickets-table .users-table {
+  --users-table-header-background: #f4f4f7;
   min-width: 1140px;
 }
 
@@ -5383,6 +5384,8 @@ select {
 }
 
 .users-table-wrapper {
+  position: relative;
+  isolation: isolate;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -5453,6 +5456,7 @@ select {
 }
 
 .users-table {
+  --users-table-header-background: var(--surface, #ffffff);
   width: 100%;
   min-width: 780px;
   border-collapse: separate;
@@ -5462,18 +5466,35 @@ select {
 .users-table th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 4;
   padding: 1rem;
   border-bottom: 1px solid rgba(26, 42, 87, 0.08);
   /* Opaque background keeps table rows from showing through while scrolling. */
-  background: var(--surface, #ffffff);
-  box-shadow: 0 2px 0 rgba(26, 42, 87, 0.05);
+  background: var(--users-table-header-background, var(--surface, #ffffff));
+  box-shadow:
+    inset 0 -1px 0 var(--border-color, rgba(26, 42, 87, 0.1)),
+    0 3px 10px rgba(17, 38, 75, 0.08);
   color: var(--neutral-gray);
   font-size: 0.76rem;
   font-family: 'IBM Plex Mono', monospace;
   letter-spacing: 0.08em;
   text-align: left;
   text-transform: uppercase;
+}
+
+.users-table__head,
+.users-table__head-row {
+  background: var(--users-table-header-background, var(--surface, #ffffff));
+}
+
+.users-table__head th,
+.dashboard-canvas__table .users-table__head th,
+.mtickets-table .users-table__head th,
+.parent-table-shell .mtickets-table .users-table__head th,
+.variant-table-card .parent-table-shell .mtickets-table .users-table__head th {
+  z-index: 5;
+  background: var(--users-table-header-background, var(--surface, #ffffff));
+  background-clip: border-box;
 }
 
 .users-table__th {

@@ -450,8 +450,8 @@ function DataTable({
             ) : null}
           </colgroup>
 
-          <thead>
-            <tr>
+          <thead className="users-table__head">
+            <tr className="users-table__head-row">
               {hasDetail && detail.position === 'left' ? (
                 <th scope="col" ref={detailLeftHeaderRef} className="users-table__detail-header">
                   {detail.columnLabel ?? ''}
