@@ -3,7 +3,7 @@ import DataTableParents from '../../../components/table/dekstop/items/dataTableP
 function ParentsPage({ activePage, searchQuery, onSearchQueryChange }) {
   return (
     <section
-      className="dashboard-panel users-table-card parents-table-card"
+      className="parents-table-card parents-table-page"
       aria-label={activePage.title}
     >
       <DataTableParents

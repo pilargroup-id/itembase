@@ -483,13 +483,14 @@ function DataTableParents({
             </div>
 
             <DataTable
-                className="mtickets-table parent-table-grid"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(parent) => parent.id ?? parent.pic_id ?? parent.parent_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditParent

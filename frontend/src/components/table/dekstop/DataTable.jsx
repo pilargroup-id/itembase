@@ -255,6 +255,7 @@ function DataTable({
   tableMessage = '',
   emptyMessage,
   className = '',
+  autoHeight = true,
   onRowClick,
   getRowClassName,
 }) {
@@ -450,7 +451,7 @@ function DataTable({
           getRowId={(row) => rowMeta.rowToId.get(row)}
           getRowHeight={() => 'auto'}
           getEstimatedRowHeight={() => ESTIMATED_ROW_HEIGHT}
-          autoHeight
+          autoHeight={autoHeight}
           disableColumnMenu
           disableRowSelectionOnClick
           onRowClick={handleRowClick}

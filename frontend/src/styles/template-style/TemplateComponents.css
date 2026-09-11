@@ -2359,6 +2359,16 @@ select {
   overflow-y: visible;
 }
 
+.parents-table-page {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
 .parents-table-card .users-table-card__header {
   position: relative;
   z-index: 1;
@@ -3633,9 +3643,9 @@ select {
 .parent-table-grid.users-table-wrapper {
   margin-top: 0;
   border-color: rgba(26, 42, 87, 0.1);
-  border-radius: 8px;
+  border-radius: 0;
   background: #ffffff;
-  box-shadow: 0 10px 26px rgba(17, 38, 75, 0.06);
+  box-shadow: none;
 }
 
 .parent-table-grid .MuiDataGrid-columnHeaders,
@@ -3654,6 +3664,63 @@ select {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.parent-items-table-grid .MuiDataGrid-columnHeaders,
+.parent-items-table-grid .MuiDataGrid-columnHeader {
+  background: linear-gradient(180deg, rgba(26, 42, 87, 0.08) 0%, rgba(26, 42, 87, 0.12) 100%);
+}
+
+.parent-items-table-grid .MuiDataGrid-columnHeader {
+  border-bottom-color: rgba(26, 42, 87, 0.22);
+}
+
+.parent-items-table-grid .MuiDataGrid-columnHeaderTitle {
+  color: var(--primary-blue);
+}
+
+.parent-items-table-grid .MuiDataGrid-columnSeparator {
+  color: rgba(26, 42, 87, 0.2);
+}
+
+.parent-items-table-grid.users-table-wrapper {
+  height: clamp(420px, calc(100vh - 280px), 620px);
+  min-height: 360px;
+  overflow: hidden;
+}
+
+.parent-items-table-grid .MuiDataGrid-root {
+  height: 100%;
+}
+
+/* MUI DataGrid keeps `.MuiDataGrid-virtualScroller`'s native scrollbar hidden on purpose and
+   renders its own floating `.MuiDataGrid-scrollbar` thumb instead. Styling the virtualScroller's
+   native scrollbar re-enables it alongside MUI's own thumb, producing a visible double scrollbar -
+   so style MUI's actual scrollbar element instead of the (intentionally hidden) scroller. */
+.parent-items-table-grid .MuiDataGrid-scrollbar {
+  scrollbar-color: #9aa1ac #e8eaed;
+  scrollbar-width: thin;
+}
+
+.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-track {
+  background: #e8eaed;
+}
+
+.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb {
+  border: 3px solid #e8eaed;
+  border-radius: 999px;
+  background: #9aa1ac;
+  background-clip: padding-box;
+}
+
+.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #7c828d;
+  background-clip: padding-box;
 }
 
 .parent-table-grid .MuiDataGrid-cell {
@@ -5242,6 +5309,29 @@ select {
 
   .parent-table-shell .users-table-wrapper {
     margin-top: 0;
+  }
+
+  /* Parents table: fill the viewport instead of an outer page scroll, so the
+     grid's own virtual scroller is the only scrollbar and more rows fit. */
+  .dashboard-main--parents:has(.parents-table-page) {
+    overflow: hidden;
+  }
+
+  .dashboard-content--parents:has(.parents-table-page) {
+    height: 100%;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .parents-table-card.parents-table-page {
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .parent-items-table-grid.users-table-wrapper {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 320px;
   }
 }
 
