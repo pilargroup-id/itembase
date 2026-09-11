@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import BackgroundMain from './components/template/BackgroundMain.jsx'
 import Header from './components/template/Header.jsx'
-import Sidebar from './components/template/Sidebar.jsx'
 import { AlertActionProvider } from './components/alert/alert-action/AlertActionContext.jsx'
 import ItemPages from './pages/items/items/ItemPages.jsx'
 import ParentsPage from './pages/items/parents/ParentsPage.jsx'
@@ -242,10 +240,7 @@ function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isAuthReady, setIsAuthReady] = useState(false)
   const [authError, setAuthError] = useState(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [, setLastUpdated] = useState(() => new Date())
 
   useEffect(() => {
     api.setTokenGetter(getStoredAuthToken)
@@ -346,8 +341,8 @@ function App() {
   const isActivityLogsPage = currentPagePath === '/activity-logs'
   const isItemManagementTablePage =
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isSubBrandsPage || isTypePage || isPortsPage || isUomsPage
-  const sidebarUserName = getAuthUserName(authUser, isAuthLoading)
-  const sidebarUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
+  const headerUserName = getAuthUserName(authUser, isAuthLoading)
+  const headerUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
 
   const navigateToPage = (nextPath) => {
     if (!nextPath || typeof window === 'undefined') {
@@ -360,57 +355,15 @@ function App() {
     }
   }
 
-  const shellClassName = [
-    'dashboard-shell',
-    sidebarCollapsed ? 'dashboard-shell--sidebar-collapsed' : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
-
   return (
     <AlertActionProvider>
-    <div className={shellClassName}>
-      <BackgroundMain />
-
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        mobileOpen={mobileSidebarOpen}
-        activePath={currentPagePath}
-        userName={sidebarUserName}
-        userRole={sidebarUserRole}
-        onToggleCollapse={() => setSidebarCollapsed((currentValue) => !currentValue)}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-      />
-
-      <button
-        type="button"
-        className={`sidebar-overlay${mobileSidebarOpen ? ' active' : ''}`}
-        aria-label="Close sidebar"
-        onClick={() => setMobileSidebarOpen(false)}
-      />
-
+    <div className="dashboard-shell">
       <div className="dashboard-stage">
         <Header
           title="Item Base"
-          showMenuButton
-          onMenuToggle={() => setMobileSidebarOpen(true)}
-          breadcrumb={[
-            { label: 'Item Base', href: '#' },
-            { label: activePage.title, href: '#', active: true },
-          ]}
-          searchProps={{
-            value: searchQuery,
-            placeholder: isParentsPage ? 'Cari parent...' : 'Cari data...',
-            ariaLabel: isParentsPage ? 'Cari parent' : 'Cari data',
-            onChange: (event) => {
-              setSearchQuery(event.target.value)
-            },
-          }}
-          notificationProps={{
-            ariaLabel: 'Open notifications',
-            modalTitle: 'Notifications',
-          }}
-          onRefresh={() => setLastUpdated(new Date())}
+          activePath={currentPagePath}
+          userName={headerUserName}
+          userRole={headerUserRole}
         />
 
         <main

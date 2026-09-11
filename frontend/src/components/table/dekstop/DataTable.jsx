@@ -1,14 +1,12 @@
-import { Fragment, isValidElement, useRef, useState } from 'react'
+import { isValidElement, useMemo, useState } from 'react'
+import { DataGrid } from '@mui/x-data-grid'
+import { Dialog, DialogContent } from '@mui/material'
 
 import CreateButton from '../../button/CreateButton.jsx'
 import { ChevronDown } from '../../template/TemplateIcons.jsx'
 
 const MIN_COLUMN_WIDTH = 64
-const DETAIL_LEFT_COLUMN_KEY = '__detail-left'
-const DETAIL_RIGHT_COLUMN_KEY = '__detail-right'
-const DEFAULT_DETAIL_LEFT_WIDTH = 56
-const DEFAULT_DETAIL_RIGHT_WIDTH = 64
-const KEYBOARD_RESIZE_STEP = 12
+const ESTIMATED_ROW_HEIGHT = 72
 
 function getInitials(value = '') {
   return String(value)
@@ -29,10 +27,6 @@ function normalizeList(items) {
   }
 
   return items.map((item) => String(item).trim()).filter(Boolean)
-}
-
-function sanitizeId(value) {
-  return String(value).replace(/[^a-zA-Z0-9_-]/g, '-') || 'row'
 }
 
 function resolveTemplateValue(value, row, index) {
@@ -56,25 +50,9 @@ function normalizePageSizeOptions(options, pageSize) {
   return normalizedOptions
 }
 
-function getColumnWidthStyle(column, columnWidths) {
-  const resizedWidth = columnWidths[column.key]
-
-  if (resizedWidth) {
-    return `${resizedWidth}px`
-  }
-
-  return (
-    column.headerStyle?.width ??
-    column.cellStyle?.width ??
-    column.headerStyle?.minWidth ??
-    column.cellStyle?.minWidth ??
-    undefined
-  )
-}
-
-function getColumnValue(column, row, index, context) {
+function getColumnValue(column, row, index) {
   if (typeof column.render === 'function') {
-    return column.render(row, index, context)
+    return column.render(row, index)
   }
 
   if (typeof column.accessor === 'function') {
@@ -153,7 +131,7 @@ function renderDetailValue(value) {
 }
 
 function getDetailSections(detail, row, index) {
-  if (!detail) {
+  if (!detail || !row) {
     return []
   }
 
@@ -162,6 +140,55 @@ function getDetailSections(detail, row, index) {
   }
 
   return detail.sections ?? []
+}
+
+function resolveColumnSizing(column) {
+  const widthSource = column.headerStyle?.width ?? column.cellStyle?.width
+  const minWidthSource = column.headerStyle?.minWidth ?? column.cellStyle?.minWidth
+  const sizing = {}
+
+  if (typeof widthSource === 'string' && widthSource.trim().endsWith('%')) {
+    const percent = parseFloat(widthSource)
+
+    if (Number.isFinite(percent) && percent > 0) {
+      sizing.flex = percent / 100
+    }
+  } else if (widthSource !== undefined) {
+    const pixelWidth = typeof widthSource === 'number' ? widthSource : parseFloat(widthSource)
+
+    if (Number.isFinite(pixelWidth) && pixelWidth > 0) {
+      sizing.width = pixelWidth
+    }
+  }
+
+  if (minWidthSource !== undefined) {
+    const pixelMinWidth = typeof minWidthSource === 'number' ? minWidthSource : parseFloat(minWidthSource)
+
+    if (Number.isFinite(pixelMinWidth) && pixelMinWidth > 0) {
+      sizing.minWidth = pixelMinWidth
+    }
+  } else if (!sizing.width) {
+    sizing.minWidth = MIN_COLUMN_WIDTH
+  }
+
+  if (!sizing.width && !sizing.flex) {
+    sizing.flex = 1
+  }
+
+  return sizing
+}
+
+function getRestCellStyle(cellStyle) {
+  if (!cellStyle) {
+    return undefined
+  }
+
+  const rest = { ...cellStyle }
+
+  delete rest.width
+  delete rest.minWidth
+
+  return Object.keys(rest).length > 0 ? rest : undefined
 }
 
 export function DataTableStatus({
@@ -227,583 +254,311 @@ function DataTable({
   tableLabel = 'Data table',
   tableMessage = '',
   emptyMessage,
-  idPrefix = 'data-table',
   className = '',
   onRowClick,
   getRowClassName,
 }) {
-  const [expandedRowKey, setExpandedRowKey] = useState(null)
-  const [columnWidths, setColumnWidths] = useState({})
-  const [resizingColumnKey, setResizingColumnKey] = useState(null)
-  const headerRefs = useRef({})
-  const detailLeftHeaderRef = useRef(null)
-  const detailRightHeaderRef = useRef(null)
-  const resizingRef = useRef(null)
+  const [activeDetail, setActiveDetail] = useState(null)
   const hasDetail = Boolean(detail)
-  const hasCustomColumnWidths = Object.keys(columnWidths).length > 0
-  const customTableWidth = hasCustomColumnWidths
-    ? Object.values(columnWidths).reduce((total, width) => total + width, 0)
-    : null
-  const visibleExpandedRowKey = rows.some(
-    (row, index) => String(getRowId(row, index)) === expandedRowKey,
-  )
-    ? expandedRowKey
-    : null
   const resolvedEmptyMessage = emptyMessage ?? tableMessage ?? 'Belum ada data.'
-  const colSpan = columns.length + (hasDetail ? 1 : 0)
   const currentPageSize = Number(pagination?.pageSize)
+  const hasPagination = Boolean(pagination) && Number.isInteger(currentPageSize) && currentPageSize > 0
   const pageSizeOptions = normalizePageSizeOptions(pagination?.pageSizeOptions, currentPageSize)
-  const canChangePageSize =
-    typeof pagination?.onPageSizeChange === 'function' &&
-    Number.isInteger(currentPageSize) &&
-    currentPageSize > 0 &&
-    pageSizeOptions.length > 0
 
-  const handleToggleRow = (rowKey) => {
-    if (!hasDetail) {
-      return
-    }
+  const rowMeta = useMemo(() => {
+    const idToIndex = new Map()
+    const rowToId = new Map()
 
-    setExpandedRowKey((currentRowKey) => (currentRowKey === rowKey ? null : rowKey))
-  }
+    rows.forEach((row, index) => {
+      const rowId = getRowId(row, index)
 
-  const handleRowKeyDown = (event, rowKey) => {
-    if (!hasDetail || (event.key !== 'Enter' && event.key !== ' ')) {
-      return
-    }
-
-    event.preventDefault()
-    handleToggleRow(rowKey)
-  }
-
-  const handleRowClick = (row, index, rowKey) => {
-    onRowClick?.(row, index)
-    handleToggleRow(rowKey)
-  }
-
-  const handlePageSizeChange = (event) => {
-    const nextPageSize = Number(event.target.value)
-
-    if (!Number.isInteger(nextPageSize) || nextPageSize <= 0) {
-      return
-    }
-
-    pagination.onPageSizeChange(nextPageSize)
-  }
-
-  const lockAllColumnWidths = () => {
-    const nextWidths = {}
-
-    if (hasDetail && detail.position === 'left') {
-      nextWidths[DETAIL_LEFT_COLUMN_KEY] =
-        detailLeftHeaderRef.current?.getBoundingClientRect().width ?? DEFAULT_DETAIL_LEFT_WIDTH
-    }
-
-    columns.forEach((column) => {
-      nextWidths[column.key] =
-        headerRefs.current[column.key]?.getBoundingClientRect().width ?? MIN_COLUMN_WIDTH
+      idToIndex.set(rowId, index)
+      rowToId.set(row, rowId)
     })
 
-    if (hasDetail && detail.position !== 'left' && detail.position !== 'none') {
-      nextWidths[DETAIL_RIGHT_COLUMN_KEY] =
-        detailRightHeaderRef.current?.getBoundingClientRect().width ?? DEFAULT_DETAIL_RIGHT_WIDTH
-    }
+    return { idToIndex, rowToId }
+  }, [rows, getRowId])
 
-    return nextWidths
-  }
+  const closeDetail = () => setActiveDetail(null)
+  const openDetail = (row, index) => setActiveDetail({ row, index })
 
-  const handleResizeStart = (event, column) => {
-    event.stopPropagation()
+  const gridColumns = useMemo(() => {
+    const dataColumns = columns.map((column) => {
+      const sizing = resolveColumnSizing(column)
+      const restCellStyle = getRestCellStyle(column.cellStyle)
+      const isStringHeader = typeof column.header === 'string'
 
-    const columnKey = column.key
-    const baseWidths = hasCustomColumnWidths ? columnWidths : lockAllColumnWidths()
-    const startWidth =
-      baseWidths[columnKey] ??
-      headerRefs.current[columnKey]?.getBoundingClientRect().width ??
-      MIN_COLUMN_WIDTH
+      return {
+        field: column.key,
+        headerName: isStringHeader ? column.header : '',
+        renderHeader: isStringHeader ? undefined : () => column.header,
+        headerClassName: column.headerClassName,
+        cellClassName: column.cellClassName,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        ...sizing,
+        renderCell: (params) => {
+          const index = rowMeta.idToIndex.get(params.id) ?? 0
+          const value = renderBasicValue(getColumnValue(column, params.row, index))
 
-    resizingRef.current = {
-      columnKey,
-      startX: event.clientX,
-      startWidth,
-    }
-
-    if (!hasCustomColumnWidths) {
-      setColumnWidths(baseWidths)
-    }
-
-    event.target.setPointerCapture(event.pointerId)
-    setResizingColumnKey(columnKey)
-  }
-
-  const handleResizeMove = (event) => {
-    const resizing = resizingRef.current
-
-    if (!resizing) {
-      return
-    }
-
-    const nextWidth = Math.max(
-      MIN_COLUMN_WIDTH,
-      Math.round(resizing.startWidth + (event.clientX - resizing.startX)),
-    )
-
-    setColumnWidths((current) => ({ ...current, [resizing.columnKey]: nextWidth }))
-  }
-
-  const handleResizeEnd = (event) => {
-    if (!resizingRef.current) {
-      return
-    }
-
-    resizingRef.current = null
-    setResizingColumnKey(null)
-
-    if (event.target.hasPointerCapture?.(event.pointerId)) {
-      event.target.releasePointerCapture(event.pointerId)
-    }
-  }
-
-  const handleResizeKeyDown = (event, column) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-
-    const direction = event.key === 'ArrowRight' ? 1 : -1
-    const step = event.shiftKey ? KEYBOARD_RESIZE_STEP * 2 : KEYBOARD_RESIZE_STEP
-
-    resizeColumnByStep(column, direction, step)
-  }
-
-  const resizeColumnByStep = (column, direction, step = KEYBOARD_RESIZE_STEP) => {
-    const baseWidths = hasCustomColumnWidths ? columnWidths : lockAllColumnWidths()
-    const currentWidth =
-      baseWidths[column.key] ??
-      headerRefs.current[column.key]?.getBoundingClientRect().width ??
-      MIN_COLUMN_WIDTH
-
-    setColumnWidths({
-      ...baseWidths,
-      [column.key]: Math.max(MIN_COLUMN_WIDTH, Math.round(currentWidth + direction * step)),
+          return (
+            <div
+              className="users-table__cell-content"
+              style={{ display: 'flex', alignItems: 'center', width: '100%', ...restCellStyle }}
+            >
+              {value}
+            </div>
+          )
+        },
+      }
     })
-  }
 
-  const handleResizeFocus = () => {
-    if (!hasCustomColumnWidths) {
-      setColumnWidths(lockAllColumnWidths())
+    if (actions.length > 0) {
+      dataColumns.push({
+        field: '__actions',
+        headerName: 'Action',
+        headerClassName: 'users-table__action-header',
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        width: Math.max(96, actions.length * 44),
+        renderCell: (params) => {
+          const index = rowMeta.idToIndex.get(params.id) ?? 0
+          const row = params.row
+
+          return (
+            <div className="users-table__action-group">
+              {actions.map((action) => {
+                if (action.hidden?.(row, index)) {
+                  return null
+                }
+
+                const Icon = action.icon
+                const buttonLabel = action.label ?? action.key ?? 'Action'
+
+                return (
+                  <CreateButton
+                    key={action.key ?? buttonLabel}
+                    variant="accordion"
+                    tone={action.variant === 'danger' ? 'danger' : 'default'}
+                    type="button"
+                    disabled={action.disabled?.(row, index) ?? action.disabled}
+                    aria-label={buttonLabel}
+                    title={buttonLabel}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      action.onClick?.(row, index, event)
+                    }}
+                  >
+                    {Icon ? <Icon size={16} aria-hidden="true" /> : buttonLabel}
+                  </CreateButton>
+                )
+              })}
+            </div>
+          )
+        },
+      })
+    }
+
+    if (hasDetail) {
+      dataColumns.push({
+        field: '__detail',
+        headerName: detail.columnLabel ?? '',
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        width: 110,
+        renderCell: (params) => {
+          const index = rowMeta.idToIndex.get(params.id) ?? 0
+
+          return (
+            <CreateButton
+              variant="detail"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                openDetail(params.row, index)
+              }}
+              title="Buka detail"
+            >
+              {detail.buttonLabel !== '' && detail.buttonLabel !== null && detail.buttonLabel !== undefined ? (
+                <span>{detail.buttonLabel}</span>
+              ) : null}
+              <ChevronDown size={16} aria-hidden="true" />
+            </CreateButton>
+          )
+        },
+      })
+    }
+
+    return dataColumns
+  }, [columns, actions, hasDetail, detail, rowMeta])
+
+  const handleRowClick = (params) => {
+    const index = rowMeta.idToIndex.get(params.id) ?? 0
+
+    onRowClick?.(params.row, index)
+
+    if (hasDetail) {
+      openDetail(params.row, index)
     }
   }
 
-  const handleResetColumnWidths = (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    setColumnWidths({})
+  const handlePaginationModelChange = (model) => {
+    if (!pagination) {
+      return
+    }
+
+    if (model.pageSize !== currentPageSize) {
+      pagination.onPageSizeChange?.(model.pageSize)
+      return
+    }
+
+    if (model.page + 1 !== pagination.currentPage) {
+      pagination.onSelect?.(model.page + 1)
+    }
   }
+
+  const detailRow = activeDetail?.row ?? null
+  const detailIndex = activeDetail?.index ?? 0
+  const detailSections = detailRow ? getDetailSections(detail, detailRow, detailIndex) : []
+  const detailTitle = detailRow ? resolveTemplateValue(detail.title, detailRow, detailIndex) : null
+  const detailDescription = detailRow ? resolveTemplateValue(detail.description, detailRow, detailIndex) : null
+  const detailEyebrow = detailRow ? resolveTemplateValue(detail.eyebrow, detailRow, detailIndex) : null
+
+  const paginationProps = hasPagination
+    ? {
+        paginationMode: 'server',
+        paginationModel: {
+          page: Math.max(0, (Number(pagination.currentPage) || 1) - 1),
+          pageSize: currentPageSize,
+        },
+        onPaginationModelChange: handlePaginationModelChange,
+        pageSizeOptions: pageSizeOptions.length > 0 ? pageSizeOptions : [currentPageSize],
+        rowCount: Math.max(0, Number(pagination.totalPages) || 1) * currentPageSize,
+      }
+    : {}
 
   return (
     <>
-      <div
-        className={[
-          'users-table-wrapper',
-          resizingColumnKey ? 'users-table-wrapper--resizing' : '',
-          hasCustomColumnWidths ? 'users-table-wrapper--resized' : '',
-          className,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <table
-          className="users-table"
+      <div className={['users-table-wrapper', className].filter(Boolean).join(' ')}>
+        <DataGrid
           aria-label={tableLabel}
-          style={
-            hasCustomColumnWidths
-              ? { tableLayout: 'fixed', width: `${customTableWidth}px`, minWidth: '100%' }
-              : undefined
+          rows={rows}
+          columns={gridColumns}
+          getRowId={(row) => rowMeta.rowToId.get(row)}
+          getRowHeight={() => 'auto'}
+          getEstimatedRowHeight={() => ESTIMATED_ROW_HEIGHT}
+          autoHeight
+          disableColumnMenu
+          disableRowSelectionOnClick
+          onRowClick={handleRowClick}
+          getRowClassName={(params) =>
+            getRowClassName?.(params.row, rowMeta.idToIndex.get(params.id) ?? 0) ?? ''
           }
-        >
-          <colgroup>
-            {hasDetail && detail.position === 'left' ? (
-              <col
-                style={{
-                  width: columnWidths[DETAIL_LEFT_COLUMN_KEY]
-                    ? `${columnWidths[DETAIL_LEFT_COLUMN_KEY]}px`
-                    : undefined,
-                }}
-              />
-            ) : null}
-
-            {columns.map((column) => (
-              <col key={column.key} style={{ width: getColumnWidthStyle(column, columnWidths) }} />
-            ))}
-
-            {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
-              <col
-                style={{
-                  width: columnWidths[DETAIL_RIGHT_COLUMN_KEY]
-                    ? `${columnWidths[DETAIL_RIGHT_COLUMN_KEY]}px`
-                    : undefined,
-                }}
-              />
-            ) : null}
-          </colgroup>
-
-          <thead className="users-table__head">
-            <tr className="users-table__head-row">
-              {hasDetail && detail.position === 'left' ? (
-                <th scope="col" ref={detailLeftHeaderRef} className="users-table__detail-header">
-                  {detail.columnLabel ?? ''}
-                </th>
-              ) : null}
-
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  ref={(node) => {
-                    headerRefs.current[column.key] = node
-                  }}
-                  scope="col"
-                  className={[
-                    'users-table__th',
-                    column.headerClassName,
-                    resizingColumnKey === column.key ? 'users-table__th--resizing' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  style={column.headerStyle}
-                  title={typeof column.header === 'string' ? column.header : undefined}
-                >
-                  {column.header}
-                  <span className="users-table__resize-control">
-                    <span
-                      className="users-table__col-resizer"
-                      role="separator"
-                      tabIndex={0}
-                      aria-orientation="vertical"
-                      aria-valuemin={MIN_COLUMN_WIDTH}
-                      aria-valuenow={Math.round(columnWidths[column.key] ?? MIN_COLUMN_WIDTH)}
-                      aria-label={`Geser batas kolom ${
-                        typeof column.header === 'string' ? column.header : column.key
-                      }`}
-                      title="Geser untuk mengubah lebar. Klik dua kali untuk mereset semua kolom."
-                      onPointerDown={(event) => handleResizeStart(event, column)}
-                      onPointerMove={handleResizeMove}
-                      onPointerUp={handleResizeEnd}
-                      onPointerCancel={handleResizeEnd}
-                      onLostPointerCapture={handleResizeEnd}
-                      onFocus={handleResizeFocus}
-                      onKeyDown={(event) => handleResizeKeyDown(event, column)}
-                      onDoubleClick={handleResetColumnWidths}
-                      onClick={(event) => event.stopPropagation()}
-                    />
-
-                  </span>
-                </th>
-              ))}
-
-              {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
-                <th scope="col" ref={detailRightHeaderRef} className="users-table__detail-header">
-                  {detail.columnLabel ?? 'Detail'}
-                </th>
-              ) : null}
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.length > 0 ? (
-              rows.map((row, index) => {
-                const rowId = getRowId(row, index)
-                const rowKey = String(rowId)
-                const safeRowId = sanitizeId(rowKey)
-                const isExpanded = visibleExpandedRowKey === rowKey
-                const isRowInteractive = hasDetail || typeof onRowClick === 'function'
-                const accordionId = `${idPrefix}-accordion-${safeRowId}`
-                const detailSections = getDetailSections(detail, row, index)
-                const detailTitle = resolveTemplateValue(detail?.title, row, index)
-                const detailDescription = resolveTemplateValue(detail?.description, row, index)
-                const detailEyebrow = resolveTemplateValue(detail?.eyebrow, row, index)
-                const rowClassName = [
-                  'users-table__row',
-                  index % 2 === 0 ? 'users-table__row--even' : 'users-table__row--odd',
-                  isRowInteractive ? 'users-table__row--interactive' : '',
-                  isExpanded ? 'users-table__row--expanded' : '',
-                  getRowClassName?.(row, index),
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-
-                return (
-                  <Fragment key={rowKey}>
-                    <tr
-                      className={rowClassName}
-                      onClick={
-                        isRowInteractive ? () => handleRowClick(row, index, rowKey) : undefined
-                      }
-                      onKeyDown={(event) => handleRowKeyDown(event, rowKey)}
-                      tabIndex={hasDetail ? 0 : undefined}
-                      aria-expanded={hasDetail ? isExpanded : undefined}
-                      aria-controls={hasDetail ? accordionId : undefined}
-                    >
-                      {hasDetail && detail.position === 'left' ? (
-                        <td className="users-table__detail-cell" style={{ width: '1%' }}>
-                          <CreateButton
-                            variant="detail"
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              handleToggleRow(rowKey)
-                            }}
-                            aria-expanded={isExpanded}
-                            aria-controls={accordionId}
-                            title={isExpanded ? 'Tutup detail' : 'Buka detail'}
-                            style={{ padding: '0.25rem' }}
-                          >
-                            {detail.buttonLabel !== '' && detail.buttonLabel !== null ? (
-                              <span>{detail.buttonLabel ?? 'Detail'}</span>
-                            ) : null}
-                            <ChevronDown
-                              size={16}
-                              aria-hidden="true"
-                              className={`users-table__detail-icon${
-                                isExpanded ? ' users-table__detail-icon--open' : ''
-                              }`}
-                            />
-                          </CreateButton>
-                        </td>
-                      ) : null}
-
-                      {columns.map((column) => (
-                        <td
-                          key={column.key}
-                          className={column.cellClassName}
-                          style={column.cellStyle}
-                        >
-                          {renderBasicValue(getColumnValue(column, row, index, {
-                            isExpanded,
-                            toggleRow: () => handleToggleRow(rowKey),
-                            accordionId
-                          }))}
-                        </td>
-                      ))}
-
-                      {hasDetail && detail.position !== 'left' && detail.position !== 'none' ? (
-                        <td className="users-table__detail-cell">
-                          <CreateButton
-                            variant="detail"
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              handleToggleRow(rowKey)
-                            }}
-                            aria-expanded={isExpanded}
-                            aria-controls={accordionId}
-                            title={isExpanded ? 'Tutup detail' : 'Buka detail'}
-                          >
-                            {detail.buttonLabel !== '' && detail.buttonLabel !== null ? (
-                              <span>{detail.buttonLabel ?? 'Detail'}</span>
-                            ) : null}
-                            <ChevronDown
-                              size={16}
-                              aria-hidden="true"
-                              className={`users-table__detail-icon${
-                                isExpanded ? ' users-table__detail-icon--open' : ''
-                              }`}
-                            />
-                          </CreateButton>
-                        </td>
-                      ) : null}
-                    </tr>
-
-                    {hasDetail && isExpanded ? (
-                      <tr className="users-table__accordion-row">
-                        <td colSpan={colSpan}>
-                          <div className="users-table__accordion" id={accordionId}>
-                            <div className="users-table__accordion-header">
-                              <div className="users-table__accordion-copy">
-                                <p className="users-table__accordion-eyebrow">
-                                  {detailEyebrow ?? 'Detail'}
-                                </p>
-                                <h3 className="users-table__accordion-title">
-                                  {detailTitle ?? row.name ?? row.title ?? rowId}
-                                </h3>
-                                {detailDescription ? (
-                                  <p className="users-table__accordion-description">
-                                    {detailDescription}
-                                  </p>
-                                ) : null}
-                              </div>
-                            </div>
-
-                            {typeof detail.render === 'function' ? detail.render(row, index) : null}
-
-                            {detailSections.length > 0 ? (
-                              <div className="users-table__detail-shell">
-                                {detailSections.map((section) => (
-                                  <section
-                                    key={section.title}
-                                    className={`users-table__detail-section${
-                                      section.wide ? ' users-table__detail-section--wide' : ''
-                                    }`}
-                                  >
-                                    <div className="users-table__detail-section-header">
-                                      <p className="users-table__detail-section-eyebrow">
-                                        {section.title}
-                                      </p>
-                                    </div>
-
-                                    <dl className="users-table__detail-list">
-                                      {(section.fields ?? []).map((field) => {
-                                        const fieldValue =
-                                          typeof field.render === 'function'
-                                            ? field.render(row, index)
-                                            : resolveTemplateValue(field.value, row, index)
-
-                                        return (
-                                          <div
-                                            key={field.label}
-                                            className={`users-table__detail-row${
-                                              field.kind === 'chips'
-                                                ? ' users-table__detail-row--stacked'
-                                                : ''
-                                            }`}
-                                          >
-                                            <dt className="users-table__detail-label">
-                                              {field.label}
-                                            </dt>
-                                            <dd className="users-table__detail-field">
-                                              {renderDetailValue(fieldValue)}
-                                            </dd>
-                                          </div>
-                                        )
-                                      })}
-                                    </dl>
-                                  </section>
-                                ))}
-                              </div>
-                            ) : null}
-
-                            {actions.length > 0 ? (
-                              <div className="users-table__accordion-actions">
-                                {actions.map((action) => {
-                                  if (action.hidden?.(row, index)) {
-                                    return null
-                                  }
-
-                                  const Icon = action.icon
-
-                                  return (
-                                    <CreateButton
-                                      key={action.key ?? action.label}
-                                      variant="accordion"
-                                      tone={action.variant === 'danger' ? 'danger' : 'default'}
-                                      type="button"
-                                      disabled={action.disabled?.(row, index) ?? action.disabled}
-                                      onClick={(event) => {
-                                        event.stopPropagation()
-                                        action.onClick?.(row, index, event)
-                                      }}
-                                    >
-                                      {Icon ? <Icon size={16} aria-hidden="true" /> : null}
-                                      {action.label}
-                                    </CreateButton>
-                                  )
-                                })}
-                              </div>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    ) : null}
-                  </Fragment>
-                )
-              })
-            ) : (
-              <tr>
-                <td colSpan={colSpan}>
-                  <div className="users-table__empty">{resolvedEmptyMessage}</div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          slots={{
+            noRowsOverlay: () => (
+              <div className="users-table__empty" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {resolvedEmptyMessage}
+              </div>
+            ),
+          }}
+          sx={{
+            border: 'none',
+            borderRadius: 0,
+            fontFamily: 'inherit',
+            fontSize: '0.9rem',
+            color: 'inherit',
+            '& .MuiDataGrid-main': {
+              borderRadius: 0,
+            },
+            '& .MuiDataGrid-cell': {
+              paddingTop: '0.4rem',
+              paddingBottom: '0.4rem',
+              fontFamily: 'inherit',
+            },
+            '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
+              outline: 'none',
+            },
+            '& .MuiDataGrid-columnHeaders': {
+              borderRadius: 0,
+            },
+            '& .MuiDataGrid-columnHeaderTitle': {
+              fontFamily: 'inherit',
+            },
+            '& .MuiDataGrid-footerContainer': {
+              borderTop: '1px solid rgba(26, 42, 87, 0.08)',
+            },
+          }}
+          {...paginationProps}
+        />
       </div>
 
-      {pagination ? (
-        <div className="users-table-pagination">
-          <div className="users-table-pagination__meta">
-            <p className="users-table-pagination__summary">{pagination.summary}</p>
+      {hasDetail ? (
+        <Dialog
+          open={Boolean(activeDetail)}
+          onClose={closeDetail}
+          maxWidth="md"
+          fullWidth
+          slotProps={{
+            paper: { className: ['users-table__accordion-dialog', className].filter(Boolean).join(' ') },
+          }}
+        >
+          <DialogContent className="users-table__accordion">
+            <div className="users-table__accordion-header">
+              <div className="users-table__accordion-copy">
+                <p className="users-table__accordion-eyebrow">{detailEyebrow ?? 'Detail'}</p>
+                <h3 className="users-table__accordion-title">
+                  {detailTitle ?? detailRow?.name ?? detailRow?.title ?? (detailRow ? getRowId(detailRow, detailIndex) : '')}
+                </h3>
+                {detailDescription ? (
+                  <p className="users-table__accordion-description">{detailDescription}</p>
+                ) : null}
+              </div>
+            </div>
 
-            {canChangePageSize ? (
-              <label className="users-table-pagination__page-size">
-                <span>{pagination.pageSizeLabel ?? 'Tampilkan'}</span>
-                <select
-                  className="users-table-pagination__select"
-                  value={currentPageSize}
-                  onChange={handlePageSizeChange}
-                  aria-label={pagination.pageSizeAriaLabel ?? 'Jumlah baris per halaman'}
-                >
-                  {pageSizeOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <span>{pagination.pageSizeSuffix ?? 'baris'}</span>
-              </label>
+            {detailRow && typeof detail.render === 'function' ? detail.render(detailRow, detailIndex) : null}
+
+            {detailSections.length > 0 ? (
+              <div className="users-table__detail-shell">
+                {detailSections.map((section) => (
+                  <section
+                    key={section.title}
+                    className={`users-table__detail-section${
+                      section.wide ? ' users-table__detail-section--wide' : ''
+                    }`}
+                  >
+                    <div className="users-table__detail-section-header">
+                      <p className="users-table__detail-section-eyebrow">{section.title}</p>
+                    </div>
+
+                    <dl className="users-table__detail-list">
+                      {(section.fields ?? []).map((field) => {
+                        const fieldValue =
+                          typeof field.render === 'function'
+                            ? field.render(detailRow, detailIndex)
+                            : resolveTemplateValue(field.value, detailRow, detailIndex)
+
+                        return (
+                          <div
+                            key={field.label}
+                            className={`users-table__detail-row${
+                              field.kind === 'chips' ? ' users-table__detail-row--stacked' : ''
+                            }`}
+                          >
+                            <dt className="users-table__detail-label">{field.label}</dt>
+                            <dd className="users-table__detail-field">{renderDetailValue(fieldValue)}</dd>
+                          </div>
+                        )
+                      })}
+                    </dl>
+                  </section>
+                ))}
+              </div>
             ) : null}
-          </div>
-
-          <div
-            className={[
-              'users-table-pagination__controls',
-              pagination.circularButtons ? 'users-table-pagination__controls--circular' : '',
-            ].filter(Boolean).join(' ')}
-            aria-label={pagination.ariaLabel ?? `${tableLabel} pagination`}
-          >
-            <CreateButton
-              variant="pagination"
-              type="button"
-              onClick={pagination.onPrevious}
-              disabled={pagination.currentPage === 1}
-            >
-              {pagination.previousLabel ?? 'Previous'}
-            </CreateButton>
-
-            {(pagination.items ?? []).map((item, index) =>
-              typeof item === 'number' ? (
-                <CreateButton
-                  key={item}
-                  variant="pagination"
-                  active={item === pagination.currentPage}
-                  type="button"
-                  onClick={() => pagination.onSelect?.(item)}
-                  aria-current={item === pagination.currentPage ? 'page' : undefined}
-                >
-                  {item}
-                </CreateButton>
-              ) : (
-                <span
-                  key={`${item}-${index}`}
-                  className="users-table-pagination__ellipsis"
-                  aria-hidden="true"
-                >
-                  ...
-                </span>
-              ),
-            )}
-
-            <CreateButton
-              variant="pagination"
-              type="button"
-              onClick={pagination.onNext}
-              disabled={pagination.currentPage === pagination.totalPages}
-            >
-              {pagination.nextLabel ?? 'Next'}
-            </CreateButton>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </>
   )

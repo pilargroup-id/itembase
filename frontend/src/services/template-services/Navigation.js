@@ -3,7 +3,6 @@ import {
   Badge,
   Boxes01,
   FileText01,
-  Folder,
   Globe,
   LayersTwo,
   List,
@@ -40,30 +39,22 @@ export const primaryNavigationItems = [
     icon: LayoutDashboard,
   },
   {
-    id: 'nav-item-management',
-    label: 'Item Management',
-    href: '/Bundling',
-    icon: Folder,
-    children: [
-      {
-        id: 'nav-parents',
-        label: 'Parent',
-        href: '/parents',
-        icon: Boxes01,
-      },
-      {
-        id: 'nav-items',
-        label: 'SKU',
-        href: '/items',
-        icon: LayersTwo,
-      },
-      {
-        id: 'nav-bundles',
-        label: 'Bundle',
-        href: '/bundles',
-        icon: Tag01,
-      },
-    ],
+    id: 'nav-parents',
+    label: 'Parent',
+    href: '/parents',
+    icon: Boxes01,
+  },
+  {
+    id: 'nav-items',
+    label: 'SKU',
+    href: '/items',
+    icon: LayersTwo,
+  },
+  {
+    id: 'nav-bundles',
+    label: 'Bundle',
+    href: '/bundles',
+    icon: Tag01,
   },
   {
     id: 'table',
@@ -129,6 +120,7 @@ export const secondaryNavigationItems = [
     label: 'Back Pilargroup',
     href: 'https://pilargroup.id/dashboard',
     icon: LogOutLeft01,
+    showIcon: true,
     external: true,
   },
 ]
