@@ -3,14 +3,16 @@ import api from "../../../../services/api.js"
 
 import DialogDeleteParent from "../../../Dialog/dialog-parent/DialogDeleteParent.jsx"
 import DialogEditParent from "../../../Dialog/dialog-parent/DialogEditParent.jsx"
+import DialogFilterParent from "../../../Dialog/dialog-parent/DialogFilterParent.jsx"
 import DialogImportParent from "../../../Dialog/dialog-parent/DialogImportParent.jsx"
 import ButtonCreateParent from "../../../button/parents-buttons/ButtonCreateParent.jsx"
 import ButtonEditParent from "../../../button/parents-buttons/ButtonEditParent.jsx"
 import ButtonDeleteParent from "../../../button/parents-buttons/ButtonDeleteParent.jsx"
 import ButtonImportParent from "../../../button/parents-buttons/ButtonImportParent.jsx"
 import ButtonExportParent from "../../../button/parents-buttons/ButtonExportParent.jsx"
+import { parentFilterConfig } from "../../../dropdown/filter-parent/FilterDropdownParent.config.js"
 import SearchParent from "../../../search/SearchParent.jsx"
-import { Export01 } from "../../../template/TemplateIcons.jsx"
+import { Export01, FilterFunnel } from "../../../template/TemplateIcons.jsx"
 import DataTable, { DataTableIdentity } from "../DataTable.jsx"
 import {
     PAGE_SIZE_OPTIONS,
@@ -19,6 +21,34 @@ import {
 
 const DEFAULT_PARENT_SORT = "date-desc"
 const DEFAULT_PARENT_PAGE_SIZE = 50
+const ALL_FILTER_VALUE = "all"
+const SORT_FILTER_KEY = "sort"
+const parentSortOptions = [
+    { value: "date-desc", label: "Date Desc" },
+    { value: "date-asc", label: "Date Asc" },
+]
+const parentFilterMenuProps = {
+    PaperProps: {
+        className: "parent-table-mui-menu",
+        sx: {
+            maxHeight: 320,
+            borderRadius: "10px",
+            mt: 0.5,
+        },
+    },
+}
+
+const defaultParentFilters = parentFilterConfig.reduce(
+    (filters, filterConfig) => ({
+        ...filters,
+        [filterConfig.key]: ALL_FILTER_VALUE,
+    }),
+    {},
+)
+const parentFilterFieldOptions = [
+    { key: SORT_FILTER_KEY, label: "Sort By" },
+    ...parentFilterConfig,
+]
 
 function formatDisplayValue(value) {
     const displayValue = String(value ?? "").trim()
@@ -82,14 +112,91 @@ function getPaginationMeta(responseData, rows) {
     }
 }
 
-function createParentApiParams(searchQuery, currentPage, pageSize) {
-    const normalizedSearchQuery = String(searchQuery ?? "").trim()
+function normalizeFilterValue(value) {
+    return String(value ?? "").trim()
+}
+
+function normalizeFilterOption(option, fallbackValue = "") {
+    if (typeof option === "object" && option !== null) {
+        const value = normalizeFilterValue(option.value)
+
+        if (!value) return null
+
+        const label = normalizeFilterValue(option.label) || value
+
+        return {
+            value,
+            label,
+            searchText: [label, value, option.searchText].filter(Boolean).join(" "),
+        }
+    }
+
+    const value = normalizeFilterValue(option ?? fallbackValue)
+
+    if (!value) return null
 
     return {
-        ...(normalizedSearchQuery ? { search: normalizedSearchQuery } : {}),
+        value,
+        label: value,
+        searchText: value,
+    }
+}
+
+function createFilterOptions(rows, filterConfig) {
+    if (Array.isArray(filterConfig.options)) {
+        return [
+            { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
+            ...filterConfig.options,
+        ]
+    }
+
+    const optionMap = new Map()
+
+    rows.forEach((parent) => {
+        const option = normalizeFilterOption(
+            filterConfig.getOption?.(parent) ?? filterConfig.getValue(parent),
+            filterConfig.getValue(parent),
+        )
+
+        if (!option || option.value === ALL_FILTER_VALUE || optionMap.has(option.value)) {
+            return
+        }
+
+        optionMap.set(option.value, option)
+    })
+
+    return [
+        { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
+        ...Array.from(optionMap.values()).sort((firstOption, secondOption) =>
+            firstOption.label.localeCompare(secondOption.label),
+        ),
+    ]
+}
+
+function createParentApiParams(filters, searchQuery, currentPage, pageSize, sortValue) {
+    const params = {}
+
+    parentFilterConfig.forEach((filterConfig) => {
+        const selectedValue = normalizeFilterValue(filters[filterConfig.key])
+
+        if (!filterConfig.apiParam || !selectedValue || selectedValue === ALL_FILTER_VALUE) {
+            return
+        }
+
+        params[filterConfig.apiParam] = selectedValue
+    })
+
+    const normalizedSearchQuery = normalizeFilterValue(searchQuery)
+
+    if (normalizedSearchQuery) {
+        params.search = normalizedSearchQuery
+    }
+
+    return {
+        ...params,
         page: currentPage,
         limit: pageSize,
-        sort: DEFAULT_PARENT_SORT,
+        sort: sortValue || DEFAULT_PARENT_SORT,
     }
 }
 
@@ -199,6 +306,10 @@ function DataTableParents({
     refreshKey = 0,
 }) {
     const [parentRows, setParentRows] = useState([])
+    const [filters, setFilters] = useState(defaultParentFilters)
+    const [selectedFilterKeys, setSelectedFilterKeys] = useState([])
+    const [sortValue, setSortValue] = useState(DEFAULT_PARENT_SORT)
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
     const [pageSize, setPageSize] = useState(DEFAULT_PARENT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
@@ -214,8 +325,8 @@ function DataTableParents({
     const [reloadKey, setReloadKey] = useState(0)
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const tableResetKey = useMemo(
-        () => JSON.stringify({ pageSize, searchQuery: debouncedSearchQuery }),
-        [debouncedSearchQuery, pageSize],
+        () => JSON.stringify({ filters, pageSize, searchQuery: debouncedSearchQuery, sortValue }),
+        [debouncedSearchQuery, filters, pageSize, sortValue],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -224,9 +335,28 @@ function DataTableParents({
     const currentPage = paginationState.resetKey === tableResetKey
         ? paginationState.currentPage
         : 1
+    const filterOptions = useMemo(
+        () =>
+            parentFilterConfig.reduce(
+                (options, filterConfig) => ({
+                    ...options,
+                    [filterConfig.key]: createFilterOptions(parentRows, filterConfig),
+                }),
+                {},
+            ),
+        [parentRows],
+    )
+    const selectedFilterConfigs = useMemo(
+        () =>
+            selectedFilterKeys
+                .map((filterKey) => parentFilterConfig.find((filterConfig) => filterConfig.key === filterKey))
+                .filter(Boolean),
+        [selectedFilterKeys],
+    )
+    const hasSelectedSortFilter = selectedFilterKeys.includes(SORT_FILTER_KEY)
     const parentApiParams = useMemo(
-        () => createParentApiParams(debouncedSearchQuery, currentPage, pageSize),
-        [currentPage, debouncedSearchQuery, pageSize],
+        () => createParentApiParams(filters, debouncedSearchQuery, currentPage, pageSize, sortValue),
+        [currentPage, debouncedSearchQuery, filters, pageSize, sortValue],
     )
     const safeCurrentPage = Math.min(currentPage, totalPages)
     const rows = parentRows
@@ -398,6 +528,61 @@ function DataTableParents({
         closeActionDialog()
     }
 
+    const updateSelectedFilterKeys = (nextFilterKeys) => {
+        const validFilterKeySet = new Set(parentFilterFieldOptions.map((filterConfig) => filterConfig.key))
+        const normalizedFilterKeys = Array.from(new Set(nextFilterKeys)).filter((filterKey) =>
+            validFilterKeySet.has(filterKey),
+        )
+
+        setSelectedFilterKeys(normalizedFilterKeys)
+        setFilters((currentFilters) =>
+            parentFilterConfig.reduce(
+                (nextFilters, filterConfig) => ({
+                    ...nextFilters,
+                    [filterConfig.key]: normalizedFilterKeys.includes(filterConfig.key)
+                        ? currentFilters[filterConfig.key] ?? ALL_FILTER_VALUE
+                        : ALL_FILTER_VALUE,
+                }),
+                {},
+            ),
+        )
+
+        if (!normalizedFilterKeys.includes(SORT_FILTER_KEY)) {
+            setSortValue(DEFAULT_PARENT_SORT)
+        }
+    }
+
+    const handleFilterKeyToggle = (filterKey) => {
+        updateSelectedFilterKeys(
+            selectedFilterKeys.includes(filterKey)
+                ? selectedFilterKeys.filter((selectedFilterKey) => selectedFilterKey !== filterKey)
+                : [...selectedFilterKeys, filterKey],
+        )
+    }
+
+    const handleFilterChange = (filterKey, nextValue) => {
+        if (filters[filterKey] === nextValue) return
+
+        setFilters((currentFilters) => ({
+            ...currentFilters,
+            [filterKey]: nextValue,
+        }))
+    }
+
+    const handleSortChange = (event) => {
+        const nextSortValue = event.target.value
+
+        if (nextSortValue === sortValue) return
+
+        setSortValue(nextSortValue)
+    }
+
+    const handleResetFilters = () => {
+        setSelectedFilterKeys([])
+        setFilters(defaultParentFilters)
+        setSortValue(DEFAULT_PARENT_SORT)
+    }
+
     const setPaginationPage = (nextPage) => {
         if (nextPage === currentPage && paginationState.resetKey === tableResetKey) return
 
@@ -414,8 +599,10 @@ function DataTableParents({
         setPaginationState({
             currentPage: 1,
             resetKey: JSON.stringify({
+                filters,
                 pageSize: nextPageSize,
                 searchQuery: debouncedSearchQuery,
+                sortValue,
             }),
         })
     }
@@ -449,11 +636,33 @@ function DataTableParents({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Parent table tools">
-                <div className="parent-table-toolbar__search">
-                    <SearchParent
-                        value={searchQuery}
-                        onChange={onSearchQueryChange}
-                    />
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-filter-entry" aria-label="Filter parent">
+                        <button
+                            type="button"
+                            className={[
+                                "parent-table-filter-trigger",
+                                selectedFilterKeys.length > 0 ? "parent-table-filter-trigger--active" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            aria-label="Open parent filter dialog"
+                            title="Filter"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            <FilterFunnel size={18} aria-hidden="true" />
+                            {selectedFilterKeys.length > 0 ? (
+                                <span className="parent-table-filter-trigger__dot" aria-hidden="true" />
+                            ) : null}
+                        </button>
+                    </div>
+
+                    <div className="parent-table-toolbar__search">
+                        <SearchParent
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
                 </div>
 
                 <div className="parent-table-actions parent-table-actions--primary">
@@ -491,6 +700,27 @@ function DataTableParents({
                 emptyMessage={emptyMessage}
                 pagination={pagination}
                 autoHeight={false}
+            />
+
+            <DialogFilterParent
+                isOpen={isFilterDialogOpen}
+                filterConfigs={parentFilterConfig}
+                filterFieldOptions={parentFilterFieldOptions}
+                selectedFilterKeys={selectedFilterKeys}
+                selectedFilterConfigs={selectedFilterConfigs}
+                filters={filters}
+                filterOptions={filterOptions}
+                allFilterValue={ALL_FILTER_VALUE}
+                defaultSortValue={DEFAULT_PARENT_SORT}
+                sortOptions={parentSortOptions}
+                menuProps={parentFilterMenuProps}
+                hasSelectedSortFilter={hasSelectedSortFilter}
+                sortValue={sortValue}
+                onClose={() => setIsFilterDialogOpen(false)}
+                onFilterKeyToggle={handleFilterKeyToggle}
+                onFilterChange={handleFilterChange}
+                onSortChange={handleSortChange}
+                onReset={handleResetFilters}
             />
 
             <DialogEditParent

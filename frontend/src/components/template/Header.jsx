@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { Bell04, ChevronDown, Menu01, SearchMd, User01, XClose } from './TemplateIcons.jsx'
+import { Bell04, ChevronDown, Menu01, User01, XClose } from './TemplateIcons.jsx'
 import logoPiagamMark from '../../images/logo-piagam.svg'
 import {
   defaultNavigationPath,
   implementedNavigationPaths,
   primaryNavigationItems,
+  profileMenuItems,
   secondaryNavigationItems,
 } from '../../services/template-services/Navigation.js'
 import '../../styles/template-style/TemplateComponents.css'
@@ -136,7 +137,6 @@ function HeaderNavItem({ item, activePath, openKey, onOpen, onSelect }) {
 }
 
 function Header({
-  title = 'Item Base',
   activePath = '/parents',
   userName = 'Al fatih',
   userRole = 'Frontend Developer',
@@ -146,10 +146,13 @@ function Header({
 }) {
   const [openKey, setOpenKey] = useState(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [notificationData, setNotificationData] = useState([])
   const navRef = useRef(null)
 
   useEffect(() => {
-    if (!openKey && !mobileNavOpen) {
+    if (!openKey && !mobileNavOpen && !profileOpen && !notificationOpen) {
       return undefined
     }
 
@@ -160,12 +163,16 @@ function Header({
 
       setOpenKey(null)
       setMobileNavOpen(false)
+      setProfileOpen(false)
+      setNotificationOpen(false)
     }
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setOpenKey(null)
         setMobileNavOpen(false)
+        setProfileOpen(false)
+        setNotificationOpen(false)
       }
     }
 
@@ -176,18 +183,39 @@ function Header({
       window.removeEventListener('mousedown', handlePointerDown)
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [openKey, mobileNavOpen])
+  }, [openKey, mobileNavOpen, profileOpen, notificationOpen])
 
   useEffect(() => {
     setOpenKey(null)
     setMobileNavOpen(false)
+    setProfileOpen(false)
+    setNotificationOpen(false)
   }, [activePath])
+
+  const handleNotificationClick = async () => {
+    if (notificationOpen) {
+      setNotificationOpen(false)
+      return
+    }
+
+    setNotificationOpen(true)
+    try {
+      const response = await fetch('/api/activity-logs')
+      if (response.ok) {
+        const data = await response.json()
+        setNotificationData(data.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch activity logs:', error)
+    }
+  }
 
   const handleSelect = (item) => {
     if (item.external && item.href) {
       window.location.assign(item.href)
       setOpenKey(null)
       setMobileNavOpen(false)
+      setProfileOpen(false)
       return
     }
 
@@ -195,6 +223,7 @@ function Header({
       onAction?.(item.action, item)
       setOpenKey(null)
       setMobileNavOpen(false)
+      setProfileOpen(false)
       return
     }
 
@@ -213,6 +242,7 @@ function Header({
 
     setOpenKey(null)
     setMobileNavOpen(false)
+    setProfileOpen(false)
   }
 
   const navListClassName = [
@@ -224,53 +254,17 @@ function Header({
 
   return (
     <header className="header-main">
-      <div className="header-content">
-        <div className="header-left">
-          <button
-            type="button"
-            className="header-menu-button"
-            aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
-            aria-expanded={mobileNavOpen}
-            onClick={() => setMobileNavOpen((current) => !current)}
-          >
-            {mobileNavOpen ? <XClose size={20} /> : <Menu01 size={20} />}
-          </button>
-
-          <div className="header-brand">
-            <span className="header-brand-title">{title}</span>
-          </div>
-        </div>
-
-        <div className="header-search">
-          <SearchMd className="header-search__icon" size={18} />
-          <input
-            type="search"
-            className="header-search__input"
-            placeholder="Search or type command..."
-            aria-label="Search"
-          />
-          <span className="header-search__shortcut">⌘K</span>
-        </div>
-
-        <div className="header-right">
-          <button type="button" className="header-icon-button" aria-label="Notifications">
-            <Bell04 size={19} />
-            <span className="header-icon-button__dot" aria-hidden="true" />
-          </button>
-
-          <button
-            type="button"
-            className="header-profile-button"
-            aria-label="Profile"
-            title={userRole || undefined}
-          >
-            <User01 size={18} />
-            <span className="header-profile-button__name">{userName}</span>
-          </button>
-        </div>
-      </div>
-
       <nav className="header-nav" aria-label="Main navigation" ref={navRef}>
+        <button
+          type="button"
+          className="header-menu-button"
+          aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={mobileNavOpen}
+          onClick={() => setMobileNavOpen((current) => !current)}
+        >
+          {mobileNavOpen ? <XClose size={20} /> : <Menu01 size={20} />}
+        </button>
+
         <div className={navListClassName}>
           <img src={logoPiagamMark} alt="" aria-hidden="true" className="header-nav-logo" />
 
@@ -298,6 +292,70 @@ function Header({
             ))}
           </div>
         </div>
+
+        <div className="header-nav-actions">
+          <button
+            type="button"
+            className="header-icon-button"
+            aria-label="Notifications"
+            onClick={handleNotificationClick}
+          >
+            <Bell04 size={19} />
+            <span className="header-icon-button__dot" aria-hidden="true" />
+          </button>
+
+          <div
+            className={[
+              'header-nav-item-wrapper',
+              'header-profile-wrapper',
+              profileOpen ? 'header-nav-item-wrapper--open' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <button
+              type="button"
+              className="header-profile-button"
+              aria-haspopup="true"
+              aria-expanded={profileOpen}
+              aria-label="Profile"
+              title={userRole || undefined}
+              onClick={() => setProfileOpen((current) => !current)}
+            >
+              <User01 size={18} />
+              <span className="header-profile-button__name">{userName}</span>
+              <ChevronDown className="header-nav-item__chevron" size={14} />
+            </button>
+
+            <div className="header-nav-dropdown header-profile-dropdown" role="menu" aria-hidden={!profileOpen}>
+              {profileMenuItems.map((item) => (
+                <a
+                  key={getItemKey(item)}
+                  href={item.href}
+                  role="menuitem"
+                  className="header-nav-dropdown__item"
+                  onClick={(event) => {
+                    if (
+                      event.metaKey ||
+                      event.ctrlKey ||
+                      event.shiftKey ||
+                      event.altKey ||
+                      event.button !== 0
+                    ) {
+                      return
+                    }
+
+                    event.preventDefault()
+                    handleSelect(item)
+                  }}
+                >
+                  {item.icon ? <item.icon size={18} /> : null}
+                  <span>{item.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
       </nav>
 
       {mobileNavOpen ? (
@@ -307,6 +365,43 @@ function Header({
           aria-label="Close navigation"
           onClick={() => setMobileNavOpen(false)}
         />
+      ) : null}
+
+      {notificationOpen ? (
+        <div className="header-modal-overlay" onClick={() => setNotificationOpen(false)}>
+          <div className="header-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="header-modal__header">
+              <h2 className="header-modal__title">Notifications</h2>
+              <button
+                type="button"
+                className="header-modal__close"
+                aria-label="Close"
+                onClick={() => setNotificationOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="header-modal__body">
+              {notificationData.length > 0 ? (
+                <div className="notification-list">
+                  {notificationData.map((item, idx) => (
+                    <div key={idx} className="notification-item">
+                      <div className="notification-item__time">
+                        {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
+                      </div>
+                      <div className="notification-item__content">
+                        <strong>{item.action || 'Activity'}</strong>
+                        <div className="notification-item__detail">{item.description || item.message}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="notification-empty">No activities yet</div>
+              )}
+            </div>
+          </div>
+        </div>
       ) : null}
     </header>
   )

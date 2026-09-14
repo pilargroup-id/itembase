@@ -106,21 +106,16 @@ export const secondaryNavigationItems = [
     id: 'nav-setting',
     label: 'Setting',
     icon: Settings01,
-    children: [
-      {
-        id: 'nav-logs',
-        label: 'Logs',
-        href: '/activity-logs',
-        icon: FileText01,
-      },
-    ],
+    children: [],
   },
+]
+
+export const profileMenuItems = [
   {
     id: 'back-pilargroup',
     label: 'Back Pilargroup',
     href: 'https://pilargroup.id/dashboard',
     icon: LogOutLeft01,
-    showIcon: true,
     external: true,
   },
 ]

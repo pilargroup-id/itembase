@@ -360,7 +360,6 @@ function App() {
     <div className="dashboard-shell">
       <div className="dashboard-stage">
         <Header
-          title="Item Base"
           activePath={currentPagePath}
           userName={headerUserName}
           userRole={headerUserRole}
