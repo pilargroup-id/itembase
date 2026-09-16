@@ -548,10 +548,7 @@ function DataTablePorts({
                         masterLabel="Port"
                         className="parent-table-tool-button"
                         aria-label="Export port data"
-                    >
-                        <Export01 size={18} aria-hidden="true" />
-                        <span>Export</span>
-                    </ButtonExportMaster>
+                    />
                     <ButtonImportMaster
                         type="ports"
                         masterLabel="Port"

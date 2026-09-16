@@ -409,10 +409,7 @@ function DataTableVariantAttributes({
                         masterLabel="Variant Attribute"
                         className="parent-table-tool-button"
                         aria-label="Export variant attribute data"
-                    >
-                        <Export01 size={18} aria-hidden="true" />
-                        <span>Export</span>
-                    </ButtonExportMaster>
+                    />
                     <ButtonImportMaster
                         type="variant-attributes"
                         masterLabel="Variant Attribute"

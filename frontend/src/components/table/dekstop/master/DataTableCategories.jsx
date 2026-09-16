@@ -588,10 +588,7 @@ function DataTableCategories({
                         masterLabel="Category"
                         className="parent-table-tool-button"
                         aria-label="Export category data"
-                    >
-                        <Export01 size={18} aria-hidden="true" />
-                        <span>Export</span>
-                    </ButtonExportMaster>
+                    />
                     <ButtonImportMaster
                         type="categories"
                         masterLabel="Category"

@@ -548,10 +548,7 @@ function DataTableUom({
                         masterLabel="Uom"
                         className="parent-table-tool-button"
                         aria-label="Export uom data"
-                    >
-                        <Export01 size={18} aria-hidden="true" />
-                        <span>Export</span>
-                    </ButtonExportMaster>
+                    />
                     <ButtonImportMaster
                         type="uoms"
                         masterLabel="Uom"

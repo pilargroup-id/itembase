@@ -520,10 +520,7 @@ function DataTableBrands({
                         masterLabel="Brand"
                         className="parent-table-tool-button"
                         aria-label="Export brand data"
-                    >
-                        <Export01 size={18} aria-hidden="true" />
-                        <span>Export</span>
-                    </ButtonExportMaster>
+                    />
                     <ButtonImportMaster
                         type="brands"
                         masterLabel="Brand"
