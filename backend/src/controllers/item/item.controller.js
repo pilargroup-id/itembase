@@ -87,6 +87,17 @@ async function update(req, res) {
   }
 }
 
+
+async function updateStatus(req, res) {
+  try {
+    const rawStatus = req.body.status ?? req.body.is_active;
+    const item = await ItemService.updateStatus(req.params.id, rawStatus, req.user.id, req);
+    return response.ok(res, item, 'Item status updated successfully');
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
 async function previewMatrix(req,res){try{return response.ok(res,await ItemService.previewMatrix(req.body),'Item matrix preview generated successfully');}catch(error){return handleError(res,error);}}
 async function createMatrix(req,res){try{return response.created(res,await ItemService.createMatrix(req.body,req.user.id,req),'Item matrix created successfully');}catch(error){return handleError(res,error);}}
 
@@ -97,4 +108,5 @@ module.exports = {
   show,
   store,
   update,
+  updateStatus,
 };

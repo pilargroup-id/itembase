@@ -84,7 +84,7 @@ async function listReferences(connection = db) {
       FROM master_variant_values mv INNER JOIN master_variant_attributes ma ON ma.id=mv.attribute_id
       ORDER BY ma.code,mv.sort_order,mv.code`, [], connection),
     many('SELECT parent_code,parent_name,status FROM item_parents ORDER BY parent_code', [], connection),
-    many("SELECT item_code,item_name,item_kind,is_active FROM items ORDER BY item_code", [], connection),
+    many("SELECT item_code,item_name,item_kind,status,replenishment_type FROM items ORDER BY item_code", [], connection),
   ]);
   return { brands, categories, itemTypes, uoms, ports, attributes, values, parents, items };
 }
@@ -125,17 +125,17 @@ async function replaceParentAttributes(parentId, attributes, connection = db) {
 async function insertItem(data, connection = db) {
   const id = crypto.randomUUID();
   await connection.query(`INSERT INTO items
-    (id,item_code,barcode,item_name,selling_name,item_kind,parent_id,uom_id,qty_per_pack,height,width,depth,gross_weight_pack,production_time_days,is_active,created_by,updated_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+    (id,item_code,barcode,item_name,selling_name,item_kind,parent_id,uom_id,replenishment_type,qty_per_pack,height,width,depth,gross_weight_pack,production_time_days,status,created_by,updated_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
     id, data.item_code, data.barcode, data.item_name, data.selling_name, data.item_kind,
-    data.parent_id, data.uom_id, data.qty_per_pack, data.height, data.width, data.depth,
-    data.gross_weight_pack, data.production_time_days, data.is_active, data.user_id, data.user_id,
+    data.parent_id, data.uom_id, data.replenishment_type || null, data.qty_per_pack, data.height, data.width, data.depth,
+    data.gross_weight_pack, data.production_time_days, data.status || 'ACTIVE', data.user_id, data.user_id,
   ]);
   return id;
 }
 
 async function patchItem(id, fields, userId, connection = db) {
-  const allowed = ['item_name','selling_name','parent_id','uom_id','qty_per_pack','height','width','depth','gross_weight_pack','production_time_days','is_active'];
+  const allowed = ['item_name','selling_name','parent_id','uom_id','replenishment_type','qty_per_pack','height','width','depth','gross_weight_pack','production_time_days','status'];
   const keys = allowed.filter((key) => Object.prototype.hasOwnProperty.call(fields, key));
   if (!keys.length) return;
   const sql = `UPDATE items SET ${keys.map((key) => `${key}=?`).join(',')},updated_by=? WHERE id=?`;

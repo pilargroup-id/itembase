@@ -61,6 +61,13 @@ router.put(
   ItemParentController.update
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  ItemParentController.updateStatus
+);
+
 
 router.delete(
   '/:id',

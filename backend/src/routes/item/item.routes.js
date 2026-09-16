@@ -35,4 +35,11 @@ router.put(
   ItemController.update
 );
 
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireApp('itembase'),
+  ItemController.updateStatus
+);
+
 module.exports = router;

@@ -1,10 +1,11 @@
 const ItemDataModel = require('../../models/item-data/item-data.model');
+const ItemModel = require('../../models/item/item.model');
 const PreviewStorage = require('./preview-storage.service');
 const { readWorkbook, worksheetToObjects, createWorkbookBuffer } = require('../../utils/xlsx.util');
 
 const NULL_MARKER = 'NULL';
 const PARENT_HEADERS = ['Parent ID','Brand','Sub Brand','Item Name','Category Detail','Item Source','Ports Code','Variant Attribute','Status'];
-const ITEM_HEADERS = ['SKU ID','SKU Name','Parent ID','UOM Code','Qty/Pack','Height','Width','Depth','Gross Weight/Pack','Lead Time','Variant Attribute Value','Status'];
+const ITEM_HEADERS = ['SKU ID','SKU Name','Parent ID','UOM Code','Replenishment Type','Qty/Pack','Height','Width','Depth','Gross Weight/Pack','Lead Time','Variant Attribute Value','Status'];
 const BUNDLE_HEADERS = ['SKU ID','Selling Name','Parent ID','Status'];
 const COMPONENT_HEADERS = ['SKU ID Bundle','SKU ID Component','Qty','Sort Order'];
 
@@ -14,11 +15,11 @@ const PARENT_MAP = {
   'Variant Attribute':'variant_attributes', Status:'status',
 };
 const ITEM_MAP = {
-  'SKU ID':'item_code', 'SKU Name':'item_name', 'Parent ID':'parent_code', 'UOM Code':'uom_code',
+  'SKU ID':'item_code', 'SKU Name':'item_name', 'Parent ID':'parent_code', 'UOM Code':'uom_code', 'Replenishment Type':'replenishment_type',
   'Qty/Pack':'qty_per_pack', Height:'height', Width:'width', Depth:'depth', 'Gross Weight/Pack':'gross_weight_pack',
-  'Lead Time':'production_time_days', 'Variant Attribute Value':'variants', Status:'is_active',
+  'Lead Time':'production_time_days', 'Variant Attribute Value':'variants', Status:'status',
 };
-const BUNDLE_MAP = { 'SKU ID':'item_code', 'Selling Name':'selling_name', 'Parent ID':'parent_code', Status:'is_active' };
+const BUNDLE_MAP = { 'SKU ID':'item_code', 'Selling Name':'selling_name', 'Parent ID':'parent_code', Status:'status' };
 const COMPONENT_MAP = { 'SKU ID Bundle':'bundle_item_code', 'SKU ID Component':'component_item_code', Qty:'qty', 'Sort Order':'sort_order' };
 
 function text(value) { return value === undefined || value === null ? '' : String(value).trim(); }
@@ -27,11 +28,17 @@ function supplied(row, field) { return hasOwn(row, field) && text(row[field]) !=
 function isNull(value) { return text(value).toUpperCase() === NULL_MARKER; }
 function splitList(value) { return text(value).split(';').map((v) => v.trim()).filter(Boolean); }
 function error(message, code = 'VALIDATION_ERROR') { return { code, message }; }
-function toBool(value) {
-  const normalized = text(value).toLowerCase();
-  if (['1','true','active','yes'].includes(normalized)) return 1;
-  if (['0','false','inactive','no'].includes(normalized)) return 0;
+function itemStatus(value) {
+  const normalized = text(value).toUpperCase();
+  if (['1','TRUE','YES','ACTIVE'].includes(normalized)) return 'ACTIVE';
+  if (['0','FALSE','NO','INACTIVE'].includes(normalized)) return 'INACTIVE';
+  if (normalized === 'DISCONTINUE') return 'DISCONTINUE';
   return null;
+}
+function replenishmentType(value) {
+  const normalized = text(value).toUpperCase();
+  if (!normalized) return null;
+  return ['RG','SS','BD','NR'].includes(normalized) ? normalized : undefined;
 }
 function toNumber(value, integer = false) {
   const n = Number(value);
@@ -227,6 +234,14 @@ async function validateItemRow(row, kind = 'regular') {
       else { fields.item_name = text(row.item_name); fields.selling_name = text(row.item_name); }
     }
     if (supplied(row, 'variants')) fields.variants = await resolveVariants(row.variants, errors);
+    if (supplied(row, 'replenishment_type')) {
+      if (isNull(row.replenishment_type)) fields.replenishment_type = null;
+      else {
+        const rt = replenishmentType(row.replenishment_type);
+        if (rt === undefined) errors.push(error('Replenishment Type must be RG, SS, BD, or NR'));
+        else fields.replenishment_type = rt;
+      }
+    }
     for (const field of ['qty_per_pack','height','width','depth','gross_weight_pack']) {
       if (!supplied(row, field)) continue;
       fields[field] = isNull(row[field]) ? null : toNumber(row[field]);
@@ -240,14 +255,14 @@ async function validateItemRow(row, kind = 'regular') {
     fields.selling_name = isNull(row.selling_name) ? null : text(row.selling_name);
   }
 
-  if (supplied(row, 'is_active')) {
-    if (isNull(row.is_active)) errors.push(error('Status cannot be cleared'));
+  if (supplied(row, 'status')) {
+    if (isNull(row.status)) errors.push(error('Status cannot be cleared'));
     else {
-      fields.is_active = toBool(row.is_active);
-      if (fields.is_active === null) errors.push(error('Status must be Active or Inactive'));
+      fields.status = itemStatus(row.status);
+      if (fields.status === null) errors.push(error('Status must be ACTIVE, INACTIVE, or DISCONTINUE'));
     }
   }
-  if (!existing && fields.is_active === undefined) fields.is_active = 1;
+  if (!existing && fields.status === undefined) fields.status = 'ACTIVE';
   if (existing && !Object.keys(fields).length) errors.push(error('No fields supplied for update', 'NO_CHANGES'));
   return rowResult(row, action, errors, { code, existing_id: existing?.id || null, fields, kind });
 }
@@ -375,6 +390,7 @@ async function applyItem(normalized, userId) {
     else await ItemDataModel.patchItem(id, fields, userId, connection);
     if (variants !== undefined) await ItemDataModel.replaceItemVariants(id, variants, connection);
     if (components !== undefined) await ItemDataModel.replaceBundleComponents(id, components, connection);
+    if (normalized.kind === 'regular') await ItemModel.syncRegularItemName(id, connection);
   });
 }
 

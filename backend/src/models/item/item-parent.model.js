@@ -258,8 +258,8 @@ async function remove(id,connection=db){
   return result;
 }
 
-async function findActiveChildItems(parentId,connection=db){const [rows]=await connection.query('SELECT * FROM items WHERE parent_id=? AND is_active=1',[parentId]);return rows;}
-async function deactivateChildItems(parentId, connection=db) { await connection.query('UPDATE items SET is_active=0,updated_at=NOW() WHERE parent_id=? AND is_active<>0',[parentId]); }
+async function findActiveChildItems(parentId,connection=db){const [rows]=await connection.query("SELECT * FROM items WHERE parent_id=? AND status='ACTIVE'",[parentId]);return rows;}
+async function deactivateChildItems(parentId, connection=db) { await connection.query("UPDATE items SET status='INACTIVE',updated_at=NOW() WHERE parent_id=? AND status='ACTIVE'",[parentId]); }
 async function existsInTable(tableName,id,connection=db) { const allowed=['master_subbrands','master_brands','master_categories','master_item_types','master_ports']; if(!allowed.includes(tableName)) throw new Error('Invalid reference table'); const [rows]=await connection.query(`SELECT id FROM ${tableName} WHERE id=? LIMIT 1`,[id]); return rows.length>0; }
 async function findSubbrandById(id,connection=db){const [rows]=await connection.query('SELECT id,name,normalized_name,is_active,created_at,updated_at FROM master_subbrands WHERE id=? LIMIT 1',[id]);return rows[0]||null;}
 async function findSubbrandByName(name,connection=db){const [rows]=await connection.query('SELECT id,name,normalized_name,is_active,created_at,updated_at FROM master_subbrands WHERE name=? LIMIT 1',[name]);return rows[0]||null;}

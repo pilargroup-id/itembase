@@ -158,6 +158,16 @@ async function update(req, res, next) {
 }
 
 
+async function updateStatus(req, res, next) {
+  try {
+    const result = await ItemParentService.updateStatus(req.params.id, req.body, req.user.id, req);
+    if (handleServiceError(res, result.error)) return;
+    return response.ok(res, result.data, 'Item parent status updated successfully');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function destroy(req, res, next) {
   try {
     const result = await ItemParentService.destroy(req.params.id, req.user.id, req);
@@ -181,5 +191,6 @@ module.exports = {
   createSubbrand,
   store,
   update,
+  updateStatus,
   destroy,
 };
