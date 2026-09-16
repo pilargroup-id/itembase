@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
-import { Minus, Plus, Trash03, XClose } from '../../template/TemplateIcons.jsx'
+import { Plus, Trash03, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import SearchableItemSelect from './SearchableBundleSelect.jsx'
 import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
-const BUNDLE_MIN_COMPONENTS = 2
+const BUNDLE_MIN_COMPONENTS = 1
 const BUNDLE_MAX_COMPONENTS = 5
+const SINGLE_COMPONENT_MIN_QTY = 2
 
 const initialFormValues = {
   parent_id: '',
@@ -187,6 +188,20 @@ function sanitizeIntegerInput(value) {
   return String(value ?? '').replace(/[^\d]/g, '')
 }
 
+function toIntegerString(value) {
+  if (value === null || value === undefined || value === '') {
+    return ''
+  }
+
+  const numberValue = Number(value)
+
+  if (!Number.isFinite(numberValue)) {
+    return sanitizeIntegerInput(value)
+  }
+
+  return String(Math.trunc(numberValue))
+}
+
 function isPositiveInteger(value) {
   const normalizedValue = String(value ?? '').trim()
 
@@ -278,7 +293,7 @@ function normalizeComponentsFromItem(item) {
 
   const normalizedComponents = sorted.slice(0, BUNDLE_MAX_COMPONENTS).map((component) => ({
     component_item_id: String(getComponentItemId(component)),
-    qty: sanitizeIntegerInput(component.qty),
+    qty: toIntegerString(component.qty),
   }))
 
   while (normalizedComponents.length < BUNDLE_MIN_COMPONENTS) {
@@ -381,9 +396,46 @@ function hasRequiredValues(payload, components) {
     (component) => component.component_item_id && isPositiveInteger(component.qty),
   )
 
+  if (
+    validComponents.length < BUNDLE_MIN_COMPONENTS ||
+    validComponents.length > BUNDLE_MAX_COMPONENTS
+  ) {
+    return false
+  }
+
   return (
-    validComponents.length >= BUNDLE_MIN_COMPONENTS &&
-    validComponents.length <= BUNDLE_MAX_COMPONENTS
+    validComponents.length > 1 ||
+    Number(validComponents[0].qty) >= SINGLE_COMPONENT_MIN_QTY
+  )
+}
+
+function BundleValidationAlertBanner({ message, onDismiss }) {
+  if (!message) {
+    return null
+  }
+
+  return (
+    <div className="item-create-popup__validation-alert" role="alert">
+      <span className="item-create-popup__validation-alert-icon" aria-hidden="true">
+        <XCircle size={18} />
+      </span>
+
+      <div className="item-create-popup__validation-alert-body">
+        <p className="item-create-popup__validation-alert-title">Gagal</p>
+        <p className="item-create-popup__validation-alert-message">{message}</p>
+      </div>
+
+      <div className="item-create-popup__validation-alert-actions">
+        <button
+          type="button"
+          className="item-create-popup__validation-alert-close"
+          onClick={onDismiss}
+          aria-label="Tutup notifikasi"
+        >
+          <XClose size={14} />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -402,7 +454,9 @@ function DialogEditBundle({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
+  const [selectedRegularItemOptions, setSelectedRegularItemOptions] = useState([])
   const [parentSearchQuery, setParentSearchQuery] = useState('')
+  const [regularItemSearchQuery, setRegularItemSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const { notifySuccess } = useAlertAction()
 
@@ -411,8 +465,9 @@ function DialogEditBundle({
       mergeOptions(
         masterOptions.regularItems,
         normalizeRegularItemOptionsFromComponents(bundleItem ?? item),
+        selectedRegularItemOptions,
       ),
-    [bundleItem, item, masterOptions.regularItems],
+    [bundleItem, item, masterOptions.regularItems, selectedRegularItemOptions],
   )
   const parentOptions = useMemo(
     () => mergeOptions(masterOptions.parents, normalizeParentOptionFromItem(bundleItem ?? item)),
@@ -440,7 +495,9 @@ function DialogEditBundle({
     setComponents(normalizeComponentsFromItem(currentItem))
     setIsSubmitting(false)
     setMasterOptions(emptyMasterOptions)
+    setSelectedRegularItemOptions([])
     setParentSearchQuery('')
+    setRegularItemSearchQuery('')
     setErrorMessage('')
   }, [bundleItem, item])
 
@@ -502,12 +559,18 @@ function DialogEditBundle({
     let isMounted = true
     const controller = new AbortController()
 
-    const loadMasterOptions = async () => {
+    const loadRegularItemOptions = async () => {
       setIsLoadingMasters(true)
 
       try {
+        const search = regularItemSearchQuery.trim()
         const items = await api.items.list(
-          { item_kind: 'regular' },
+          {
+            page: 1,
+            limit: 20,
+            item_kind: 'regular',
+            ...(search ? { search } : {}),
+          },
           { signal: controller.signal },
         )
 
@@ -524,8 +587,11 @@ function DialogEditBundle({
           return
         }
 
-        setMasterOptions(emptyMasterOptions)
-        setErrorMessage(error?.message || 'Failed to load bundle master data.')
+        setMasterOptions((currentOptions) => ({
+          ...currentOptions,
+          regularItems: [],
+        }))
+        setErrorMessage(error?.message || 'Failed to load regular items.')
       } finally {
         if (isMounted) {
           setIsLoadingMasters(false)
@@ -533,13 +599,13 @@ function DialogEditBundle({
       }
     }
 
-    loadMasterOptions()
+    loadRegularItemOptions()
 
     return () => {
       isMounted = false
       controller.abort()
     }
-  }, [isOpen])
+  }, [isOpen, regularItemSearchQuery])
 
   useEffect(() => {
     if (!isOpen) {
@@ -640,10 +706,26 @@ function DialogEditBundle({
     handleFieldChange(name, normalizedValue)
   }
 
-  const handleComponentChange = (index, field, value) => {
-    const normalizedValue = field === 'qty' ? sanitizeIntegerInput(value) : value
+  const handleRegularItemChange = (index, value) => {
+    const selectedOption = findRegularItemOption(masterOptions.regularItems, value)
 
+    if (selectedOption) {
+      setSelectedRegularItemOptions((currentOptions) =>
+        mergeOptions(currentOptions, [selectedOption]),
+      )
+    }
+
+    handleComponentChange(index, 'component_item_id', value)
+  }
+
+  const handleComponentChange = (index, field, value) => {
     setErrorMessage('')
+
+    let normalizedValue = value
+    if (field === 'qty') {
+      normalizedValue = sanitizeIntegerInput(String(value ?? ''))
+    }
+
     setComponents((currentComponents) =>
       currentComponents.map((component, currentIndex) =>
         currentIndex === index
@@ -665,22 +747,6 @@ function DialogEditBundle({
     }
   }
 
-  const handleQtyStep = (index, direction) => {
-    setErrorMessage('')
-    setComponents((currentComponents) =>
-      currentComponents.map((component, currentIndex) => {
-        if (currentIndex !== index) {
-          return component
-        }
-
-        const currentQty = Number(component.qty) || 0
-        const nextQty = Math.max(1, currentQty + direction)
-
-        return { ...component, qty: String(nextQty) }
-      }),
-    )
-  }
-
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -693,7 +759,7 @@ function DialogEditBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Please complete Parent, UOM, and at least ${BUNDLE_MIN_COMPONENTS} component items with whole number qty.`,
+        `Please complete Parent, UOM, and ${BUNDLE_MIN_COMPONENTS}-${BUNDLE_MAX_COMPONENTS} component items with whole number qty. A single item must have a minimum qty of ${SINGLE_COMPONENT_MIN_QTY}.`,
       )
       return
     }
@@ -863,7 +929,7 @@ function DialogEditBundle({
                         className="bundle-create-popup__component-card"
                       >
                         <div className="bundle-create-popup__component-grid">
-                          <div className="register-user-popup__field">
+                          <div className="register-user-popup__field bundle-create-popup__regular-item-field">
                             <label
                               className="register-user-popup__label"
                               htmlFor={`edit-bundle-component-item-${index}`}
@@ -881,8 +947,10 @@ function DialogEditBundle({
                               emptyMessage="Item not found."
                               loading={isLoadingMasters}
                               disabled={isSubmitting || isLoadingMasters}
+                              remoteSearch
+                              onSearchChange={setRegularItemSearchQuery}
                               onChange={(nextValue) =>
-                                handleComponentChange(index, 'component_item_id', nextValue)
+                                handleRegularItemChange(index, nextValue)
                               }
                             />
                             {component.component_item_id ? (
@@ -896,7 +964,7 @@ function DialogEditBundle({
                             ) : null}
                           </div>
 
-                          <div className="register-user-popup__field">
+                          <div className="register-user-popup__field bundle-create-popup__qty-field">
                             <label
                               className="register-user-popup__label"
                               htmlFor={`edit-bundle-component-qty-${index}`}
@@ -904,91 +972,67 @@ function DialogEditBundle({
                               Qty
                               <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                             </label>
-                            <div className="bundle-create-popup__qty-control">
-                              <button
-                                type="button"
-                                className="bundle-create-popup__qty-button"
-                                onClick={() => handleQtyStep(index, -1)}
-                                disabled={isSubmitting || Number(component.qty) <= 1}
-                                title="Decrease qty"
-                                aria-label={`Decrease qty for bundle item ${index + 1}`}
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <input
-                                id={`edit-bundle-component-qty-${index}`}
-                                className="register-user-popup__input bundle-create-popup__qty-input"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={component.qty}
-                                placeholder="0"
-                                onChange={(event) =>
-                                  handleComponentChange(index, 'qty', event.target.value)
-                                }
-                                disabled={isSubmitting}
-                              />
-                              <button
-                                type="button"
-                                className="bundle-create-popup__qty-button"
-                                onClick={() => handleQtyStep(index, 1)}
-                                disabled={isSubmitting}
-                                title="Increase qty"
-                                aria-label={`Increase qty for bundle item ${index + 1}`}
-                              >
-                                <Plus size={14} />
-                              </button>
-                            </div>
+                            <input
+                              id={`edit-bundle-component-qty-${index}`}
+                              className="register-user-popup__input bundle-create-popup__qty-input"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              autoComplete="off"
+                              value={String(component.qty || '')}
+                              placeholder="0"
+                              onChange={(event) =>
+                                handleComponentChange(index, 'qty', event.target.value)
+                              }
+                              disabled={isSubmitting}
+                            />
                           </div>
 
-                          <div className="bundle-create-popup__component-actions">
-                            {index === components.length - 1 &&
-                            components.length < BUNDLE_MAX_COMPONENTS ? (
+                          <div className="register-user-popup__field">
+                            <span className="register-user-popup__label" aria-hidden="true">
+                              &nbsp;
+                            </span>
+                            <div className="bundle-create-popup__component-actions">
                               <button
                                 type="button"
-                                className="bundle-create-popup__component-add"
-                                onClick={handleAddComponent}
-                                disabled={isSubmitting}
-                                title="Add item"
-                                aria-label="Add bundle item"
+                                className="bundle-create-popup__component-remove bundle-create-popup__component-remove--create"
+                                onClick={() => handleRemoveComponent(index)}
+                                disabled={
+                                  isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS
+                                }
+                                title="Remove component"
+                                aria-label={`Remove bundle item ${index + 1}`}
                               >
-                                <Plus size={16} />
+                                <Trash03 size={16} />
                               </button>
-                            ) : (
-                              <span
-                                className="bundle-create-popup__component-action-spacer"
-                                aria-hidden="true"
-                              />
-                            )}
-
-                            <button
-                              type="button"
-                              className="bundle-create-popup__component-remove"
-                              onClick={() => handleRemoveComponent(index)}
-                              disabled={isSubmitting || components.length <= BUNDLE_MIN_COMPONENTS}
-                              title="Remove component"
-                              aria-label={`Remove bundle item ${index + 1}`}
-                            >
-                              <Trash03 size={16} />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
+                  <button
+                    type="button"
+                    className="bundle-create-popup__add-item"
+                    onClick={handleAddComponent}
+                    disabled={isSubmitting || components.length >= BUNDLE_MAX_COMPONENTS}
+                  >
+                    <Plus size={16} />
+                    Add Item
+                  </button>
+
                   <div className="bundle-create-popup__footer">
                     <p className="register-user-popup__hint">
-                      Minimum {BUNDLE_MIN_COMPONENTS} items and maximum {BUNDLE_MAX_COMPONENTS} regular items per bundle.
+                      A single-item bundle requires a minimum qty of {SINGLE_COMPONENT_MIN_QTY}.
                     </p>
                   </div>
                 </div>
 
-                {errorMessage ? (
-                  <p className="register-user-popup__hint" role="alert">
-                    {errorMessage}
-                  </p>
-                ) : null}
+                <BundleValidationAlertBanner
+                  message={errorMessage}
+                  onDismiss={() => setErrorMessage('')}
+                />
               </div>
             </div>
           </div>

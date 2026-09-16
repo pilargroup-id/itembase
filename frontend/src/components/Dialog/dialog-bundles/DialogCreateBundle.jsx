@@ -473,9 +473,13 @@ function DialogCreateBundle({
   }
 
   const handleComponentChange = (index, field, value) => {
-    const normalizedValue = field === 'qty' ? sanitizeIntegerInput(value) : value
-
     setErrorMessage('')
+
+    let normalizedValue = value
+    if (field === 'qty') {
+      normalizedValue = sanitizeIntegerInput(String(value ?? ''))
+    }
+
     setComponents((currentComponents) =>
       currentComponents.map((component, currentIndex) =>
         currentIndex === index
@@ -723,7 +727,8 @@ function DialogCreateBundle({
                               type="text"
                               inputMode="numeric"
                               pattern="[0-9]*"
-                              value={component.qty}
+                              autoComplete="off"
+                              value={String(component.qty || '')}
                               placeholder="0"
                               onChange={(event) =>
                                 handleComponentChange(index, 'qty', event.target.value)
