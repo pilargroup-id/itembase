@@ -602,33 +602,6 @@ function DataTableCategories({
                 </div>
             </div>
 
-            <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter categories">
-                    <FilterDropdownCategories
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={categoriesSortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Date Desc"
-                        searchable={false}
-                        onChange={setSortValue}
-                    />
-                    {categoriesFilterConfig.map((filterConfig) => (
-                        <FilterDropdownCategories
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key]}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))}
-                </div>
-            </div>
-
             <DataTable
                 className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
