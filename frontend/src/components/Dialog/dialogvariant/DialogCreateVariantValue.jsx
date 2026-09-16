@@ -8,7 +8,6 @@ import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 const initialFormValues = {
   attribute_id: '',
-  name: '',
   sort_order: '1',
 }
 
@@ -30,6 +29,73 @@ function normalizeRows(responseData) {
   }
 
   return []
+}
+
+function getResourceData(responseData) {
+  return responseData?.data && !Array.isArray(responseData.data)
+    ? responseData.data
+    : responseData
+}
+
+function getVariantValueName(variantValue) {
+  return String(
+    variantValue?.name ??
+      variantValue?.value_name ??
+      variantValue?.variant_value ??
+      variantValue?.uom_name ??
+      variantValue?.label ??
+      variantValue?.code ??
+      variantValue?.uom_code ??
+      '',
+  ).trim()
+}
+
+function getSortOrder(variantValue) {
+  const sortOrder = Number(variantValue?.sort_order)
+
+  return Number.isFinite(sortOrder) ? sortOrder : 0
+}
+
+function getNextSortOrder(variantValues) {
+  const maxSortOrder = variantValues.reduce(
+    (currentMax, variantValue, index) =>
+      Math.max(currentMax, getSortOrder(variantValue), index + 1),
+    0,
+  )
+
+  return maxSortOrder + 1
+}
+
+function normalizeComparisonKey(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function parseVariantValueNames(value) {
+  const usedNames = new Set()
+
+  return String(value ?? '')
+    .split(/[\n,;]+/)
+    .map((name) => name.trim().replace(/\s+/g, ' '))
+    .filter(Boolean)
+    .filter((name) => {
+      const comparisonKey = normalizeComparisonKey(name)
+
+      if (usedNames.has(comparisonKey)) {
+        return false
+      }
+
+      usedNames.add(comparisonKey)
+      return true
+    })
+}
+
+function buildVariantValuePayloads(names, attributeId, sortOrderStart) {
+  return names.map((name, index) => ({
+    attribute_id: attributeId,
+    name,
+    sort_order: sortOrderStart + index,
+    is_active: 1,
+  }))
 }
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -54,8 +120,12 @@ function DialogCreateVariantValue({
   onCreated,
 }) {
   const [formValues, setFormValues] = useState(initialFormValues)
+  const [variantValueNames, setVariantValueNames] = useState([])
+  const [nameDraft, setNameDraft] = useState('')
   const [attributeOptions, setAttributeOptions] = useState([])
+  const [variantValueOptions, setVariantValueOptions] = useState([])
   const [isLoadingAttributes, setIsLoadingAttributes] = useState(false)
+  const [isLoadingVariantValues, setIsLoadingVariantValues] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const { notifySuccess } = useAlertAction()
@@ -68,8 +138,68 @@ function DialogCreateVariantValue({
     [attributeOptions],
   )
 
+  const sortedVariantValueOptions = useMemo(
+    () =>
+      [...variantValueOptions].sort((firstValue, secondValue) =>
+        getVariantValueName(firstValue).localeCompare(getVariantValueName(secondValue)),
+      ),
+    [variantValueOptions],
+  )
+
+  const existingNameKeySet = useMemo(
+    () =>
+      new Set(
+        variantValueOptions.map((variantValue) =>
+          normalizeComparisonKey(getVariantValueName(variantValue)),
+        ),
+      ),
+    [variantValueOptions],
+  )
+
+  const combinedVariantValueNames = useMemo(() => {
+    const draftNames = parseVariantValueNames(nameDraft)
+
+    if (draftNames.length === 0) {
+      return variantValueNames
+    }
+
+    const usedKeys = new Set(variantValueNames.map(normalizeComparisonKey))
+    const additions = draftNames.filter((name) => !usedKeys.has(normalizeComparisonKey(name)))
+
+    return [...variantValueNames, ...additions]
+  }, [variantValueNames, nameDraft])
+
+  const decoratedVariantValueNames = useMemo(
+    () =>
+      variantValueNames.map((name) => ({
+        name,
+        isExisting: existingNameKeySet.has(normalizeComparisonKey(name)),
+      })),
+    [variantValueNames, existingNameKeySet],
+  )
+
+  const newVariantValueNames = useMemo(
+    () =>
+      combinedVariantValueNames.filter(
+        (name) => !existingNameKeySet.has(normalizeComparisonKey(name)),
+      ),
+    [combinedVariantValueNames, existingNameKeySet],
+  )
+
+  const existingVariantValueNames = useMemo(
+    () =>
+      combinedVariantValueNames.filter((name) =>
+        existingNameKeySet.has(normalizeComparisonKey(name)),
+      ),
+    [combinedVariantValueNames, existingNameKeySet],
+  )
+
   const resetDialogState = useCallback(() => {
     setFormValues(initialFormValues)
+    setVariantValueNames([])
+    setNameDraft('')
+    setVariantValueOptions([])
+    setIsLoadingVariantValues(false)
     setIsSubmitting(false)
     setErrorMessage('')
   }, [])
@@ -122,6 +252,65 @@ function DialogCreateVariantValue({
       return undefined
     }
 
+    let isMounted = true
+    const controller = new AbortController()
+    const attributeId = formValues.attribute_id
+
+    const loadVariantValues = async () => {
+      if (!attributeId) {
+        setVariantValueOptions([])
+        setIsLoadingVariantValues(false)
+        return
+      }
+
+      setIsLoadingVariantValues(true)
+      setErrorMessage('')
+
+      try {
+        const response = await api.variants.values(
+          { attribute_id: attributeId, is_active: 1 },
+          { signal: controller.signal },
+        )
+        const rows = normalizeRows(response)
+
+        if (!isMounted) {
+          return
+        }
+
+        setVariantValueOptions(rows)
+        setFormValues((currentValues) =>
+          currentValues.attribute_id === attributeId
+            ? {
+                ...currentValues,
+                sort_order: String(getNextSortOrder(rows)),
+              }
+            : currentValues,
+        )
+      } catch (error) {
+        if (isMounted && error?.name !== 'AbortError') {
+          setVariantValueOptions([])
+          setErrorMessage(getApiErrorMessage(error, 'Failed to load variant value data.'))
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingVariantValues(false)
+        }
+      }
+    }
+
+    loadVariantValues()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
+  }, [formValues.attribute_id, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
     const handleKeyDown = (event) => {
       if (event.key === 'Escape' && !isSubmitting) {
         handleClose()
@@ -144,29 +333,93 @@ function DialogCreateVariantValue({
     }))
   }
 
-  const buildPayload = () => {
-    const payload = {
-      attribute_id: formValues.attribute_id,
-      name: formValues.name.trim(),
-      sort_order: Number(formValues.sort_order),
-      is_active: 1,
+  const addVariantValueNames = useCallback((rawText) => {
+    const parsedNames = parseVariantValueNames(rawText)
+
+    if (parsedNames.length === 0) {
+      return
     }
 
-    return payload
+    setVariantValueNames((currentNames) => {
+      const usedKeys = new Set(currentNames.map(normalizeComparisonKey))
+      const additions = parsedNames.filter((name) => !usedKeys.has(normalizeComparisonKey(name)))
+
+      return [...currentNames, ...additions]
+    })
+    setErrorMessage('')
+  }, [])
+
+  const handleNameDraftChange = (event) => {
+    setNameDraft(event.target.value)
+  }
+
+  const handleNameDraftKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ',' || event.key === ';' || event.key === 'Tab') {
+      if (!nameDraft.trim()) {
+        return
+      }
+
+      event.preventDefault()
+      addVariantValueNames(nameDraft)
+      setNameDraft('')
+      return
+    }
+
+    if (event.key === 'Backspace' && !nameDraft) {
+      setVariantValueNames((currentNames) => currentNames.slice(0, -1))
+    }
+  }
+
+  const handleNameDraftBlur = () => {
+    if (nameDraft.trim()) {
+      addVariantValueNames(nameDraft)
+      setNameDraft('')
+    }
+  }
+
+  const handleNameDraftPaste = (event) => {
+    const pastedText = event.clipboardData?.getData('text') ?? ''
+
+    if (!/[\n,;]/.test(pastedText)) {
+      return
+    }
+
+    event.preventDefault()
+    addVariantValueNames(`${nameDraft}${pastedText}`)
+    setNameDraft('')
+  }
+
+  const handleRemoveVariantValueName = (nameToRemove) => {
+    setVariantValueNames((currentNames) => currentNames.filter((name) => name !== nameToRemove))
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const payload = buildPayload()
+    const allNames = combinedVariantValueNames
 
-    if (!payload.attribute_id || !payload.name) {
-      setErrorMessage('Please complete the attribute and name for the variant value first.')
+    if (allNames.length !== variantValueNames.length) {
+      setVariantValueNames(allNames)
+      setNameDraft('')
+    }
+
+    if (!formValues.attribute_id || allNames.length === 0) {
+      setErrorMessage('Please select an attribute and add at least one variant value name.')
       return
     }
 
-    if (!Number.isInteger(payload.sort_order) || payload.sort_order < 1) {
+    const sortOrderStart = Number(formValues.sort_order)
+
+    if (!Number.isInteger(sortOrderStart) || sortOrderStart < 1) {
       setErrorMessage('Sort order must be a positive integer.')
+      return
+    }
+
+    const namesToCreate = newVariantValueNames
+    const skippedCount = existingVariantValueNames.length
+
+    if (namesToCreate.length === 0) {
+      setErrorMessage('All entered variant values already exist for this attribute.')
       return
     }
 
@@ -174,10 +427,22 @@ function DialogCreateVariantValue({
     setErrorMessage('')
 
     try {
-      const createdValue = await api.variantValue.create(payload)
+      const payloads = buildVariantValuePayloads(
+        namesToCreate,
+        formValues.attribute_id,
+        sortOrderStart,
+      )
+      const createdValues = await Promise.all(
+        payloads.map((payload) => api.variantValue.create(payload)),
+      )
+      const createdRows = createdValues.map(getResourceData)
 
-      onCreated?.(createdValue)
-      notifySuccess('Variant value created successfully.')
+      onCreated?.(createdRows.length === 1 ? createdRows[0] : createdRows)
+      notifySuccess(
+        skippedCount > 0
+          ? `${createdRows.length} variant value created. ${skippedCount} existing value skipped.`
+          : `${createdRows.length} variant value created successfully.`,
+      )
       handleClose()
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, 'Failed to create variant value.'))
@@ -190,6 +455,13 @@ function DialogCreateVariantValue({
     return null
   }
 
+  const isTagFieldDisabled = isSubmitting
+  const submitLabel = isSubmitting
+    ? 'Creating...'
+    : combinedVariantValueNames.length > 0
+      ? `Create ${combinedVariantValueNames.length} Value${combinedVariantValueNames.length > 1 ? 's' : ''}`
+      : 'Create'
+
   const dialogNode = (
     <div
       className="dashboard-popup-overlay"
@@ -197,7 +469,7 @@ function DialogCreateVariantValue({
       onClick={isSubmitting ? undefined : handleClose}
     >
       <form
-        className="dashboard-popup register-user-popup mtickets-create-popup parent-create-popup"
+        className="dashboard-popup register-user-popup variant-value-create-popup"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-create-variant-value-title"
@@ -252,24 +524,8 @@ function DialogCreateVariantValue({
                   </div>
 
                   <div className="register-user-popup__field">
-                    <label className="register-user-popup__label" htmlFor="variant-value-name">
-                      Name
-                    </label>
-                    <input
-                      id="variant-value-name"
-                      name="name"
-                      className="register-user-popup__input"
-                      value={formValues.name}
-                      placeholder="Dark Blue"
-                      onChange={handleInputChange}
-                      maxLength={150}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div className="register-user-popup__field">
                     <label className="register-user-popup__label" htmlFor="variant-value-sort-order">
-                      Sort Order
+                      Starting Sort Order
                     </label>
                     <input
                       id="variant-value-sort-order"
@@ -284,6 +540,85 @@ function DialogCreateVariantValue({
                     />
                   </div>
 
+                  {formValues.attribute_id && (
+                    <div className="register-user-popup__field register-user-popup__field--full">
+                      <span className="register-user-popup__label">Existing Values For This Attribute</span>
+                      {isLoadingVariantValues ? (
+                        <p className="register-user-popup__hint">Loading existing variant values...</p>
+                      ) : sortedVariantValueOptions.length > 0 ? (
+                        <div className="variant-value-existing-list">
+                          {sortedVariantValueOptions.map((variantValue) => (
+                            <span
+                              key={variantValue.id ?? getVariantValueName(variantValue)}
+                              className="master-project-chip"
+                            >
+                              {getVariantValueName(variantValue)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="register-user-popup__hint">
+                          No existing variant values for this attribute yet.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="register-user-popup__field register-user-popup__field--full">
+                    <label className="register-user-popup__label" htmlFor="variant-value-name-input">
+                      Value Names
+                    </label>
+                    <div
+                      className={`variant-value-tag-field${isTagFieldDisabled ? ' variant-value-tag-field--disabled' : ''}`}
+                      onClick={() => document.getElementById('variant-value-name-input')?.focus()}
+                    >
+                      {decoratedVariantValueNames.map((entry) => (
+                        <span
+                          key={entry.name}
+                          className={`variant-value-tag${entry.isExisting ? ' variant-value-tag--existing' : ''}`}
+                        >
+                          {entry.name}
+                          {entry.isExisting ? ' · exists' : ''}
+                          <button
+                            type="button"
+                            className="variant-value-tag__remove"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleRemoveVariantValueName(entry.name)
+                            }}
+                            disabled={isSubmitting}
+                            aria-label={`Remove ${entry.name}`}
+                          >
+                            <XClose size={12} />
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        id="variant-value-name-input"
+                        className="variant-value-tag-field__input"
+                        value={nameDraft}
+                        placeholder={
+                          decoratedVariantValueNames.length === 0
+                            ? 'Dark Blue, Light Blue, Navy...'
+                            : 'Add another value'
+                        }
+                        onChange={handleNameDraftChange}
+                        onKeyDown={handleNameDraftKeyDown}
+                        onBlur={handleNameDraftBlur}
+                        onPaste={handleNameDraftPaste}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <p className="register-user-popup__hint">
+                      Press Enter or comma to add a value. You can also paste a list separated by
+                      commas or new lines.
+                    </p>
+                    {existingVariantValueNames.length > 0 && (
+                      <p className="register-user-popup__hint register-user-popup__hint--warning" role="alert">
+                        Already exists and will be skipped: {existingVariantValueNames.join(', ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <ValidationAlertBanner
                   message={errorMessage}
@@ -306,9 +641,15 @@ function DialogCreateVariantValue({
           <button
             type="submit"
             className="dashboard-popup__button dashboard-popup__button--primary"
-            disabled={isSubmitting || isLoadingAttributes}
+            disabled={
+              isSubmitting ||
+              isLoadingAttributes ||
+              isLoadingVariantValues ||
+              !formValues.attribute_id ||
+              combinedVariantValueNames.length === 0
+            }
           >
-            {isSubmitting ? 'Creating...' : 'Create'}
+            {submitLabel}
           </button>
         </div>
       </form>

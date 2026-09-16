@@ -21,8 +21,8 @@ const TypeFields = [
 
 function DialogCreateType({
   isOpen = false,
-  eyebrow = 'Create Type',
-  title = 'Create Type',
+  eyebrow = 'Create Source',
+  title = 'Create Source',
   onClose,
   onCreated,
 }) {
@@ -148,7 +148,10 @@ function DialogCreateType({
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
                   {TypeFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
+                    <div
+                      key={field.name}
+                      className="register-user-popup__field register-user-popup__field--full"
+                    >
                       <label
                         className="register-user-popup__label"
                         htmlFor={`Type-${field.name}`}

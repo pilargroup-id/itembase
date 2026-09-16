@@ -479,9 +479,15 @@ function DataTable({
           sx={{
             border: 'none',
             borderRadius: 12,
+            // MUI DataGrid rounds the header's first/last cell corners off this token
+            // (see GridRootStyles's `--unstable_DataGrid-radius` usage), independently of
+            // any borderRadius set here — leaving it at its default caused a visible seam
+            // between the header cell's own corner and the wrapper's rounded clip.
+            '--unstable_DataGrid-radius': '12px',
             fontFamily: 'inherit',
             fontSize: '0.9rem',
             color: 'inherit',
+            overflow: 'hidden',
             '& .MuiDataGrid-main': {
               borderRadius: 12,
             },
@@ -494,7 +500,10 @@ function DataTable({
               outline: 'none',
             },
             '& .MuiDataGrid-columnHeaders': {
-              borderRadius: 12,
+              backgroundColor: '#f8fafc',
+            },
+            '& .MuiDataGrid-columnHeader': {
+              backgroundColor: '#f8fafc',
             },
             '& .MuiDataGrid-columnHeaderTitle': {
               fontFamily: 'inherit',

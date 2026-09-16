@@ -2,6 +2,7 @@
 import api from "../../../../services/api.js"
 
 import DataTable, { DataTableIdentity } from "../DataTable.jsx"
+import SearchSubBrand from "../../../search/SearchSubBrand.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
 const DEFAULT_SUB_BRAND_PAGE_SIZE = 50
@@ -164,6 +165,7 @@ const columns = [
 
 function DataTableSubBrands({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Sub Brands table",
     refreshKey = 0,
 }) {
@@ -289,6 +291,17 @@ function DataTableSubBrands({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Sub brand table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchSubBrand
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+            </div>
+
             <DataTable
                 className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}

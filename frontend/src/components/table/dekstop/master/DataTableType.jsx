@@ -5,31 +5,18 @@ import DialogDeleteType from "../../../Dialog/dialog-types/DialogDeleteType.jsx"
 import DialogEditType from "../../../Dialog/dialog-types/DialogEditType.jsx"
 import ButtonDeleteType from "../../../button/types-buttons/ButtonDeleteType.jsx"
 import ButtonEditType from "../../../button/types-buttons/ButtonEditType.jsx"
-import FilterDropdownType from "../../../dropdown/filter-types/FilterDropdownType.jsx"
-import { TypeFilterConfig } from "../../../dropdown/filter-types/FilterDropdownType.config.js"
+import ButtonCreateType from "../../../button/types-buttons/ButtonCreateType.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import SearchType from "../../../search/SearchType.jsx"
 import DataTable, {
     DataTableIdentity,
 } from "../DataTable.jsx"
 import { getPaginationItems } from "../../../../services/items/DataTableitems.js"
 
-const ALL_FILTER_VALUE = "all"
 const DEFAULT_TYPE_PAGE_SIZE = 50
 const TYPE_PAGE_SIZE_OPTIONS = [50, 100, 250]
 const DEFAULT_TYPE_SORT = "date-desc"
-const typeSortOptions = [
-    { value: "date-desc", label: "Date Desc" },
-    { value: "date-asc", label: "Date Asc" },
-    { value: "name-asc", label: "Name Asc" },
-    { value: "name-desc", label: "Name Desc" },
-]
-
-const defaultTypeFilters = TypeFilterConfig.reduce(
-    (filters, filterConfig) => ({
-        ...filters,
-        [filterConfig.key]: ALL_FILTER_VALUE,
-    }),
-    {},
-)
 
 function normalizeTypeRows(responseData) {
     if (Array.isArray(responseData)) {
@@ -86,45 +73,6 @@ function matchesSearch(Type, searchQuery) {
     ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
 }
 
-function normalizeFilterValue(value) {
-    return String(value ?? "").trim()
-}
-
-function createFilterOptions(rows, filterConfig) {
-    if (Array.isArray(filterConfig.options)) {
-        return [
-            { value: ALL_FILTER_VALUE, label: filterConfig.placeholder },
-            ...filterConfig.options,
-        ]
-    }
-
-    const uniqueOptions = new Map()
-
-    rows.forEach((Type) => {
-        const customOption = filterConfig.getOption?.(Type)
-
-        if (customOption?.value) {
-            uniqueOptions.set(String(customOption.value), {
-                value: String(customOption.value),
-                label: String(customOption.label ?? customOption.value),
-            })
-            return
-        }
-
-        const value = normalizeFilterValue(filterConfig.getValue(Type))
-
-        if (value) {
-            uniqueOptions.set(value, { value, label: value })
-        }
-    })
-
-    const options = Array.from(uniqueOptions.values()).sort((firstOption, secondOption) =>
-        firstOption.label.localeCompare(secondOption.label),
-    )
-
-    return [{ value: ALL_FILTER_VALUE, label: filterConfig.placeholder }, ...options]
-}
-
 function getTypeDateValue(Type) {
     const dateValue =
         Type.created_at ??
@@ -165,18 +113,6 @@ function sortTypeRows(rows, sortValue) {
                 String(secondType.code ?? secondType.Type_code ?? ""),
             ) * sortDirection
         )
-    })
-}
-
-function matchesTypeFilters(type, filters) {
-    return TypeFilterConfig.every((filterConfig) => {
-        const selectedValue = filters[filterConfig.key]
-
-        if (!selectedValue || selectedValue === ALL_FILTER_VALUE) {
-            return true
-        }
-
-        return normalizeFilterValue(filterConfig.getValue(type)) === selectedValue
     })
 }
 
@@ -232,12 +168,11 @@ const columns = [
 
 function DataTableType({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Types table",
     refreshKey = 0,
 }) {
     const [TypeRows, setTypeRows] = useState([])
-    const [filters, setFilters] = useState(defaultTypeFilters)
-    const [sortValue, setSortValue] = useState(DEFAULT_TYPE_SORT)
     const [pageSize, setPageSize] = useState(DEFAULT_TYPE_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState("")
@@ -245,8 +180,8 @@ function DataTableType({
     const [selectedType, setSelectedType] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
     const filterResetKey = useMemo(
-        () => JSON.stringify({ filters, pageSize, searchQuery, sortValue }),
-        [filters, pageSize, searchQuery, sortValue],
+        () => JSON.stringify({ pageSize, searchQuery }),
+        [pageSize, searchQuery],
     )
     const [paginationState, setPaginationState] = useState({
         currentPage: 1,
@@ -255,27 +190,13 @@ function DataTableType({
     const currentPage =
         paginationState.resetKey === filterResetKey ? paginationState.currentPage : 1
 
-    const filterOptions = useMemo(
-        () =>
-            TypeFilterConfig.reduce(
-                (options, filterConfig) => ({
-                    ...options,
-                    [filterConfig.key]: createFilterOptions(TypeRows, filterConfig),
-                }),
-                {},
-            ),
-        [TypeRows],
-    )
     const filteredRows = useMemo(
-        () =>
-            TypeRows.filter(
-                (Type) => matchesSearch(Type, searchQuery) && matchesTypeFilters(Type, filters),
-            ),
-        [TypeRows, filters, searchQuery],
+        () => TypeRows.filter((Type) => matchesSearch(Type, searchQuery)),
+        [TypeRows, searchQuery],
     )
     const sortedRows = useMemo(
-        () => sortTypeRows(filteredRows, sortValue),
-        [filteredRows, sortValue],
+        () => sortTypeRows(filteredRows, DEFAULT_TYPE_SORT),
+        [filteredRows],
     )
     const { totalPages, safeCurrentPage, rows, firstItem, lastItem } = useMemo(
         () => getPageRows(sortedRows, currentPage, pageSize),
@@ -380,13 +301,6 @@ function DataTableType({
         closeActionDialog()
     }
 
-    const handleFilterChange = (filterKey, nextValue) => {
-        setFilters((currentFilters) => ({
-            ...currentFilters,
-            [filterKey]: nextValue,
-        }))
-    }
-
     const setPaginationPage = (nextPage) => {
         setPaginationState({
             currentPage: nextPage,
@@ -398,7 +312,7 @@ function DataTableType({
         setPageSize(nextPageSize)
         setPaginationState({
             currentPage: 1,
-            resetKey: JSON.stringify({ filters, pageSize: nextPageSize, searchQuery, sortValue }),
+            resetKey: JSON.stringify({ pageSize: nextPageSize, searchQuery }),
         })
     }
 
@@ -428,30 +342,37 @@ function DataTableType({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar">
-                <div className="parent-table-filters" aria-label="Filter Type">
-                    <FilterDropdownType
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={typeSortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Date Desc"
-                        searchable={false}
-                        onChange={setSortValue}
-                    />
-                    {TypeFilterConfig.map((filterConfig) => (
-                        <FilterDropdownType
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key]}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Type table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchType
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
                         />
-                    ))}
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateType
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create type data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreateType>
+                    <ButtonExportMaster
+                        type="item-sources"
+                        masterLabel="Type"
+                        className="parent-table-tool-button"
+                        aria-label="Export type data"
+                    />
+                    <ButtonImportMaster
+                        type="item-sources"
+                        masterLabel="Type"
+                        className="parent-table-tool-button"
+                        aria-label="Import type data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
                 </div>
             </div>
 

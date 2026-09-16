@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
+import ListSubheader from '@mui/material/ListSubheader'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
+import TextField from '@mui/material/TextField'
 
 import { FilterFunnel, XClose } from '../../template/TemplateIcons.jsx'
 
@@ -33,6 +35,64 @@ function getFilterOptionsWithSelected(options = [], selectedValue, fallbackLabel
 
 function getParentFilterLabel(filterFieldOptions, filterKey) {
   return filterFieldOptions.find((filterConfig) => filterConfig.key === filterKey)?.label ?? filterKey
+}
+
+function SearchableFilterSelect({ filterConfig, selectedValue, options, menuProps, onChange }) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredOptions = normalizedQuery
+    ? options.filter((option) =>
+        String(option.searchText || option.label).toLowerCase().includes(normalizedQuery),
+      )
+    : options
+
+  return (
+    <FormControl size="small" className="parent-table-mui-filter parent-filter-popup__field">
+      <InputLabel id={`parent-dialog-filter-${filterConfig.key}-label`} shrink>
+        {filterConfig.label}
+      </InputLabel>
+      <Select
+        labelId={`parent-dialog-filter-${filterConfig.key}-label`}
+        id={`parent-dialog-filter-${filterConfig.key}-select`}
+        value={selectedValue}
+        label={filterConfig.label}
+        onChange={(event) => onChange?.(filterConfig.key, event.target.value)}
+        onClose={() => setSearchQuery('')}
+        renderValue={(value) =>
+          options.find((option) => option.value === value)?.label ?? value
+        }
+        MenuProps={menuProps}
+      >
+        <ListSubheader className="parent-filter-popup__select-search">
+          <TextField
+            size="small"
+            fullWidth
+            autoFocus
+            placeholder={filterConfig.searchPlaceholder || 'Search...'}
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') {
+                event.stopPropagation()
+              }
+            }}
+          />
+        </ListSubheader>
+
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value} dense>
+              {option.label}
+            </MenuItem>
+          ))
+        ) : (
+          <MenuItem disabled dense>
+            {filterConfig.emptyMessage || 'No data found.'}
+          </MenuItem>
+        )}
+      </Select>
+    </FormControl>
+  )
 }
 
 function getSelectedFilterSummary(filterFieldOptions, selectedFilterKeys) {
@@ -212,30 +272,43 @@ function DialogFilterParent({
                       allFilterValue,
                     )
 
-                    return (
-                      <FormControl
-                        key={filterConfig.key}
-                        size="small"
-                        className="parent-table-mui-filter parent-filter-popup__field"
-                      >
-                        <InputLabel id={`parent-dialog-filter-${filterConfig.key}-label`} shrink>
-                          {filterConfig.label}
-                        </InputLabel>
-                        <Select
-                          labelId={`parent-dialog-filter-${filterConfig.key}-label`}
-                          id={`parent-dialog-filter-${filterConfig.key}-select`}
-                          value={selectedValue}
-                          label={filterConfig.label}
-                          onChange={(event) => onFilterChange?.(filterConfig.key, event.target.value)}
-                          MenuProps={menuProps}
+                    if (filterConfig.searchable === false) {
+                      return (
+                        <FormControl
+                          key={filterConfig.key}
+                          size="small"
+                          className="parent-table-mui-filter parent-filter-popup__field"
                         >
-                          {options.map((option) => (
-                            <MenuItem key={option.value} value={option.value} dense>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                          <InputLabel id={`parent-dialog-filter-${filterConfig.key}-label`} shrink>
+                            {filterConfig.label}
+                          </InputLabel>
+                          <Select
+                            labelId={`parent-dialog-filter-${filterConfig.key}-label`}
+                            id={`parent-dialog-filter-${filterConfig.key}-select`}
+                            value={selectedValue}
+                            label={filterConfig.label}
+                            onChange={(event) => onFilterChange?.(filterConfig.key, event.target.value)}
+                            MenuProps={menuProps}
+                          >
+                            {options.map((option) => (
+                              <MenuItem key={option.value} value={option.value} dense>
+                                {option.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )
+                    }
+
+                    return (
+                      <SearchableFilterSelect
+                        key={filterConfig.key}
+                        filterConfig={filterConfig}
+                        selectedValue={selectedValue}
+                        options={options}
+                        menuProps={menuProps}
+                        onChange={onFilterChange}
+                      />
                     )
                   })}
                 </div>

@@ -9,7 +9,7 @@ import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 const initialFormValues = {
   name: '',
-  business_unit_id: '',
+  business_unit_id: [],
   department_id: [],
   is_active: '1',
 }
@@ -76,7 +76,7 @@ function normalizeBusinessUnitOptions(responseData) {
     .sort((firstOption, secondOption) => firstOption.label.localeCompare(secondOption.label))
 }
 
-function normalizeDepartmentOptions(responseData) {
+function normalizeDepartmentOptions(responseData, businessUnitId) {
   return normalizeListResponse(responseData)
     .map((department) => {
       const option = makeOption(department.department_id ?? department.id ?? department.value, [
@@ -85,6 +85,7 @@ function normalizeDepartmentOptions(responseData) {
       ])
 
       option.code = department.department_code ?? department.code ?? ''
+      option.businessUnitId = String(businessUnitId ?? '')
 
       return option
     })
@@ -92,7 +93,19 @@ function normalizeDepartmentOptions(responseData) {
     .sort((firstOption, secondOption) => firstOption.label.localeCompare(secondOption.label))
 }
 
-function getSelectedDepartmentIds(value) {
+function mergeDepartmentOptionLists(optionLists) {
+  const optionMap = new Map()
+
+  optionLists.flat().forEach((option) => {
+    if (option?.value && !optionMap.has(option.value)) {
+      optionMap.set(option.value, option)
+    }
+  })
+
+  return Array.from(optionMap.values())
+}
+
+function getSelectedValues(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item ?? '')).filter(Boolean)
   }
@@ -112,9 +125,9 @@ function generateBrandCode(name) {
 }
 
 function createChannelPayload(formValues, departmentOptions) {
-  const selectedDepartmentIds = getSelectedDepartmentIds(formValues.department_id)
+  const selectedDepartmentIds = getSelectedValues(formValues.department_id)
 
-  if (!formValues.business_unit_id || selectedDepartmentIds.length === 0) {
+  if (selectedDepartmentIds.length === 0) {
     return []
   }
 
@@ -129,12 +142,11 @@ function createChannelPayload(formValues, departmentOptions) {
       }
 
       const numericDepartmentId = Number(departmentId)
-
-      const numericBusinessUnitId = Number(formValues.business_unit_id)
+      const numericBusinessUnitId = Number(departmentOption.businessUnitId)
 
       return {
         business_unit_id: Number.isNaN(numericBusinessUnitId)
-          ? formValues.business_unit_id
+          ? departmentOption.businessUnitId
           : numericBusinessUnitId,
         department_id: Number.isNaN(numericDepartmentId)
           ? departmentId
@@ -245,7 +257,13 @@ function DialogCreateBrand({
   }, [isOpen])
 
   useEffect(() => {
-    if (!isOpen || !formValues.business_unit_id) {
+    const selectedBusinessUnitIds = getSelectedValues(formValues.business_unit_id)
+
+    if (!isOpen) {
+      return undefined
+    }
+
+    if (selectedBusinessUnitIds.length === 0) {
       return undefined
     }
 
@@ -257,10 +275,16 @@ function DialogCreateBrand({
       setErrorMessage('')
 
       try {
-        const departments = await api.businessUnits.departments(
-          formValues.business_unit_id,
-          { active: 1 },
-          { signal: controller.signal },
+        const departmentOptionLists = await Promise.all(
+          selectedBusinessUnitIds.map(async (businessUnitId) => {
+            const departments = await api.businessUnits.departments(
+              businessUnitId,
+              { active: 1 },
+              { signal: controller.signal },
+            )
+
+            return normalizeDepartmentOptions(departments, businessUnitId)
+          }),
         )
 
         if (!isMounted) {
@@ -269,7 +293,7 @@ function DialogCreateBrand({
 
         setMasterOptions((currentOptions) => ({
           ...currentOptions,
-          departments: normalizeDepartmentOptions(departments),
+          departments: mergeDepartmentOptionLists(departmentOptionLists),
         }))
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -298,15 +322,10 @@ function DialogCreateBrand({
 
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
-    setFormValues((currentValues) => {
-      const nextValues = {
-        ...currentValues,
-        [name]: value,
-        ...(name === 'business_unit_id' ? { department_id: [] } : {}),
-      }
-
-      return nextValues
-    })
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      [name]: value,
+    }))
   }
 
   const handleInputChange = (event) => {
@@ -315,10 +334,34 @@ function DialogCreateBrand({
     handleFieldChange(name, value)
   }
 
+  const handleBusinessUnitToggle = (businessUnitId) => {
+    setErrorMessage('')
+
+    const selectedBusinessUnitIds = getSelectedValues(formValues.business_unit_id)
+    const normalizedBusinessUnitId = String(businessUnitId)
+    const isSelected = selectedBusinessUnitIds.includes(normalizedBusinessUnitId)
+    const nextBusinessUnitIds = isSelected
+      ? selectedBusinessUnitIds.filter((selectedId) => selectedId !== normalizedBusinessUnitId)
+      : [...selectedBusinessUnitIds, normalizedBusinessUnitId]
+
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      business_unit_id: nextBusinessUnitIds,
+      department_id: [],
+    }))
+
+    if (nextBusinessUnitIds.length === 0) {
+      setMasterOptions((currentOptions) => ({
+        ...currentOptions,
+        departments: [],
+      }))
+    }
+  }
+
   const handleDepartmentToggle = (departmentId) => {
     setErrorMessage('')
     setFormValues((currentValues) => {
-      const selectedDepartmentIds = getSelectedDepartmentIds(currentValues.department_id)
+      const selectedDepartmentIds = getSelectedValues(currentValues.department_id)
       const normalizedDepartmentId = String(departmentId)
       const isSelected = selectedDepartmentIds.includes(normalizedDepartmentId)
 
@@ -361,7 +404,11 @@ function DialogCreateBrand({
       return
     }
 
-    if (!formValues.business_unit_id || !Array.isArray(payload.channels) || payload.channels.length === 0) {
+    if (
+      getSelectedValues(formValues.business_unit_id).length === 0 ||
+      !Array.isArray(payload.channels) ||
+      payload.channels.length === 0
+    ) {
       setErrorMessage('Please select a business unit and at least one channel first.')
       return
     }
@@ -394,7 +441,7 @@ function DialogCreateBrand({
     isSubmitting ||
     isLoadingMasters ||
     isLoadingDepartments ||
-    !formValues.business_unit_id
+    getSelectedValues(formValues.business_unit_id).length === 0
 
   const dialogNode = (
     <div
@@ -460,23 +507,17 @@ function DialogCreateBrand({
                     <label className="register-user-popup__label" htmlFor="brand-business-unit">
                       Business Unit
                     </label>
-                    <select
+                    <CheckboxSelect
                       id="brand-business-unit"
-                      name="business_unit_id"
-                      className="register-user-popup__select"
+                      label="Business Unit"
                       value={formValues.business_unit_id}
-                      onChange={handleInputChange}
+                      options={masterOptions.businessUnits}
+                      placeholder="Select business unit"
+                      emptyMessage="Business unit not found."
+                      loading={isLoadingMasters}
                       disabled={isSubmitting || isLoadingMasters}
-                    >
-                      <option value="">
-                        {isLoadingMasters ? 'Loading data...' : 'Select business unit'}
-                      </option>
-                      {masterOptions.businessUnits.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                      onToggle={handleBusinessUnitToggle}
+                    />
                   </div>
 
                   <div className="register-user-popup__field">
@@ -490,7 +531,7 @@ function DialogCreateBrand({
                       options={masterOptions.departments}
                       placeholder="Select channel"
                       emptyMessage={
-                        formValues.business_unit_id
+                        getSelectedValues(formValues.business_unit_id).length > 0
                           ? 'Channel not found.'
                           : 'Select a business unit first.'
                       }

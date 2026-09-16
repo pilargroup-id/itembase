@@ -181,7 +181,10 @@ function DialogEditType({
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
                   {TypeFields.map((field) => (
-                    <div key={field.name} className="register-user-popup__field">
+                    <div
+                      key={field.name}
+                      className="register-user-popup__field register-user-popup__field--full"
+                    >
                       <label
                         className="register-user-popup__label"
                         htmlFor={`Type-${field.name}`}

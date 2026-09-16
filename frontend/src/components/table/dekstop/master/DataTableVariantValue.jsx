@@ -241,6 +241,7 @@ function DataTableVariantValue({
     const [errorMessage, setErrorMessage] = useState("")
     const [activeActionDialog, setActiveActionDialog] = useState(null)
     const [selectedUom, setSelectedUom] = useState(null)
+    const [reloadKey, setReloadKey] = useState(0)
     const filterResetKey = useMemo(
         () => JSON.stringify({ pageSize, searchQuery, sortValue }),
         [pageSize, searchQuery, sortValue],
@@ -302,7 +303,7 @@ function DataTableVariantValue({
         return () => {
             isMounted = false
         }
-    }, [refreshKey])
+    }, [refreshKey, reloadKey])
 
     const closeActionDialog = () => {
         setActiveActionDialog(null)
@@ -416,7 +417,7 @@ function DataTableVariantValue({
                         variantType="value"
                         className="parent-table-tool-button parent-table-tool-button--create"
                         aria-label="Create variant value data"
-                        onCreated={() => {}}
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
                     >
                         Create
                     </ButtonCreateVariant>
