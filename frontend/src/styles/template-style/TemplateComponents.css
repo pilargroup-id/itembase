@@ -6267,16 +6267,27 @@ select {
   transform: translateX(14px);
 }
 
-.parent-table-shell .users-table__toggle-track {
-  background: rgba(239, 68, 68, 0.35) !important;
+.parent-table-shell .item-table__status-toggle {
+  width: 32px;
+  height: 18px;
 }
 
-.parent-table-shell .users-table__toggle input:checked ~ .users-table__toggle-track {
-  background: #18786e !important;
+.parent-table-shell .item-table__status-toggle .users-table__toggle-track {
+  background: #ef4444 !important;
 }
 
-.parent-table-shell .users-table__toggle-thumb {
+.parent-table-shell .item-table__status-toggle input:checked ~ .users-table__toggle-track {
+  background: #2a9d8f !important;
+}
+
+.parent-table-shell .item-table__status-toggle .users-table__toggle-thumb {
   background: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.parent-table-shell .users-table__toggle input {
+  opacity: 0 !important;
+  pointer-events: auto;
 }
 
 .item-table__status-cell .users-table__status--inline {
