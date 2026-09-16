@@ -6292,49 +6292,49 @@ select {
 
 /* Style scrollbars in dialogs and modals */
 .MuiDialog-paper {
-  scrollbar-color: rgba(127, 127, 127, 0.6) rgba(24, 43, 88, 0.08);
-  scrollbar-width: thin;
+  scrollbar-color: #b4b4b4 #f0f0f0 !important;
+  scrollbar-width: thin !important;
 }
 
 .MuiDialog-paper::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 
 .MuiDialog-paper::-webkit-scrollbar-track {
-  background: rgba(24, 43, 88, 0.08);
+  background: #f0f0f0 !important;
 }
 
 .MuiDialog-paper::-webkit-scrollbar-thumb {
-  background: rgba(127, 127, 127, 0.6);
-  border-radius: 5px;
+  background: #b4b4b4 !important;
+  border-radius: 6px;
 }
 
 .MuiDialog-paper::-webkit-scrollbar-thumb:hover {
-  background: rgba(90, 90, 90, 0.75);
+  background: #999999 !important;
 }
 
 .MuiDialogContent-root {
-  scrollbar-color: rgba(127, 127, 127, 0.6) rgba(24, 43, 88, 0.08);
-  scrollbar-width: thin;
+  scrollbar-color: #b4b4b4 #f0f0f0 !important;
+  scrollbar-width: thin !important;
 }
 
 .MuiDialogContent-root::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 
 .MuiDialogContent-root::-webkit-scrollbar-track {
-  background: rgba(24, 43, 88, 0.08);
+  background: #f0f0f0 !important;
 }
 
 .MuiDialogContent-root::-webkit-scrollbar-thumb {
-  background: rgba(127, 127, 127, 0.6);
-  border-radius: 5px;
+  background: #b4b4b4 !important;
+  border-radius: 6px;
 }
 
 .MuiDialogContent-root::-webkit-scrollbar-thumb:hover {
-  background: rgba(90, 90, 90, 0.75);
+  background: #999999 !important;
 }
 
 .item-table__status-cell .users-table__status--inline {
