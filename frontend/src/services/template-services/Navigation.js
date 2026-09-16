@@ -9,7 +9,6 @@ import {
   LogOutLeft01,
   Ruler,
   Shapes,
-  Settings01,
   Table01,
   Tag01,
   LayoutDashboard,
@@ -101,14 +100,7 @@ export const primaryNavigationItems = [
   },
 ]
 
-export const secondaryNavigationItems = [
-  {
-    id: 'nav-setting',
-    label: 'Setting',
-    icon: Settings01,
-    children: [],
-  },
-]
+export const secondaryNavigationItems = []
 
 export const profileMenuItems = [
   {

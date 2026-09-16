@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 import { Bell04, ChevronDown, Menu01, User01, XClose } from './TemplateIcons.jsx'
 import logoPiagamMark from '../../images/logo-piagam.svg'
@@ -30,6 +30,7 @@ function HeaderNavItem({ item, activePath, openKey, onOpen, onSelect }) {
   const itemKey = getItemKey(item)
   const isOpen = openKey === itemKey
   const isButton = hasChildren || !item.href
+  const closeTimeoutRef = useRef(null)
 
   const wrapperClassName = [
     'header-nav-item-wrapper',
@@ -69,11 +70,30 @@ function HeaderNavItem({ item, activePath, openKey, onOpen, onSelect }) {
     </>
   )
 
+  const handleMouseLeave = useCallback(() => {
+    if (!hasChildren) return
+
+    closeTimeoutRef.current = setTimeout(() => {
+      onOpen(null)
+    }, 120)
+  }, [hasChildren, onOpen])
+
+  const handleMouseEnter = useCallback(() => {
+    if (!hasChildren) return
+
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+
+    onOpen(itemKey)
+  }, [hasChildren, itemKey, onOpen])
+
   return (
     <div
       className={wrapperClassName}
-      onMouseEnter={() => hasChildren && onOpen(itemKey)}
-      onMouseLeave={() => hasChildren && onOpen(null)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {isButton ? (
         <button
@@ -98,7 +118,18 @@ function HeaderNavItem({ item, activePath, openKey, onOpen, onSelect }) {
       )}
 
       {hasChildren ? (
-        <div className="header-nav-dropdown" role="menu" aria-hidden={!isOpen}>
+        <div
+          className="header-nav-dropdown"
+          role="menu"
+          aria-hidden={!isOpen}
+          onMouseEnter={() => {
+            if (closeTimeoutRef.current) {
+              clearTimeout(closeTimeoutRef.current)
+              closeTimeoutRef.current = null
+            }
+          }}
+          onMouseLeave={handleMouseLeave}
+        >
           {item.children.map((child) => {
             const ChildIcon = child.icon
             const childActive = isItemActive(child, activePath)

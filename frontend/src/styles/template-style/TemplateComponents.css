@@ -144,10 +144,10 @@ input[type='radio'] {
 .header-nav-list {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex: 1 1 auto;
   min-width: 0;
-  padding: 0 1.5rem;
+  padding: 0 1.2rem;
 }
 
 .header-nav-actions {
@@ -189,11 +189,11 @@ input[type='radio'] {
 .header-nav-logo {
   display: block;
   flex-shrink: 0;
-  height: 26px;
+  height: 40px;
   width: auto;
   object-fit: contain;
-  margin-right: 0.9rem;
-  padding-right: 0.9rem;
+  margin-right: 1.2rem;
+  padding-right: 1.2rem;
   border-right: 1px solid rgba(255, 255, 255, 0.16);
 }
 
@@ -279,15 +279,15 @@ input[type='radio'] {
   top: 100%;
   left: 0;
   min-width: 240px;
-  margin-top: 6px;
-  padding: 8px;
-  border-radius: var(--radius-md);
+  margin-top: 8px;
+  padding: 12px 8px;
+  border-radius: 14px;
   background: #ffffff;
-  border: 1px solid rgba(26, 42, 87, 0.1);
-  box-shadow: 0 18px 36px rgba(17, 38, 75, 0.12);
+  border: 1px solid rgba(26, 42, 87, 0.08);
+  box-shadow: 0 12px 32px rgba(17, 38, 75, 0.15);
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-6px);
+  transform: translateY(-8px);
   pointer-events: none;
   transition:
     opacity 0.2s ease,
@@ -315,8 +315,8 @@ input[type='radio'] {
 .header-nav-dropdown__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 11px 14px;
   border-radius: 10px;
   color: #1f2a44;
   font-size: 0.875rem;
@@ -337,7 +337,7 @@ input[type='radio'] {
 
 .header-nav-dropdown__item:hover,
 .header-nav-dropdown__item.active {
-  background: rgba(42, 157, 143, 0.12);
+  background: rgba(42, 157, 143, 0.1);
   color: var(--accent-teal-dark);
 }
 
