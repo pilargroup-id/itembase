@@ -258,6 +258,17 @@ function DataTable({
   autoHeight = true,
   onRowClick,
   getRowClassName,
+  wrapperClassName = 'users-table-wrapper',
+  cellContentClassName = 'users-table__cell-content',
+  emptyClassName = 'users-table__empty',
+  detailDialogClassName = 'users-table__accordion-dialog',
+  detailContentClassName = 'users-table__accordion',
+  detailHeaderClassName = 'users-table__accordion-header',
+  detailCopyClassName = 'users-table__accordion-copy',
+  detailTitleClassName = 'users-table__accordion-title',
+  detailShellClassName = 'users-table__detail-shell',
+  actionHeaderClassName = 'users-table__action-header',
+  actionGroupClassName = 'users-table__action-group',
 }) {
   const [activeDetail, setActiveDetail] = useState(null)
   const hasDetail = Boolean(detail)
@@ -305,7 +316,7 @@ function DataTable({
 
           return (
             <div
-              className="users-table__cell-content"
+              className={cellContentClassName}
               style={{ display: 'flex', alignItems: 'center', width: '100%', ...restCellStyle }}
             >
               {value}
@@ -319,7 +330,7 @@ function DataTable({
       dataColumns.push({
         field: '__actions',
         headerName: 'Action',
-        headerClassName: 'users-table__action-header',
+        headerClassName: actionHeaderClassName,
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
@@ -329,7 +340,7 @@ function DataTable({
           const row = params.row
 
           return (
-            <div className="users-table__action-group">
+            <div className={actionGroupClassName}>
               {actions.map((action) => {
                 if (action.hidden?.(row, index)) {
                   return null
@@ -443,7 +454,7 @@ function DataTable({
 
   return (
     <>
-      <div className={['users-table-wrapper', className].filter(Boolean).join(' ')}>
+      <div className={[wrapperClassName, className].filter(Boolean).join(' ')}>
         <DataGrid
           aria-label={tableLabel}
           rows={rows}
@@ -460,19 +471,19 @@ function DataTable({
           }
           slots={{
             noRowsOverlay: () => (
-              <div className="users-table__empty" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className={emptyClassName} style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {resolvedEmptyMessage}
               </div>
             ),
           }}
           sx={{
             border: 'none',
-            borderRadius: 0,
+            borderRadius: 12,
             fontFamily: 'inherit',
             fontSize: '0.9rem',
             color: 'inherit',
             '& .MuiDataGrid-main': {
-              borderRadius: 0,
+              borderRadius: 12,
             },
             '& .MuiDataGrid-cell': {
               paddingTop: '0.4rem',
@@ -483,7 +494,7 @@ function DataTable({
               outline: 'none',
             },
             '& .MuiDataGrid-columnHeaders': {
-              borderRadius: 0,
+              borderRadius: 12,
             },
             '& .MuiDataGrid-columnHeaderTitle': {
               fontFamily: 'inherit',
@@ -503,14 +514,14 @@ function DataTable({
           maxWidth="md"
           fullWidth
           slotProps={{
-            paper: { className: ['users-table__accordion-dialog', className].filter(Boolean).join(' ') },
+            paper: { className: [detailDialogClassName, className].filter(Boolean).join(' ') },
           }}
         >
-          <DialogContent className="users-table__accordion">
-            <div className="users-table__accordion-header">
-              <div className="users-table__accordion-copy">
+          <DialogContent className={detailContentClassName}>
+            <div className={detailHeaderClassName}>
+              <div className={detailCopyClassName}>
                 <p className="users-table__accordion-eyebrow">{detailEyebrow ?? 'Detail'}</p>
-                <h3 className="users-table__accordion-title">
+                <h3 className={detailTitleClassName}>
                   {detailTitle ?? detailRow?.name ?? detailRow?.title ?? (detailRow ? getRowId(detailRow, detailIndex) : '')}
                 </h3>
                 {detailDescription ? (
@@ -522,7 +533,7 @@ function DataTable({
             {detailRow && typeof detail.render === 'function' ? detail.render(detailRow, detailIndex) : null}
 
             {detailSections.length > 0 ? (
-              <div className="users-table__detail-shell">
+              <div className={detailShellClassName}>
                 {detailSections.map((section) => (
                   <section
                     key={section.title}

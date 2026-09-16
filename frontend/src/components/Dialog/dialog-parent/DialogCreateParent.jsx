@@ -156,7 +156,7 @@ function normalizeListResponse(responseData) {
   }
 
   return []
-}
+} 
 
 function getFirstFilledValue(item, keys) {
   const matchedKey = keys.find((key) => item?.[key] !== undefined && item?.[key] !== null && item?.[key] !== '')

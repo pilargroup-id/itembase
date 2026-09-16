@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogEditBundle from "../../../Dialog/dialog-bundles/DialogEditBundle.jsx"
+import DialogFilterBundle from "../../../Dialog/dialog-bundles/DialogFilterBundle.jsx"
 import DialogValidateStatusBundle from "../../../Dialog/dialog-bundles/DialogValidateStatusBundle.jsx"
 import DialogImportBundle from "../../../Dialog/dialog-bundles/DialogImportBundle.jsx"
+import ButtonCreateBundle from "../../../button/bundles-buttons/ButtonCreateBundle.jsx"
 import ButtonDownloadBundle from "../../../button/bundles-buttons/ButtonDownloadBundle.jsx"
 import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
 import ButtonExportBundle from "../../../button/bundles-buttons/ButtonExportBundle.jsx"
 import ButtonImportBundle from "../../../button/bundles-buttons/ButtonImportBundle.jsx"
-import FilterDropdownBundle from "../../../dropdown/filter-bundles/FilterDropdownBundles.jsx"
-import { Export01 } from "../../../template/TemplateIcons.jsx"
+import SearchBundle from "../../../search/SearchBundle.jsx"
+import { Export01, FilterFunnel } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
     DataTableIdentity,
@@ -22,23 +24,35 @@ import {
 } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-export const DEFAULT_BUNDLE_SORT = "date-desc"
-export const bundleSortOptions = [
+const DEFAULT_BUNDLE_SORT = "date-desc"
+const SORT_FILTER_KEY = "sort"
+const bundleSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
 ]
+const bundleFilterMenuProps = {
+    PaperProps: {
+        className: "parent-table-mui-menu",
+        sx: {
+            maxHeight: 320,
+            borderRadius: "10px",
+            mt: 0.5,
+        },
+    },
+}
+const bundleFilterConfig = itemFilterConfig.filter((filterConfig) => filterConfig.key !== "itemKind")
 
-export const defaultBundleFilters = itemFilterConfig.reduce(
+const defaultBundleFilters = bundleFilterConfig.reduce(
     (filters, filterConfig) => ({
         ...filters,
         [filterConfig.key]: ALL_FILTER_VALUE,
     }),
     {},
 )
-const visibleBundleFilterConfigs = itemFilterConfig.filter(
-    (filterConfig) =>
-        !["itemCode", "barcode", "itemKind", "skuStatus", "uom"].includes(filterConfig.key),
-)
+const bundleFilterFieldOptions = [
+    { key: SORT_FILTER_KEY, label: "Sort By" },
+    ...bundleFilterConfig,
+]
 
 function getItemId(item) {
     return item?.id ?? item?.item_id ?? null
@@ -241,7 +255,7 @@ function createItemApiParams(filters, searchQuery) {
         item_kind: "bundle",
     }
 
-    itemFilterConfig.forEach((filterConfig) => {
+    bundleFilterConfig.forEach((filterConfig) => {
         // skip item_kind filter since we always force bundle
         if (filterConfig.apiParam === "item_kind") {
             return
@@ -317,8 +331,8 @@ const columns = [
     {
         key: "identity",
         header: "SKU BUNDLING NAME / CODE",
-        headerStyle: { width: "14%" },
-        cellStyle: { width: "14%" },
+        headerStyle: { width: "14%", minWidth: 220 },
+        cellStyle: { width: "14%", minWidth: 220 },
         render: (item) => (
             <DataTableIdentity
                 title={item.item_name || "-"}
@@ -329,8 +343,8 @@ const columns = [
     {
         key: "sellingName",
         header: "Selling Name",
-        headerStyle: { width: "12%" },
-        cellStyle: { width: "12%" },
+        headerStyle: { width: "12%", minWidth: 220 },
+        cellStyle: { width: "12%", minWidth: 220 },
         render: (item) => (
             <DataTableIdentity title={item.selling_name ?? item.item_name ?? "-"} />
         ),
@@ -338,15 +352,15 @@ const columns = [
     {
         key: "barcode",
         header: "Barcode",
-        headerStyle: { width: "8%" },
-        cellStyle: { width: "8%" },
+        headerStyle: { width: "8%", minWidth: 130 },
+        cellStyle: { width: "8%", minWidth: 130 },
         render: (item) => renderItemValue(item.barcode),
     },
     {
         key: "parent",
         header: "Parent Name",
-        headerStyle: { width: "13%" },
-        cellStyle: { width: "13%" },
+        headerStyle: { width: "13%", minWidth: 190 },
+        cellStyle: { width: "13%", minWidth: 190 },
         render: (item) => (
             <DataTableIdentity
                 title={item.parent?.parent_name || "-"}
@@ -357,36 +371,36 @@ const columns = [
     {
         key: "brand",
         header: "Brand",
-        headerStyle: { width: "6%" },
-        cellStyle: { width: "6%" },
+        headerStyle: { width: "6%", minWidth: 120 },
+        cellStyle: { width: "6%", minWidth: 120 },
         render: (item) => renderItemValue(item.parent?.brand?.name),
     },
     {
         key: "category",
         header: "Category",
-        headerStyle: { width: "8%" },
-        cellStyle: { width: "8%" },
+        headerStyle: { width: "8%", minWidth: 150 },
+        cellStyle: { width: "8%", minWidth: 150 },
         render: (item) => renderItemValue(item.parent?.category?.detail_category),
     },
     {
         key: "uom",
         header: "UOM",
-        headerStyle: { width: "5%" },
-        cellStyle: { width: "5%" },
+        headerStyle: { width: "5%", minWidth: 96 },
+        cellStyle: { width: "5%", minWidth: 96 },
         render: (item) => renderItemValue(item.uom?.code ?? item.uom?.name),
     },
     {
         key: "pack",
         header: "Pack",
-        headerStyle: { width: "5%" },
-        cellStyle: { width: "5%" },
+        headerStyle: { width: "5%", minWidth: 96 },
+        cellStyle: { width: "5%", minWidth: 96 },
         render: (item) => renderItemValue(formatNumberValue(item.qty_per_pack)),
     },
     {
         key: "components",
         header: "Components",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
+        headerStyle: { width: "7%", minWidth: 120 },
+        cellStyle: { width: "7%", minWidth: 120 },
         render: (item) => renderItemValue(
             Array.isArray(item.components) ? item.components.length : "-"
         ),
@@ -395,13 +409,14 @@ const columns = [
 
 function DataTableBundles({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Bundles table",
     refreshKey = 0,
-    filters = defaultBundleFilters,
-    sortValue = DEFAULT_BUNDLE_SORT,
-    sortOptions = bundleSortOptions,
-    onApplyFilters,
 }) {
+    const [filters, setFilters] = useState(defaultBundleFilters)
+    const [selectedFilterKeys, setSelectedFilterKeys] = useState([])
+    const [sortValue, setSortValue] = useState(DEFAULT_BUNDLE_SORT)
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
     const [itemRows, setItemRows] = useState([])
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
@@ -430,7 +445,7 @@ function DataTableBundles({
 
     const filterOptions = useMemo(
         () =>
-            itemFilterConfig.reduce(
+            bundleFilterConfig.reduce(
                 (options, filterConfig) => ({
                     ...options,
                     [filterConfig.key]: createFilterOptions(itemRows, filterConfig),
@@ -439,6 +454,15 @@ function DataTableBundles({
             ),
         [itemRows],
     )
+    const selectedFilterConfigs = useMemo(
+        () =>
+            selectedFilterKeys
+                .map((filterKey) => bundleFilterConfig.find((filterConfig) => filterConfig.key === filterKey))
+                .filter(Boolean),
+        [selectedFilterKeys],
+    )
+    const hasSelectedSortFilter = selectedFilterKeys.includes(SORT_FILTER_KEY)
+
     const itemApiParams = useMemo(
         () =>
             createPaginatedItemApiParams({
@@ -552,13 +576,35 @@ function DataTableBundles({
         closeActionDialog()
     }
 
+    const actionColumn = {
+        key: "action",
+        header: "Action",
+        headerClassName: "users-table__action-header",
+        cellClassName: "users-table__action-cell",
+        headerStyle: { width: "5%", minWidth: 96 },
+        cellStyle: { width: "5%", minWidth: 96, whiteSpace: "nowrap" },
+        render: (item) => (
+            <div className="parent-action-buttons" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                <ButtonEditBundle
+                    title="Edit"
+                    aria-label={`Edit ${item.item_name || item.item_code || "bundle"}`}
+                    onClick={(event) => {
+                        event.stopPropagation()
+                        openActionDialog("edit", item)
+                    }}
+                />
+            </div>
+        ),
+    }
+
     const tableColumns = [
+        actionColumn,
         ...columns,
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "7%" },
-            cellStyle: { width: "7%" },
+            headerStyle: { width: "7%", minWidth: 150 },
+            cellStyle: { width: "7%", minWidth: 150 },
             render: (item) => (
                 <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <label
@@ -577,26 +623,6 @@ function DataTableBundles({
                     <DataTableStatus inline variant={getItemStatusVariant(item)}>
                         {getItemStatusLabel(item)}
                     </DataTableStatus>
-                </div>
-            ),
-        },
-        {
-            key: "action",
-            header: "Action",
-            headerClassName: "users-table__action-header",
-            cellClassName: "users-table__action-cell",
-            headerStyle: { width: "5%" },
-            cellStyle: { width: "5%", whiteSpace: "nowrap" },
-            render: (item) => (
-                <div className="parent-action-buttons" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                    <ButtonEditBundle
-                        title="Edit"
-                        aria-label={`Edit ${item.item_name || item.item_code || "bundle"}`}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                            openActionDialog("edit", item)
-                        }}
-                    />
                 </div>
             ),
         },
@@ -635,31 +661,6 @@ function DataTableBundles({
         setReloadKey((currentKey) => currentKey + 1)
     }
 
-    const handleFilterChange = (filterKey, nextValue) => {
-        if (filters[filterKey] === nextValue) {
-            return
-        }
-
-        onApplyFilters?.({
-            filters: {
-                ...filters,
-                [filterKey]: nextValue,
-            },
-            sortValue,
-        })
-    }
-
-    const handleSortChange = (nextSortValue) => {
-        if (nextSortValue === sortValue) {
-            return
-        }
-
-        onApplyFilters?.({
-            filters,
-            sortValue: nextSortValue,
-        })
-    }
-
     const setPaginationPage = (nextPage) => {
         if (nextPage === currentPage && paginationState.resetKey === filterResetKey) {
             return
@@ -686,6 +687,65 @@ function DataTableBundles({
                 sortValue,
             }),
         })
+    }
+
+    const updateSelectedFilterKeys = (nextFilterKeys) => {
+        const validFilterKeySet = new Set(bundleFilterFieldOptions.map((filterConfig) => filterConfig.key))
+        const normalizedFilterKeys = Array.from(new Set(nextFilterKeys)).filter((filterKey) =>
+            validFilterKeySet.has(filterKey),
+        )
+
+        setSelectedFilterKeys(normalizedFilterKeys)
+        setFilters((currentFilters) =>
+            bundleFilterConfig.reduce(
+                (nextFilters, filterConfig) => ({
+                    ...nextFilters,
+                    [filterConfig.key]: normalizedFilterKeys.includes(filterConfig.key)
+                        ? currentFilters[filterConfig.key] ?? ALL_FILTER_VALUE
+                        : ALL_FILTER_VALUE,
+                }),
+                {},
+            ),
+        )
+
+        if (!normalizedFilterKeys.includes(SORT_FILTER_KEY)) {
+            setSortValue(DEFAULT_BUNDLE_SORT)
+        }
+    }
+
+    const handleFilterKeyToggle = (filterKey) => {
+        updateSelectedFilterKeys(
+            selectedFilterKeys.includes(filterKey)
+                ? selectedFilterKeys.filter((selectedFilterKey) => selectedFilterKey !== filterKey)
+                : [...selectedFilterKeys, filterKey],
+        )
+    }
+
+    const handleFilterChange = (filterKey, nextValue) => {
+        if (filters[filterKey] === nextValue) {
+            return
+        }
+
+        setFilters((currentFilters) => ({
+            ...currentFilters,
+            [filterKey]: nextValue,
+        }))
+    }
+
+    const handleSortChange = (event) => {
+        const nextSortValue = event.target.value
+
+        if (nextSortValue === sortValue) {
+            return
+        }
+
+        setSortValue(nextSortValue)
+    }
+
+    const handleResetFilters = () => {
+        setSelectedFilterKeys([])
+        setFilters(defaultBundleFilters)
+        setSortValue(DEFAULT_BUNDLE_SORT)
     }
 
     const loadingPageMessage = `Memuat data bundle halaman ${currentPage}...`
@@ -719,8 +779,44 @@ function DataTableBundles({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-backdrop" aria-label="Bundle table tools">
-                <div className="parent-table-actions">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Bundle table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-filter-entry" aria-label="Filter bundle">
+                        <button
+                            type="button"
+                            className={[
+                                "parent-table-filter-trigger",
+                                selectedFilterKeys.length > 0 ? "parent-table-filter-trigger--active" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            aria-label="Open bundle filter dialog"
+                            title="Filter"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            <FilterFunnel size={18} aria-hidden="true" />
+                            {selectedFilterKeys.length > 0 ? (
+                                <span className="parent-table-filter-trigger__dot" aria-hidden="true" />
+                            ) : null}
+                        </button>
+                    </div>
+
+                    <div className="parent-table-toolbar__search">
+                        <SearchBundle
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateBundle
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create bundle data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreateBundle>
                     <ButtonExportBundle
                         variant="action"
                         className="parent-table-tool-button parent-table-tool-button--download"
@@ -743,42 +839,38 @@ function DataTableBundles({
                         {isImportPreviewing ? "Previewing..." : "Import"}
                     </ButtonImportBundle>
                 </div>
-
-                <div className="parent-table-filters" aria-label="Filter bundle">
-                    <FilterDropdownBundle
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={sortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Sort By"
-                        searchable={false}
-                        onChange={handleSortChange}
-                    />
-                    {visibleBundleFilterConfigs.map((filterConfig) => (
-                        <FilterDropdownBundle
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key] ?? []}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
-                            searchable={filterConfig.searchable ?? true}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))}
-                </div>
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={isLoading ? [] : rows}
                 columns={tableColumns}
                 getRowId={(item) => item.id ?? item.item_code ?? item.barcode}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
+            />
+
+            <DialogFilterBundle
+                isOpen={isFilterDialogOpen}
+                filterConfigs={bundleFilterConfig}
+                filterFieldOptions={bundleFilterFieldOptions}
+                selectedFilterKeys={selectedFilterKeys}
+                selectedFilterConfigs={selectedFilterConfigs}
+                filters={filters}
+                filterOptions={filterOptions}
+                allFilterValue={ALL_FILTER_VALUE}
+                defaultSortValue={DEFAULT_BUNDLE_SORT}
+                sortOptions={bundleSortOptions}
+                menuProps={bundleFilterMenuProps}
+                hasSelectedSortFilter={hasSelectedSortFilter}
+                sortValue={sortValue}
+                onClose={() => setIsFilterDialogOpen(false)}
+                onFilterKeyToggle={handleFilterKeyToggle}
+                onFilterChange={handleFilterChange}
+                onSortChange={handleSortChange}
+                onReset={handleResetFilters}
             />
 
             <DialogEditBundle

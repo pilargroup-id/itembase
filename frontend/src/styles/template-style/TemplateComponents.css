@@ -41,19 +41,6 @@
   --panel-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --text: #e5edf8;
-    --page-background: #ffffff;
-    --surface: #17233b;
-    --surface-muted: #1e2d48;
-    --border-color: rgba(148, 163, 184, 0.2);
-    --light-gray: #243451;
-    --panel-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
-  }
-}
-
 * {
   box-sizing: border-box;
 }
@@ -82,6 +69,12 @@ input,
 textarea,
 select {
   font: inherit;
+  color-scheme: light;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent-teal);
 }
 
 #root {
@@ -100,6 +93,14 @@ select {
   max-width: 100%;
   overflow: hidden;
   background: var(--page-background);
+}
+
+.dashboard-shell,
+.dashboard-popup,
+.MuiDialog-paper,
+.parent-table-shell,
+.parent-table-grid {
+  color-scheme: light;
 }
 
 .dashboard-stage {
@@ -3930,12 +3931,44 @@ select {
   scrollbar-color: rgba(127, 127, 127, 0.55) rgba(26, 42, 87, 0.06);
 }
 
+.parent-table-shell,
+.parent-table-shell * {
+  scrollbar-color: #a8b0bd #edf0f4;
+  scrollbar-width: thin;
+}
+
+.parent-table-shell::-webkit-scrollbar,
+.parent-table-shell *::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.parent-table-shell::-webkit-scrollbar-track,
+.parent-table-shell *::-webkit-scrollbar-track {
+  background: #edf0f4;
+}
+
+.parent-table-shell::-webkit-scrollbar-thumb,
+.parent-table-shell *::-webkit-scrollbar-thumb {
+  border: 3px solid #edf0f4;
+  border-radius: 999px;
+  background: #a8b0bd;
+  background-clip: padding-box;
+}
+
+.parent-table-shell::-webkit-scrollbar-thumb:hover,
+.parent-table-shell *::-webkit-scrollbar-thumb:hover {
+  background: #7f8895;
+  background-clip: padding-box;
+}
+
 .parent-table-grid.users-table-wrapper {
   margin-top: 0;
   border-color: rgba(26, 42, 87, 0.1);
-  border-radius: 0;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: none;
+  overflow: hidden;
 }
 
 .parent-table-grid .MuiDataGrid-columnHeaders,
@@ -3987,28 +4020,28 @@ select {
    renders its own floating `.MuiDataGrid-scrollbar` thumb instead. Styling the virtualScroller's
    native scrollbar re-enables it alongside MUI's own thumb, producing a visible double scrollbar -
    so style MUI's actual scrollbar element instead of the (intentionally hidden) scroller. */
-.parent-items-table-grid .MuiDataGrid-scrollbar {
+.parent-table-grid .MuiDataGrid-scrollbar {
   scrollbar-color: #9aa1ac #e8eaed;
   scrollbar-width: thin;
 }
 
-.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar {
+.parent-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar {
   width: 11px;
   height: 11px;
 }
 
-.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-track {
+.parent-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-track {
   background: #e8eaed;
 }
 
-.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb {
+.parent-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb {
   border: 3px solid #e8eaed;
   border-radius: 999px;
   background: #9aa1ac;
   background-clip: padding-box;
 }
 
-.parent-items-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb:hover {
+.parent-table-grid .MuiDataGrid-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #7c828d;
   background-clip: padding-box;
 }
@@ -6167,6 +6200,11 @@ select {
   color: #b42318;
 }
 
+.users-table__status--discontinue {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
 .users-table__status--log-create {
   background: rgba(42, 157, 143, 0.14);
   color: #18786e;
@@ -6340,6 +6378,129 @@ select {
 .item-table__status-cell .users-table__status--inline {
   padding: 0.12rem 0.4rem;
   font-size: 0.6rem;
+}
+
+.item-table__status-cell {
+  width: 100%;
+}
+
+.item-table__select-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.item-table__mui-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.item-table__mui-select--status {
+  max-width: 108px;
+  min-width: 100px;
+}
+
+.item-table__mui-select--replenishment {
+  max-width: 154px;
+  min-width: 136px;
+}
+
+.item-table__mui-select .MuiOutlinedInput-root {
+  height: 26px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.item-table__mui-select .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(100, 116, 139, 0.18);
+}
+
+.item-table__mui-select .MuiSelect-select {
+  min-height: 0;
+  padding: 4px 28px 4px 8px;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-table__mui-select .MuiSvgIcon-root {
+  right: 6px;
+  color: currentColor;
+  opacity: 0.72;
+}
+
+.item-table__mui-select--active .MuiOutlinedInput-root,
+.item-table__mui-select--replenishment-rg .MuiOutlinedInput-root {
+  background: rgba(42, 157, 143, 0.14);
+  color: #18786e;
+}
+
+.item-table__mui-select--active .MuiOutlinedInput-notchedOutline,
+.item-table__mui-select--replenishment-rg .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(42, 157, 143, 0.24);
+}
+
+.item-table__mui-select--inactive .MuiOutlinedInput-root {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b42318;
+}
+
+.item-table__mui-select--inactive .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.item-table__mui-select--discontinue .MuiOutlinedInput-root,
+.item-table__mui-select--replenishment-nr .MuiOutlinedInput-root {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
+.item-table__mui-select--discontinue .MuiOutlinedInput-notchedOutline,
+.item-table__mui-select--replenishment-nr .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(100, 116, 139, 0.24);
+}
+
+.item-table__mui-select--replenishment-ss .MuiOutlinedInput-root {
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+}
+
+.item-table__mui-select--replenishment-ss .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.item-table__mui-select--replenishment-bd .MuiOutlinedInput-root {
+  background: rgba(45, 74, 140, 0.11);
+  color: var(--secondary-blue);
+}
+
+.item-table__mui-select--replenishment-bd .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(45, 74, 140, 0.22);
+}
+
+.item-table__mui-select--empty .MuiOutlinedInput-root {
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+}
+
+.item-table__mui-select--disabled {
+  opacity: 0.72;
+}
+
+.item-table__mui-menu .MuiMenuItem-root {
+  min-height: 28px;
+  font-size: 0.78rem;
+}
+
+.item-table__status-error {
+  margin: -0.25rem 0 0.75rem;
 }
 
 .users-table__accordion-header {
@@ -8001,16 +8162,17 @@ select {
   align-items: start;
   position: relative;
   grid-template-columns:
-    minmax(170px, 1.15fr)
-    minmax(118px, 0.76fr)
-    repeat(3, minmax(104px, 0.68fr))
-    minmax(150px, 0.95fr)
-    minmax(118px, 0.76fr);
+    minmax(160px, 1.05fr)
+    minmax(160px, 1fr)
+    minmax(118px, 0.72fr)
+    repeat(3, minmax(104px, 0.64fr))
+    minmax(150px, 0.92fr)
+    minmax(118px, 0.72fr);
 }
 
 .item-create-popup .item-create-popup__dimension-grid::before {
   content: '';
-  grid-column: 3 / span 3;
+  grid-column: 4 / span 3;
   grid-row: 1;
   margin: -0.55rem -0.55rem -0.65rem;
   border: 1px solid rgba(42, 157, 143, 0.16);
@@ -8038,33 +8200,38 @@ select {
   grid-row: 1;
 }
 
-.item-create-popup__field--qty_per_pack {
+.item-create-popup__field--replenishment_type {
   grid-column: 2;
   grid-row: 1;
 }
 
-.item-create-popup__field--height {
+.item-create-popup__field--qty_per_pack {
   grid-column: 3;
   grid-row: 1;
 }
 
-.item-create-popup__field--width {
+.item-create-popup__field--height {
   grid-column: 4;
   grid-row: 1;
 }
 
-.item-create-popup__field--depth {
+.item-create-popup__field--width {
   grid-column: 5;
   grid-row: 1;
 }
 
-.item-create-popup__field--gross_weight_pack {
+.item-create-popup__field--depth {
   grid-column: 6;
   grid-row: 1;
 }
 
-.item-create-popup__field--production_time_days {
+.item-create-popup__field--gross_weight_pack {
   grid-column: 7;
+  grid-row: 1;
+}
+
+.item-create-popup__field--production_time_days {
+  grid-column: 8;
   grid-row: 1;
 }
 
@@ -8115,6 +8282,14 @@ select {
 
 .item-create-popup__dimension-cell--uom_id .parent-subbrand-search__input {
   width: 140px;
+}
+
+.item-create-popup__dimension-cell--replenishment_type {
+  min-width: 168px;
+}
+
+.item-create-popup__dimension-cell--replenishment_type .parent-master-select__trigger {
+  width: 168px;
 }
 
 .item-create-popup .item-create-popup__dimension-input {
@@ -8407,6 +8582,10 @@ select {
   cursor: pointer;
 }
 
+.item-create-popup__matrix-sync-toggle + .item-create-popup__matrix-sync-toggle {
+  margin-left: 0;
+}
+
 .item-create-popup__dimension-cell--synced {
   background: rgba(42, 157, 143, 0.06);
 }
@@ -8421,7 +8600,7 @@ select {
 
 .item-create-popup__matrix-table {
   width: 100%;
-  min-width: 1420px;
+  min-width: 1588px;
   border-collapse: collapse;
 }
 
@@ -10245,33 +10424,38 @@ select {
     grid-row: 1;
   }
 
-  .item-create-popup__field--qty_per_pack {
+  .item-create-popup__field--replenishment_type {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .item-create-popup__field--height {
+  .item-create-popup__field--qty_per_pack {
     grid-column: 1;
+    grid-row: 2;
+  }
+
+  .item-create-popup__field--height {
+    grid-column: 2;
     grid-row: 2;
   }
 
   .item-create-popup__field--width {
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: 1;
+    grid-row: 3;
   }
 
   .item-create-popup__field--depth {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 3;
   }
 
   .item-create-popup__field--gross_weight_pack {
-    grid-column: 2;
-    grid-row: 3;
+    grid-column: 1;
+    grid-row: 4;
   }
 
   .item-create-popup__field--production_time_days {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 4;
   }
 

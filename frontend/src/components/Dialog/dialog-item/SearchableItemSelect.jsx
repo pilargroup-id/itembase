@@ -16,6 +16,7 @@ function SearchableItemSelect({
   remoteSearch = false,
   forceOpenDown = false,
   allowCreate = false,
+  searchable = true,
   searchTrigger = false,
   onCreate,
   onChange,
@@ -32,6 +33,7 @@ function SearchableItemSelect({
   const searchInputRef = useRef(null)
   const selectedValue = String(value ?? '')
   const selectedOption = options.find((option) => option.value === selectedValue)
+  const hasMenuSearch = searchable && !searchTrigger
   const filteredOptions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -47,7 +49,8 @@ function SearchableItemSelect({
   const hasExactMatch = options.some(
     (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
   )
-  const canCreateOption = allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
+  const canCreateOption =
+    searchable && allowCreate && Boolean(onCreate) && Boolean(trimmedQuery) && !hasExactMatch
 
   useEffect(() => {
     if (!isOpen || !remoteSearch) {
@@ -86,9 +89,9 @@ function SearchableItemSelect({
       )
       const spaceBelow = window.innerHeight - bounds.bottom - viewportMargin - gap
       const spaceAbove = bounds.top - viewportMargin - gap
-      const openUpThreshold = searchTrigger ? 180 : 190
+      const openUpThreshold = hasMenuSearch ? 190 : 180
       const openUp = !forceOpenDown && spaceBelow < openUpThreshold && spaceAbove > spaceBelow
-      const reservedChrome = searchTrigger ? 18 : 72
+      const reservedChrome = hasMenuSearch ? 72 : 18
       const optionsHeight = Math.max(
         96,
         Math.min(220, (openUp ? spaceAbove : spaceBelow) - reservedChrome),
@@ -114,7 +117,7 @@ function SearchableItemSelect({
       window.removeEventListener('resize', updateMenuPosition)
       window.removeEventListener('scroll', updateMenuPosition, true)
     }
-  }, [isOpen, forceOpenDown, searchTrigger])
+  }, [isOpen, forceOpenDown, hasMenuSearch])
 
   useEffect(() => {
     if (!isOpen) {
@@ -153,10 +156,10 @@ function SearchableItemSelect({
   }, [isOpen])
 
   useEffect(() => {
-    if (isOpen && menuStyle && !searchTrigger) {
+    if (isOpen && menuStyle && hasMenuSearch) {
       searchInputRef.current?.focus()
     }
-  }, [isOpen, menuStyle, searchTrigger])
+  }, [hasMenuSearch, isOpen, menuStyle])
 
   const handleToggle = () => {
     if (disabled) {
@@ -227,7 +230,7 @@ function SearchableItemSelect({
             aria-label={label}
             style={menuStyle}
           >
-            {searchTrigger ? null : (
+            {hasMenuSearch ? (
               <div className="parent-master-select__search">
                 <SearchMd size={16} className="parent-master-select__search-icon" aria-hidden="true" />
                 <input
@@ -240,7 +243,7 @@ function SearchableItemSelect({
                   aria-label={`Search ${label}`}
                 />
               </div>
-            )}
+            ) : null}
 
             <div className="parent-master-select__options">
               {filteredOptions.length > 0 ? (

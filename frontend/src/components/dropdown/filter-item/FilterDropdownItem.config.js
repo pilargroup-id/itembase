@@ -41,24 +41,39 @@ function getBusinessUnitId(item) {
     return channelBusinessUnitId ?? getNestedId(item, "business_unit")
 }
 
-function getCreatedByValue(item) {
-    return item?.created_by?.id ?? item?.created_by?.username ?? item?.created_by?.name ?? item?.created_by ?? ""
+function getItemStatusValue(item) {
+    const normalizedStatus = String(item?.status ?? "").trim().toUpperCase()
+
+    if (normalizedStatus === "ACTIVE" || normalizedStatus === "INACTIVE" || normalizedStatus === "DISCONTINUE") {
+        return normalizedStatus
+    }
+
+    if (normalizedStatus === "DISCONTINUED") {
+        return "DISCONTINUE"
+    }
+
+    if (item?.is_active !== undefined && item?.is_active !== null) {
+        return Number(item.is_active) === 1 ? "ACTIVE" : "INACTIVE"
+    }
+
+    return ""
 }
 
 export const itemFilterConfig = [
     {
         key: "status",
-        apiParam: "is_active",
+        apiParam: "status",
         label: "Status",
         placeholder: "All Status",
         searchPlaceholder: "Search status...",
         emptyMessage: "Status not found.",
         searchable: false,
         options: [
-            { value: "1", label: "Active" },
-            { value: "0", label: "Inactive" },
+            { value: "ACTIVE", label: "Active" },
+            { value: "INACTIVE", label: "Inactive" },
+            { value: "DISCONTINUE", label: "Discontinue" },
         ],
-        getValue: (item) => (Number(item.is_active) === 1 ? "1" : "0"),
+        getValue: getItemStatusValue,
     },
     {
         key: "parent",

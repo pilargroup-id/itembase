@@ -23,6 +23,7 @@ const optionalFields = [
   { key: 'selling_name', label: 'Selling Name' },
   { key: 'uom', label: 'UOM' },
   { key: 'qty_per_pack', label: 'Qty/Pack' },
+  { key: 'replenishment_type', label: 'Replenishment Type' },
   { key: 'height', label: 'Height' },
   { key: 'width', label: 'Width' },
   { key: 'depth', label: 'Depth' },

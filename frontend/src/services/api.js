@@ -131,6 +131,24 @@ const createResource = (path) => ({
   remove: (id, options) => api.delete(`${path}/${id}`, options),
 });
 
+const normalizeItemStatusPayload = (status) => {
+  if (status === 1 || status === true || String(status).trim() === '1') {
+    return 'ACTIVE';
+  }
+
+  if (status === 0 || status === false || String(status).trim() === '0') {
+    return 'INACTIVE';
+  }
+
+  const normalizedStatus = String(status ?? '').trim().toUpperCase();
+
+  if (normalizedStatus === 'DISCONTINUED') {
+    return 'DISCONTINUE';
+  }
+
+  return normalizedStatus;
+};
+
 const request = async (
   path,
   {
@@ -299,8 +317,8 @@ const api = {
   },
   items: {
     ...createResource('/item/items'),
-    updateStatus: (id, is_active, extraFields = {}, options) =>
-      api.put(`/item/items/${id}`, { is_active, ...extraFields }, options),
+    updateStatus: (id, status, options) =>
+      api.patch(`/item/items/${id}/status`, { status: normalizeItemStatusPayload(status) }, options),
     matrixPreview: (data, options) =>
       api.post('/item/items/matrix/preview', data, options),
     createMatrix: (data, options) =>

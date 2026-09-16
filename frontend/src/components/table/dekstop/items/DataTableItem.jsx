@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
+import FormControl from "@mui/material/FormControl"
+import MenuItem from "@mui/material/MenuItem"
+import Select from "@mui/material/Select"
+
 import api from "../../../../services/api.js"
 
 import DialogDeleteItem from "../../../Dialog/dialog-item/DialogDeleteItem.jsx"
 import DialogEditItem from "../../../Dialog/dialog-item/DialogEditItem.jsx"
+import DialogFilterItem from "../../../Dialog/dialog-item/DialogFilterItem.jsx"
 import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
-import DialogValidateChangeStatus from "../../../Dialog/dialog-item/DialogValidateChangeStatus.jsx"
+import ButtonCreateItem from "../../../button/item-buttons/ButtonCreateItem.jsx"
 import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
 import ButtonExportItem from "../../../button/item-buttons/ButtonExportItem.jsx"
 import ButtonImportItem from "../../../button/item-buttons/ButtonImportItem.jsx"
-import FilterDropdownItem from "../../../dropdown/filter-item/FilterDropdownItem.jsx"
-import { Export01 } from "../../../template/TemplateIcons.jsx"
+import SearchItem from "../../../search/SearchItem.jsx"
+import { Export01, FilterFunnel, XClose } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-item/FilterDropdownItem.config.js"
 import DataTable, {
     DataTableIdentity,
-    DataTableStatus,
 } from "../DataTable.jsx"
 import {
     DEFAULT_PAGE_SIZE,
@@ -23,28 +28,285 @@ import {
 } from "../../../../services/items/DataTableitems.js"
 
 const ALL_FILTER_VALUE = "all"
-export const DEFAULT_ITEM_SORT = "date-desc"
-export const itemSortOptions = [
+const DEFAULT_ITEM_SORT = "date-desc"
+const SORT_FILTER_KEY = "sort"
+const itemSortOptions = [
     { value: "date-desc", label: "Date Desc" },
     { value: "date-asc", label: "Date Asc" },
 ]
+const itemFilterMenuProps = {
+    PaperProps: {
+        className: "parent-table-mui-menu",
+        sx: {
+            maxHeight: 320,
+            borderRadius: "10px",
+            mt: 0.5,
+        },
+    },
+}
+const itemTableSelectMenuProps = {
+    PaperProps: {
+        className: "parent-table-mui-menu item-table__mui-menu",
+        sx: {
+            maxHeight: 280,
+            borderRadius: "10px",
+            mt: 0.5,
+        },
+    },
+}
 
-export const defaultItemFilters = itemFilterConfig.reduce(
+const defaultItemFilters = itemFilterConfig.reduce(
     (filters, filterConfig) => ({
         ...filters,
         [filterConfig.key]: ALL_FILTER_VALUE,
     }),
     {},
 )
-const visibleItemFilterKeys = ["itemKind", "parent", "category", "businessUnit", "createdBy"]
-const visibleItemFilterConfigs = itemFilterConfig.filter((filterConfig) =>
-    visibleItemFilterKeys.includes(filterConfig.key),
-)
+const itemFilterFieldOptions = [
+    { key: SORT_FILTER_KEY, label: "Sort By" },
+    ...itemFilterConfig,
+]
+const replenishmentTypeLabels = {
+    RG: "Regular",
+    SS: "Seasonal",
+    BD: "Business Driven",
+    NR: "Non Replenish",
+}
+const replenishmentTypeOptions = [
+    { value: "", label: "None", variant: "empty" },
+    { value: "RG", label: "Regular", variant: "replenishment-rg" },
+    { value: "SS", label: "Seasonal", variant: "replenishment-ss" },
+    { value: "BD", label: "Business Driven", variant: "replenishment-bd" },
+    { value: "NR", label: "Non Replenish", variant: "replenishment-nr" },
+]
+const replenishmentTypeOptionMap = new Map(replenishmentTypeOptions.map((option) => [option.value, option]))
+const itemStatusOptions = [
+    { value: "ACTIVE", label: "Active", variant: "active" },
+    { value: "INACTIVE", label: "Inactive", variant: "inactive" },
+    { value: "DISCONTINUE", label: "Discontinue", variant: "discontinue" },
+]
+const itemStatusOptionMap = new Map(itemStatusOptions.map((option) => [option.value, option]))
 
 function formatDisplayValue(value) {
     const displayValue = String(value ?? "").trim()
 
     return displayValue || "-"
+}
+
+function formatReplenishmentType(value) {
+    const normalizedValue = String(value ?? "").trim().toUpperCase()
+
+    return replenishmentTypeLabels[normalizedValue] ?? formatDisplayValue(normalizedValue)
+}
+
+function normalizeReplenishmentType(value) {
+    const normalizedValue = String(value ?? "").trim().toUpperCase()
+
+    if (normalizedValue === "NULL") {
+        return ""
+    }
+
+    return replenishmentTypeOptionMap.has(normalizedValue) ? normalizedValue : ""
+}
+
+function getItemReplenishmentTypeValue(item) {
+    return normalizeReplenishmentType(item?.replenishment_type)
+}
+
+function getReplenishmentTypeVariant(item) {
+    const replenishmentType = getItemReplenishmentTypeValue(item)
+
+    return replenishmentTypeOptionMap.get(replenishmentType)?.variant ?? "empty"
+}
+
+function getOptionLabel(optionMap, value, fallback = "-") {
+    return optionMap.get(value)?.label ?? fallback
+}
+
+function getItemDisplayName(item) {
+    return item?.item_name || item?.item_code || item?.barcode || "item ini"
+}
+
+function getResponseItem(responseData) {
+    const candidates = [
+        responseData?.data?.data,
+        responseData?.data,
+        responseData,
+    ]
+
+    return candidates.find((candidate) =>
+        candidate && typeof candidate === "object" && !Array.isArray(candidate) && getItemId(candidate),
+    ) ?? null
+}
+
+function ItemTableSelect({
+    id,
+    type,
+    variant,
+    value,
+    options,
+    ariaLabel,
+    title,
+    disabled = false,
+    onChange,
+}) {
+    return (
+        <div
+            className={[
+                "item-table__select-wrap",
+                type ? `item-table__select-wrap--${type}` : "",
+            ]
+                .filter(Boolean)
+                .join(" ")}
+            onClick={(event) => event.stopPropagation()}
+        >
+            <FormControl
+                size="small"
+                className={[
+                    "parent-table-mui-filter",
+                    "item-table__mui-select",
+                    type ? `item-table__mui-select--${type}` : "",
+                    variant ? `item-table__mui-select--${variant}` : "",
+                    disabled ? "item-table__mui-select--disabled" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")}
+            >
+                <Select
+                    id={id}
+                    value={value}
+                    aria-label={ariaLabel}
+                    title={title}
+                    disabled={disabled}
+                    displayEmpty
+                    MenuProps={itemTableSelectMenuProps}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    onChange={(event) => onChange?.(event.target.value)}
+                >
+                    {options.map((option) => (
+                        <MenuItem
+                            key={option.value || "empty"}
+                            value={option.value}
+                            dense
+                            disabled={option.disabled}
+                        >
+                            {option.label}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+        </div>
+    )
+}
+
+function DialogValidateInlineItemChange({
+    change = null,
+    isSubmitting = false,
+    onClose,
+    onConfirm,
+}) {
+    useEffect(() => {
+        if (!change) {
+            return undefined
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape" && !isSubmitting) {
+                onClose?.()
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [change, isSubmitting, onClose])
+
+    if (!change || typeof document === "undefined") {
+        return null
+    }
+
+    const dialogTitle =
+        change.type === "status"
+            ? "Konfirmasi Perubahan Status"
+            : "Konfirmasi Perubahan Replenishment"
+
+    const description =
+        change.type === "status"
+            ? "Status item akan diperbarui menggunakan enum item terbaru."
+            : "Replenishment type akan diperbarui dan SKU Name dapat diregenerate oleh backend, terutama saat memilih Business Driven."
+
+    const dialogNode = (
+        <div
+            className="dashboard-popup-overlay"
+            role="presentation"
+            onClick={() => {
+                if (!isSubmitting) {
+                    onClose?.()
+                }
+            }}
+        >
+            <div
+                className="dashboard-popup item-table-validation-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="dialog-inline-item-change-title"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="dashboard-popup__header">
+                    <div>
+                        <p className="dashboard-popup__eyebrow">Validasi Perubahan Item</p>
+                        <h2 className="dashboard-popup__title" id="dialog-inline-item-change-title">
+                            {dialogTitle}
+                        </h2>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="dashboard-popup__close"
+                        aria-label="Close dialog"
+                        onClick={onClose}
+                        disabled={isSubmitting}
+                    >
+                        <XClose size={18} />
+                    </button>
+                </div>
+
+                <div className="dashboard-popup__body">
+                    <p className="dashboard-popup__text">
+                        Ubah <strong>{change.itemName}</strong> dari{" "}
+                        <strong>{change.previousLabel}</strong> ke <strong>{change.nextLabel}</strong>?
+                    </p>
+                    <p className="dashboard-popup__text">
+                        {description}
+                    </p>
+                </div>
+
+                <div className="dashboard-popup__actions">
+                    <button
+                        type="button"
+                        className="dashboard-popup__button dashboard-popup__button--secondary"
+                        onClick={onClose}
+                        disabled={isSubmitting}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        className="dashboard-popup__button dashboard-popup__button--primary"
+                        onClick={onConfirm}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? "Saving..." : "Confirm"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+
+    return createPortal(dialogNode, document.body)
 }
 
 function renderItemValue(value) {
@@ -67,19 +329,37 @@ function getItemId(item) {
     return item?.id ?? item?.item_id ?? null
 }
 
+function normalizeItemStatus(value) {
+    const normalizedStatus = String(value ?? "").trim().toUpperCase()
+
+    if (normalizedStatus === "ACTIVE" || normalizedStatus === "INACTIVE" || normalizedStatus === "DISCONTINUE") {
+        return normalizedStatus
+    }
+
+    if (normalizedStatus === "DISCONTINUED") {
+        return "DISCONTINUE"
+    }
+
+    if (normalizedStatus === "1") {
+        return "ACTIVE"
+    }
+
+    if (normalizedStatus === "0") {
+        return "INACTIVE"
+    }
+
+    return ""
+}
+
 function getItemStatusValue(item) {
+    const statusValue = normalizeItemStatus(item?.status)
+
+    if (statusValue) {
+        return statusValue
+    }
+
     if (item?.is_active !== undefined && item?.is_active !== null) {
-        return Number(item.is_active) === 1 ? "1" : "0"
-    }
-
-    const normalizedStatus = String(item?.status ?? "").toLowerCase()
-
-    if (normalizedStatus === "active") {
-        return "1"
-    }
-
-    if (normalizedStatus === "inactive") {
-        return "0"
+        return Number(item.is_active) === 1 ? "ACTIVE" : "INACTIVE"
     }
 
     return ""
@@ -88,29 +368,13 @@ function getItemStatusValue(item) {
 function getItemStatusLabel(item) {
     const statusValue = getItemStatusValue(item)
 
-    if (statusValue === "1") {
-        return "active"
-    }
-
-    if (statusValue === "0") {
-        return "inactive"
-    }
-
-    return "-"
+    return itemStatusOptionMap.get(statusValue)?.label ?? "-"
 }
 
 function getItemStatusVariant(item) {
     const statusValue = getItemStatusValue(item)
 
-    if (statusValue === "1") {
-        return "active"
-    }
-
-    if (statusValue === "0") {
-        return "inactive"
-    }
-
-    return "pending"
+    return itemStatusOptionMap.get(statusValue)?.variant ?? "pending"
 }
 
 function getCategoryPicName(item) {
@@ -426,8 +690,8 @@ const columns = [
     {
         key: "identity",
         header: "SKU Name / Code",
-        headerStyle: { width: "18%" },
-        cellStyle: { width: "18%" },
+        headerStyle: { width: "18%", minWidth: 220 },
+        cellStyle: { width: "18%", minWidth: 220 },
         render: (item) => (
             <DataTableIdentity
                 title={item.item_name || "-"}
@@ -439,15 +703,15 @@ const columns = [
     {
         key: "barcode",
         header: "Barcode",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
+        headerStyle: { width: "9%", minWidth: 130 },
+        cellStyle: { width: "9%", minWidth: 130 },
         render: (item) => renderItemValue(item.barcode),
     },
     {
         key: "parent",
         header: "Parent Name",
-        headerStyle: { width: "13%" },
-        cellStyle: { width: "13%" },
+        headerStyle: { width: "13%", minWidth: 190 },
+        cellStyle: { width: "13%", minWidth: 190 },
         render: (item) => (
             <DataTableIdentity
                 title={item.parent?.parent_name || "-"}
@@ -458,15 +722,15 @@ const columns = [
     {
         key: "brand",
         header: "Brand",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
+        headerStyle: { width: "7%", minWidth: 120 },
+        cellStyle: { width: "7%", minWidth: 120 },
         render: (item) => renderItemValue(item.parent?.brand?.name),
     },
     {
         key: "category",
         header: "Category",
-        headerStyle: { width: "10%" },
-        cellStyle: { width: "10%" },
+        headerStyle: { width: "10%", minWidth: 190 },
+        cellStyle: { width: "10%", minWidth: 190 },
         render: (item) => (
             <DataTableIdentity
                 title={item.parent?.category?.detail_category || "-"}
@@ -477,36 +741,43 @@ const columns = [
     {
         key: "businessUnit",
         header: "BU",
-        headerStyle: { width: "6%" },
-        cellStyle: { width: "6%" },
+        headerStyle: { width: "6%", minWidth: 110 },
+        cellStyle: { width: "6%", minWidth: 110 },
         render: (item) => renderItemValue(formatBusinessUnit(item)),
     },
     {
         key: "channels",
         header: "Channel",
-        headerStyle: { width: "8%" },
-        cellStyle: { width: "8%" },
+        headerStyle: { width: "8%", minWidth: 130 },
+        cellStyle: { width: "8%", minWidth: 130 },
         render: (item) => renderItemValue(formatItemChannels(item)),
     },
     {
         key: "uom",
         header: "UOM",
-        headerStyle: { width: "5%" },
-        cellStyle: { width: "5%" },
+        headerStyle: { width: "5%", minWidth: 96 },
+        cellStyle: { width: "5%", minWidth: 96 },
         render: (item) => renderItemValue(item.uom?.code ?? item.uom?.name),
+    },
+    {
+        key: "replenishmentType",
+        header: "Replenishment Type",
+        headerStyle: { width: "8%", minWidth: 160 },
+        cellStyle: { width: "8%", minWidth: 160 },
+        render: (item) => renderItemValue(formatReplenishmentType(item.replenishment_type)),
     },
     {
         key: "pack",
         header: "Pack",
-        headerStyle: { width: "7%" },
-        cellStyle: { width: "7%" },
+        headerStyle: { width: "7%", minWidth: 96 },
+        cellStyle: { width: "7%", minWidth: 96 },
         render: (item) => renderItemValue(formatNumberValue(item.qty_per_pack)),
     },
     {
         key: "dimension",
         header: "Dimension (HWD)",
-        headerStyle: { width: "9%" },
-        cellStyle: { width: "9%" },
+        headerStyle: { width: "9%", minWidth: 150 },
+        cellStyle: { width: "9%", minWidth: 150 },
         render: (item) =>
             renderItemValue(
                 `${formatNumberValue(item.height)} x ${formatNumberValue(item.width)} x ${formatNumberValue(item.depth)}`,
@@ -515,21 +786,22 @@ const columns = [
     {
         key: "createdBy",
         header: "Created By",
-        headerStyle: { width: "8%" },
-        cellStyle: { width: "8%" },
+        headerStyle: { width: "8%", minWidth: 140 },
+        cellStyle: { width: "8%", minWidth: 140 },
         render: (item) => renderItemValue(item.created_by?.name || item.created_by?.username || item.created_by),
     },
 ]
 
 function DataTableItem({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Items table",
     refreshKey = 0,
-    filters = defaultItemFilters,
-    sortValue = DEFAULT_ITEM_SORT,
-    sortOptions = itemSortOptions,
-    onApplyFilters,
 }) {
+    const [filters, setFilters] = useState(defaultItemFilters)
+    const [selectedFilterKeys, setSelectedFilterKeys] = useState([])
+    const [sortValue, setSortValue] = useState(DEFAULT_ITEM_SORT)
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
     const [itemRows, setItemRows] = useState([])
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
     const [isLoading, setIsLoading] = useState(true)
@@ -544,6 +816,11 @@ function DataTableItem({
     const [isImportPreviewing, setIsImportPreviewing] = useState(false)
     const [importDialogKey, setImportDialogKey] = useState(0)
     const [reloadKey, setReloadKey] = useState(0)
+    const [pendingStatusUpdates, setPendingStatusUpdates] = useState({})
+    const [pendingReplenishmentUpdates, setPendingReplenishmentUpdates] = useState({})
+    const [pendingInlineChange, setPendingInlineChange] = useState(null)
+    const [isInlineValidationSubmitting, setIsInlineValidationSubmitting] = useState(false)
+    const [inlineUpdateErrorMessage, setInlineUpdateErrorMessage] = useState("")
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
         () => JSON.stringify({ filters, pageSize, searchQuery: debouncedSearchQuery, sortValue }),
@@ -567,6 +844,14 @@ function DataTableItem({
             ),
         [itemRows],
     )
+    const selectedFilterConfigs = useMemo(
+        () =>
+            selectedFilterKeys
+                .map((filterKey) => itemFilterConfig.find((filterConfig) => filterConfig.key === filterKey))
+                .filter(Boolean),
+        [selectedFilterKeys],
+    )
+    const hasSelectedSortFilter = selectedFilterKeys.includes(SORT_FILTER_KEY)
 
     const itemApiParams = useMemo(
         () =>
@@ -696,75 +981,299 @@ function DataTableItem({
         setReloadKey((currentKey) => currentKey + 1)
     }
 
-    const handleStatusChanged = (changedItem, newStatus) => {
+    const updateItemRow = (changedItem, nextValues) => {
         const itemId = getItemId(changedItem)
 
         setItemRows((currentRows) =>
             currentRows.map((row) =>
                 getItemId(row) === itemId
-                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    ? { ...row, ...nextValues }
                     : row,
             ),
         )
-
-        closeActionDialog()
     }
 
+    const updateItemRowStatus = (changedItem, newStatus) => {
+        updateItemRow(changedItem, {
+            status: newStatus,
+            is_active: newStatus === "ACTIVE" ? 1 : 0,
+        })
+    }
+
+    const handleStatusChange = async (item, nextStatusValue) => {
+        const itemId = getItemId(item)
+        const previousStatus = getItemStatusValue(item)
+        const nextStatus = normalizeItemStatus(nextStatusValue)
+
+        if (!itemId || !nextStatus || nextStatus === previousStatus) {
+            return false
+        }
+
+        setInlineUpdateErrorMessage("")
+        setPendingStatusUpdates((currentUpdates) => ({
+            ...currentUpdates,
+            [itemId]: true,
+        }))
+        updateItemRowStatus(item, nextStatus)
+
+        try {
+            const response = await api.items.updateStatus(itemId, nextStatus)
+            const updatedItem = getResponseItem(response)
+
+            if (updatedItem) {
+                updateItemRow(item, updatedItem)
+            }
+
+            return true
+        } catch (error) {
+            updateItemRowStatus(item, previousStatus)
+            setInlineUpdateErrorMessage(error?.message || "Gagal mengubah status item.")
+            return false
+        } finally {
+            setPendingStatusUpdates((currentUpdates) => {
+                const nextUpdates = { ...currentUpdates }
+
+                delete nextUpdates[itemId]
+
+                return nextUpdates
+            })
+        }
+    }
+
+    const handleReplenishmentTypeChange = async (item, nextReplenishmentValue) => {
+        const itemId = getItemId(item)
+        const previousReplenishmentType = getItemReplenishmentTypeValue(item)
+        const nextReplenishmentType = normalizeReplenishmentType(nextReplenishmentValue)
+
+        if (!itemId || nextReplenishmentType === previousReplenishmentType) {
+            return false
+        }
+
+        setInlineUpdateErrorMessage("")
+        setPendingReplenishmentUpdates((currentUpdates) => ({
+            ...currentUpdates,
+            [itemId]: true,
+        }))
+        updateItemRow(item, { replenishment_type: nextReplenishmentType || null })
+
+        try {
+            const response = await api.items.update(itemId, {
+                replenishment_type: nextReplenishmentType || null,
+            })
+            const updatedItem = getResponseItem(response)
+
+            if (updatedItem) {
+                updateItemRow(item, updatedItem)
+            }
+
+            return true
+        } catch (error) {
+            updateItemRow(item, { replenishment_type: previousReplenishmentType || null })
+            setInlineUpdateErrorMessage(error?.message || "Gagal mengubah replenishment type item.")
+            return false
+        } finally {
+            setPendingReplenishmentUpdates((currentUpdates) => {
+                const nextUpdates = { ...currentUpdates }
+
+                delete nextUpdates[itemId]
+
+                return nextUpdates
+            })
+        }
+    }
+
+    const requestStatusChange = (item, nextStatusValue) => {
+        const itemId = getItemId(item)
+        const previousStatus = getItemStatusValue(item)
+        const nextStatus = normalizeItemStatus(nextStatusValue)
+
+        if (!itemId) {
+            setInlineUpdateErrorMessage("Item ID tidak ditemukan.")
+            return
+        }
+
+        if (!itemStatusOptionMap.has(nextStatus)) {
+            setInlineUpdateErrorMessage("Status item tidak valid.")
+            return
+        }
+
+        if (nextStatus === previousStatus) {
+            return
+        }
+
+        setInlineUpdateErrorMessage("")
+        setPendingInlineChange({
+            type: "status",
+            item,
+            nextValue: nextStatus,
+            previousLabel: getOptionLabel(itemStatusOptionMap, previousStatus),
+            nextLabel: getOptionLabel(itemStatusOptionMap, nextStatus),
+            itemName: getItemDisplayName(item),
+        })
+    }
+
+    const requestReplenishmentTypeChange = (item, nextReplenishmentValue) => {
+        const itemId = getItemId(item)
+        const previousReplenishmentType = getItemReplenishmentTypeValue(item)
+        const nextReplenishmentType = normalizeReplenishmentType(nextReplenishmentValue)
+
+        if (!itemId) {
+            setInlineUpdateErrorMessage("Item ID tidak ditemukan.")
+            return
+        }
+
+        if (item?.item_kind && item.item_kind !== "regular") {
+            setInlineUpdateErrorMessage("Replenishment type hanya bisa diubah untuk regular item.")
+            return
+        }
+
+        if (!replenishmentTypeOptionMap.has(nextReplenishmentType)) {
+            setInlineUpdateErrorMessage("Replenishment type tidak valid.")
+            return
+        }
+
+        if (nextReplenishmentType === previousReplenishmentType) {
+            return
+        }
+
+        setInlineUpdateErrorMessage("")
+        setPendingInlineChange({
+            type: "replenishment",
+            item,
+            nextValue: nextReplenishmentType,
+            previousLabel: getOptionLabel(
+                replenishmentTypeOptionMap,
+                previousReplenishmentType,
+                "None",
+            ),
+            nextLabel: getOptionLabel(replenishmentTypeOptionMap, nextReplenishmentType, "None"),
+            itemName: getItemDisplayName(item),
+        })
+    }
+
+    const closeInlineValidationDialog = () => {
+        if (isInlineValidationSubmitting) {
+            return
+        }
+
+        setPendingInlineChange(null)
+    }
+
+    const confirmInlineValidationChange = async () => {
+        if (!pendingInlineChange || isInlineValidationSubmitting) {
+            return
+        }
+
+        setIsInlineValidationSubmitting(true)
+
+        try {
+            const isSaved =
+                pendingInlineChange.type === "status"
+                    ? await handleStatusChange(pendingInlineChange.item, pendingInlineChange.nextValue)
+                    : await handleReplenishmentTypeChange(pendingInlineChange.item, pendingInlineChange.nextValue)
+
+            if (isSaved) {
+                setPendingInlineChange(null)
+            }
+        } finally {
+            setIsInlineValidationSubmitting(false)
+        }
+    }
+
+    const actionColumn = {
+        key: "action",
+        header: "Action",
+        headerClassName: "users-table__action-header",
+        cellClassName: "users-table__action-cell",
+        headerStyle: { width: "7%", minWidth: 96 },
+        cellStyle: { width: "7%", minWidth: 96, whiteSpace: "nowrap" },
+        render: (item) => {
+            const isItemEditable = getItemStatusValue(item) === "ACTIVE"
+
+            return (
+                <div className="parent-action-buttons">
+                    <ButtonEditItem
+                        title={isItemEditable ? "Edit" : "Item non-aktif/discontinue tidak dapat diedit"}
+                        aria-label={`Edit ${item.item_name || item.item_code || "item"}`}
+                        disabled={!isItemEditable}
+                        onClick={(event) => {
+                            event.stopPropagation()
+
+                            if (!isItemEditable) {
+                                return
+                            }
+
+                            openActionDialog("edit", item)
+                        }}
+                    />
+                </div>
+            )
+        },
+    }
+
+    const itemColumns = columns.map((column) => {
+        if (column.key !== "replenishmentType") {
+            return column
+        }
+
+        return {
+            ...column,
+            headerStyle: { width: "8%", minWidth: 150 },
+            cellStyle: { width: "8%", minWidth: 150 },
+            render: (item) => {
+                const itemId = getItemId(item)
+                const replenishmentType = getItemReplenishmentTypeValue(item)
+                const isUpdatingReplenishment = Boolean(itemId && pendingReplenishmentUpdates[itemId])
+                const displayLabel = replenishmentType
+                    ? formatReplenishmentType(replenishmentType)
+                    : "None"
+
+                return (
+                    <ItemTableSelect
+                        id={`item-replenishment-${itemId ?? item.item_code ?? item.barcode ?? "unknown"}`}
+                        type="replenishment"
+                        variant={getReplenishmentTypeVariant(item)}
+                        value={replenishmentType}
+                        options={replenishmentTypeOptions}
+                        ariaLabel={`Replenishment type ${item.item_name || item.item_code || "item"}`}
+                        title={isUpdatingReplenishment ? "Menyimpan replenishment..." : displayLabel}
+                        disabled={isUpdatingReplenishment || !itemId}
+                        onChange={(nextValue) => requestReplenishmentTypeChange(item, nextValue)}
+                    />
+                )
+            },
+        }
+    })
+
     const tableColumns = [
-        ...columns,
+        actionColumn,
+        ...itemColumns,
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "8%" },
-            cellStyle: { width: "8%" },
-            render: (item) => (
-                <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <label
-                        className="users-table__toggle item-table__status-toggle"
-                        onClick={(event) => event.stopPropagation()}
-                        title={`Tandai ${item.item_name || item.item_code || "item"} sebagai ${getItemStatusValue(item) === "1" ? "non-aktif" : "aktif"}`}
-                    >
-                        <input
-                            type="checkbox"
-                            checked={getItemStatusValue(item) === "1"}
-                            onChange={() => openActionDialog("status", item)}
-                        />
-                        <span className="users-table__toggle-track" aria-hidden="true" />
-                        <span className="users-table__toggle-thumb" aria-hidden="true" />
-                    </label>
-                    <DataTableStatus inline variant={getItemStatusVariant(item)}>
-                        {getItemStatusLabel(item)}
-                    </DataTableStatus>
-                </div>
-            ),
-        },
-        {
-            key: "action",
-            header: "Action",
-            headerClassName: "users-table__action-header",
-            cellClassName: "users-table__action-cell",
-            headerStyle: { width: "7%" },
-            cellStyle: { width: "7%", whiteSpace: "nowrap" },
+            headerStyle: { width: "6%", minWidth: 124 },
+            cellStyle: { width: "6%", minWidth: 124 },
             render: (item) => {
-                const isItemInactive = getItemStatusValue(item) === "0"
+                const itemId = getItemId(item)
+                const statusValue = getItemStatusValue(item)
+                const statusVariant = getItemStatusVariant(item)
+                const isUpdatingStatus = Boolean(itemId && pendingStatusUpdates[itemId])
+                const statusOptions = statusValue
+                    ? itemStatusOptions
+                    : [{ value: "", label: "Unknown", disabled: true }, ...itemStatusOptions]
 
                 return (
-                    <div className="parent-action-buttons">
-                        <ButtonEditItem
-                            title={isItemInactive ? "Item non-aktif tidak dapat diedit" : "Edit"}
-                            aria-label={`Edit ${item.item_name || item.item_code || "item"}`}
-                            disabled={isItemInactive}
-                            onClick={(event) => {
-                                event.stopPropagation()
-
-                                if (isItemInactive) {
-                                    return
-                                }
-
-                                openActionDialog("edit", item)
-                            }}
-                        />
-                    </div>
+                    <ItemTableSelect
+                        id={`item-status-${itemId ?? item.item_code ?? item.barcode ?? "unknown"}`}
+                        type="status"
+                        variant={statusVariant}
+                        value={statusValue}
+                        options={statusOptions}
+                        ariaLabel={`Status ${item.item_name || item.item_code || "item"}`}
+                        title={isUpdatingStatus ? "Menyimpan status..." : getItemStatusLabel(item)}
+                        disabled={isUpdatingStatus || !itemId}
+                        onChange={(nextValue) => requestStatusChange(item, nextValue)}
+                    />
                 )
             },
         },
@@ -779,7 +1288,7 @@ function DataTableItem({
         if (deletedItem?.id) {
             setItemRows((currentRows) =>
                 currentRows.map((item) =>
-                    item.id === deletedItem.id ? { ...item, is_active: 0 } : item,
+                    item.id === deletedItem.id ? { ...item, status: "INACTIVE", is_active: 0 } : item,
                 ),
             )
         }
@@ -815,29 +1324,63 @@ function DataTableItem({
         })
     }
 
+    const updateSelectedFilterKeys = (nextFilterKeys) => {
+        const validFilterKeySet = new Set(itemFilterFieldOptions.map((filterConfig) => filterConfig.key))
+        const normalizedFilterKeys = Array.from(new Set(nextFilterKeys)).filter((filterKey) =>
+            validFilterKeySet.has(filterKey),
+        )
+
+        setSelectedFilterKeys(normalizedFilterKeys)
+        setFilters((currentFilters) =>
+            itemFilterConfig.reduce(
+                (nextFilters, filterConfig) => ({
+                    ...nextFilters,
+                    [filterConfig.key]: normalizedFilterKeys.includes(filterConfig.key)
+                        ? currentFilters[filterConfig.key] ?? ALL_FILTER_VALUE
+                        : ALL_FILTER_VALUE,
+                }),
+                {},
+            ),
+        )
+
+        if (!normalizedFilterKeys.includes(SORT_FILTER_KEY)) {
+            setSortValue(DEFAULT_ITEM_SORT)
+        }
+    }
+
+    const handleFilterKeyToggle = (filterKey) => {
+        updateSelectedFilterKeys(
+            selectedFilterKeys.includes(filterKey)
+                ? selectedFilterKeys.filter((selectedFilterKey) => selectedFilterKey !== filterKey)
+                : [...selectedFilterKeys, filterKey],
+        )
+    }
+
     const handleFilterChange = (filterKey, nextValue) => {
         if (filters[filterKey] === nextValue) {
             return
         }
 
-        onApplyFilters?.({
-            filters: {
-                ...filters,
-                [filterKey]: nextValue,
-            },
-            sortValue,
-        })
+        setFilters((currentFilters) => ({
+            ...currentFilters,
+            [filterKey]: nextValue,
+        }))
     }
 
-    const handleSortChange = (nextSortValue) => {
+    const handleSortChange = (event) => {
+        const nextSortValue = event.target.value
+
         if (nextSortValue === sortValue) {
             return
         }
 
-        onApplyFilters?.({
-            filters,
-            sortValue: nextSortValue,
-        })
+        setSortValue(nextSortValue)
+    }
+
+    const handleResetFilters = () => {
+        setSelectedFilterKeys([])
+        setFilters(defaultItemFilters)
+        setSortValue(DEFAULT_ITEM_SORT)
     }
 
     const loadingPageMessage = `Memuat data item halaman ${currentPage}...`
@@ -871,8 +1414,44 @@ function DataTableItem({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-backdrop" aria-label="Item table tools">
-                <div className="parent-table-actions">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Item table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-filter-entry" aria-label="Filter item">
+                        <button
+                            type="button"
+                            className={[
+                                "parent-table-filter-trigger",
+                                selectedFilterKeys.length > 0 ? "parent-table-filter-trigger--active" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            aria-label="Open item filter dialog"
+                            title="Filter"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            <FilterFunnel size={18} aria-hidden="true" />
+                            {selectedFilterKeys.length > 0 ? (
+                                <span className="parent-table-filter-trigger__dot" aria-hidden="true" />
+                            ) : null}
+                        </button>
+                    </div>
+
+                    <div className="parent-table-toolbar__search">
+                        <SearchItem
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateItem
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create item data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreateItem>
                     <ButtonExportItem
                         variant="action"
                         className="parent-table-tool-button parent-table-tool-button--download"
@@ -895,42 +1474,44 @@ function DataTableItem({
                         {isImportPreviewing ? "Previewing..." : "Import"}
                     </ButtonImportItem>
                 </div>
-
-                <div className="parent-table-filters" aria-label="Filter item">
-                    <FilterDropdownItem
-                        className="parent-table-filter parent-table-filter--sort"
-                        options={sortOptions}
-                        value={sortValue}
-                        label="Sort By"
-                        placeholder="Sort By"
-                        searchable={false}
-                        onChange={handleSortChange}
-                    />
-                    {visibleItemFilterConfigs.map((filterConfig) => (
-                        <FilterDropdownItem
-                            key={filterConfig.key}
-                            className="parent-table-filter"
-                            options={filterOptions[filterConfig.key] ?? []}
-                            value={filters[filterConfig.key]}
-                            label={filterConfig.label}
-                            placeholder={filterConfig.placeholder}
-                            searchPlaceholder={filterConfig.searchPlaceholder}
-                            emptyMessage={filterConfig.emptyMessage}
-                            searchable={filterConfig.searchable ?? true}
-                            onChange={(nextValue) => handleFilterChange(filterConfig.key, nextValue)}
-                        />
-                    ))}
-                </div>
             </div>
 
+            {inlineUpdateErrorMessage ? (
+                <p className="register-user-popup__hint item-table__status-error" role="alert">
+                    {inlineUpdateErrorMessage}
+                </p>
+            ) : null}
+
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={isLoading ? [] : rows}
                 columns={tableColumns}
                 getRowId={(item) => item.id ?? item.item_code ?? item.barcode}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
+            />
+
+            <DialogFilterItem
+                isOpen={isFilterDialogOpen}
+                filterConfigs={itemFilterConfig}
+                filterFieldOptions={itemFilterFieldOptions}
+                selectedFilterKeys={selectedFilterKeys}
+                selectedFilterConfigs={selectedFilterConfigs}
+                filters={filters}
+                filterOptions={filterOptions}
+                allFilterValue={ALL_FILTER_VALUE}
+                defaultSortValue={DEFAULT_ITEM_SORT}
+                sortOptions={itemSortOptions}
+                menuProps={itemFilterMenuProps}
+                hasSelectedSortFilter={hasSelectedSortFilter}
+                sortValue={sortValue}
+                onClose={() => setIsFilterDialogOpen(false)}
+                onFilterKeyToggle={handleFilterKeyToggle}
+                onFilterChange={handleFilterChange}
+                onSortChange={handleSortChange}
+                onReset={handleResetFilters}
             />
 
             <DialogEditItem
@@ -954,14 +1535,11 @@ function DataTableItem({
                 onDeleted={handleDeleteConfirm}
             />
 
-            <DialogValidateChangeStatus
-                key={`status-item-${selectedItem?.id ?? selectedItem?.item_code ?? "empty"}`}
-                isOpen={activeActionDialog === "status"}
-                eyebrow="Ubah Status Item"
-                title="Konfirmasi Perubahan Status"
-                item={selectedItem}
-                onClose={closeActionDialog}
-                onChanged={handleStatusChanged}
+            <DialogValidateInlineItemChange
+                change={pendingInlineChange}
+                isSubmitting={isInlineValidationSubmitting}
+                onClose={closeInlineValidationDialog}
+                onConfirm={confirmInlineValidationChange}
             />
 
             <DialogImportItem

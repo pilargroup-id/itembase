@@ -79,7 +79,7 @@ function DialogDeleteItem({
     setErrorMessage('')
 
     try {
-      await api.items.update(deleteId, { is_active: 0 })
+      await api.items.updateStatus(deleteId, 'INACTIVE')
       onDeleted?.(selectedItem ?? user)
       onConfirm?.(selectedItem ?? user)
       notifySuccess('SKU deleted successfully.')

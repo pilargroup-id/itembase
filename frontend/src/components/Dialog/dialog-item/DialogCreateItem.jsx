@@ -15,12 +15,21 @@ function parseDuplicateVariantItemCode(message) {
   return match ? match[1].replace(/[.,]+$/, '') : null
 }
 
+const replenishmentTypeOptions = [
+  { value: '', label: 'None', searchText: 'None no replenishment null' },
+  { value: 'RG', label: 'Regular', searchText: 'Regular RG' },
+  { value: 'SS', label: 'Seasonal', searchText: 'Seasonal SS' },
+  { value: 'BD', label: 'Business Driven', searchText: 'Business Driven BD' },
+  { value: 'NR', label: 'Non Replenish', searchText: 'Non Replenish NR' },
+]
+
 const initialFormValues = {
   item_kind: 'regular',
   parent_id: '',
   item_name: '',
   selling_name: '',
   uom_id: '',
+  replenishment_type: '',
   variant: '',
   qty_per_pack: '',
   height: '',
@@ -28,7 +37,7 @@ const initialFormValues = {
   depth: '',
   gross_weight_pack: '',
   production_time_days: '',
-  is_active: '1',
+  status: 'ACTIVE',
 }
 
 const itemFields = [
@@ -68,6 +77,18 @@ const itemFields = [
     allowCreate: true,
     searchTrigger: true,
     required: true,
+  },
+  {
+    name: 'replenishment_type',
+    label: 'Replenishment Type',
+    placeholder: 'Select Type',
+    type: 'select',
+    options: replenishmentTypeOptions,
+    searchPlaceholder: 'Search Type...',
+    emptyMessage: 'Replenishment type not found.',
+    forceOpenDown: true,
+    searchable: false,
+    compactDimension: true,
   },
   {
     name: 'qty_per_pack',
@@ -120,6 +141,7 @@ const itemFields = [
 
 const dimensionFieldNames = [
   'uom_id',
+  'replenishment_type',
   'qty_per_pack',
   'height',
   'width',
@@ -127,6 +149,10 @@ const dimensionFieldNames = [
   'gross_weight_pack',
   'production_time_days',
 ]
+
+const dimensionSyncFieldNames = dimensionFieldNames.filter(
+  (fieldName) => fieldName !== 'replenishment_type',
+)
 
 const dimensionFields = itemFields.filter((field) => dimensionFieldNames.includes(field.name))
 
@@ -141,7 +167,6 @@ const numericFields = new Set([
   'depth',
   'gross_weight_pack',
   'production_time_days',
-  'is_active',
 ])
 
 const emptyMasterOptions = {
@@ -191,6 +216,14 @@ function makeOption(value, labelParts) {
     label: label || String(value ?? ''),
     searchText: [...labelParts, value].filter(Boolean).join(' '),
   }
+}
+
+function getFieldOptions(field, masterOptions) {
+  if (Array.isArray(field.options)) {
+    return field.options
+  }
+
+  return masterOptions[field.optionsKey] ?? []
 }
 
 function getSelectedDepartmentIds(value) {
@@ -412,13 +445,14 @@ function buildPayload(formValues, masterOptions) {
 function buildCommonValues(formValues) {
   const commonFieldNames = [
     'uom_id',
+    'replenishment_type',
     'qty_per_pack',
     'height',
     'width',
     'depth',
     'gross_weight_pack',
     'production_time_days',
-    'is_active',
+    'status',
   ]
 
   return Object.fromEntries(
@@ -497,6 +531,48 @@ function normalizeMatrixText(value) {
     .trim()
     .replace(/\s+/g, ' ')
     .toLowerCase()
+}
+
+function normalizeSkuName(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function getMatrixVariantName(source) {
+  const variantNames = (Array.isArray(source?.variants) ? source.variants : [])
+    .map((variant) =>
+      normalizeSkuName(
+        variant?.value_name ??
+          variant?.value_code ??
+          variant?.value_label ??
+          variant?.value,
+      ),
+    )
+    .filter(Boolean)
+
+  if (variantNames.length > 0) {
+    return variantNames.join(' ')
+  }
+
+  return normalizeSkuName(source?.variant_summary).replace(/\s*\/\s*/g, ' ')
+}
+
+function buildMatrixSuggestedItemName(parentName, source, replenishmentType) {
+  const normalizedParentName = normalizeSkuName(parentName)
+  const variantName = getMatrixVariantName(source)
+
+  if (normalizedParentName && variantName) {
+    return normalizeSkuName(
+      [
+        normalizedParentName,
+        String(replenishmentType ?? '').toUpperCase() === 'BD' ? 'BD' : '',
+        variantName,
+      ].filter(Boolean).join(' '),
+    )
+  }
+
+  return normalizeSkuName(source?.base_item_name ?? source?.suggested_item_name ?? source?.item_name)
 }
 
 function buildMatrixVariantKey(variants) {
@@ -894,6 +970,7 @@ function DialogCreateItem({
   const [loadingVariantValuesByAttributeId, setLoadingVariantValuesByAttributeId] = useState({})
   const [matrixRows, setMatrixRows] = useState([])
   const [syncAllDimensions, setSyncAllDimensions] = useState(false)
+  const [syncAllReplenishments, setSyncAllReplenishments] = useState(false)
   const [existingParentItems, setExistingParentItems] = useState([])
   const [isLoadingExistingParentItems, setIsLoadingExistingParentItems] = useState(false)
   const [isParentSectionOpen, setIsParentSectionOpen] = useState(true)
@@ -918,6 +995,7 @@ function DialogCreateItem({
     setLoadingVariantValuesByAttributeId({})
     setMatrixRows([])
     setSyncAllDimensions(false)
+    setSyncAllReplenishments(false)
     setExistingParentItems([])
     setIsLoadingExistingParentItems(false)
     setIsParentSectionOpen(true)
@@ -1214,6 +1292,7 @@ function DialogCreateItem({
       ),
     [masterOptions.parents, formValues.parent_id],
   )
+  const selectedParentItemName = selectedParentOption?.itemName || ''
   const activeVariantAttributes = parentVariantAttributes
   const activeVariantAttributeKey = useMemo(
     () => activeVariantAttributes.map((attribute) => attribute.value).join('|'),
@@ -1325,6 +1404,9 @@ function DialogCreateItem({
         const response = await api.items.matrixPreview(
           {
             item_parent_id: formValues.parent_id,
+            ...(formValues.replenishment_type
+              ? { replenishment_type: formValues.replenishment_type }
+              : {}),
             attributes: activeVariantAttributes.map((attribute) => ({
               attribute_id: attribute.value,
               value_ids: getSelectedIds(variantSelections[attribute.value]),
@@ -1343,16 +1425,35 @@ function DialogCreateItem({
           : []
 
         setMatrixRows(
-          combinations.map((combination, index) => ({
-            id: `${combination.row_no ?? index + 1}-${combination.variant_summary ?? index}`,
-            create: true,
-            row_no: combination.row_no ?? index + 1,
-            variant_summary: combination.variant_summary ?? '',
-            item_name: combination.suggested_item_name ?? '',
-            selling_name: combination.suggested_selling_name ?? '',
-            variants: Array.isArray(combination.variants) ? combination.variants : [],
-            ...emptyMatrixRowDimensionValues,
-          })),
+          combinations.map((combination, index) => {
+            const replenishmentType =
+              combination.replenishment_type ?? formValues.replenishment_type ?? ''
+            const baseItemName =
+              buildMatrixSuggestedItemName(selectedParentItemName, combination, '') ||
+              combination.suggested_item_name ||
+              ''
+            const itemName =
+              buildMatrixSuggestedItemName(
+                selectedParentItemName,
+                { ...combination, base_item_name: baseItemName },
+                replenishmentType,
+              ) ||
+              combination.suggested_item_name ||
+              ''
+
+            return {
+              id: `${combination.row_no ?? index + 1}-${combination.variant_summary ?? index}`,
+              create: true,
+              row_no: combination.row_no ?? index + 1,
+              variant_summary: combination.variant_summary ?? '',
+              item_name: itemName.toUpperCase(),
+              base_item_name: baseItemName.toUpperCase(),
+              selling_name: combination.suggested_selling_name ?? toTitleCase(itemName),
+              variants: Array.isArray(combination.variants) ? combination.variants : [],
+              ...emptyMatrixRowDimensionValues,
+              replenishment_type: replenishmentType,
+            }
+          }),
         )
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
@@ -1377,6 +1478,8 @@ function DialogCreateItem({
   }, [
     isOpen,
     formValues.parent_id,
+    formValues.replenishment_type,
+    selectedParentItemName,
     activeVariantAttributes,
     variantSelections,
     isLoadingParentConfig,
@@ -1411,9 +1514,10 @@ function DialogCreateItem({
       return nextValues
     })
 
-    if (name === 'parent_id' || name === 'item_name') {
+    if (name === 'parent_id' || name === 'item_name' || name === 'replenishment_type') {
       setMatrixRows([])
       setSyncAllDimensions(false)
+      setSyncAllReplenishments(false)
     }
 
     if (name === 'parent_id') {
@@ -1426,8 +1530,9 @@ function DialogCreateItem({
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
+    const nextValue = name === 'item_name' ? value.toUpperCase() : value
 
-    handleFieldChange(name, value)
+    handleFieldChange(name, nextValue)
   }
 
   const handleDepartmentToggle = (departmentId) => {
@@ -1462,6 +1567,7 @@ function DialogCreateItem({
     setErrorMessage('')
     setMatrixRows([])
     setSyncAllDimensions(false)
+    setSyncAllReplenishments(false)
     setVariantSelections((currentSelections) => {
       const currentSelectedValueIds = getSelectedIds(currentSelections[normalizedAttributeId])
       const isCurrentlySelected = currentSelectedValueIds.includes(normalizedValueId)
@@ -1548,15 +1654,35 @@ function DialogCreateItem({
     setMatrixRows((currentRows) => {
       const isFirstRow = currentRows[0]?.id === rowId
       const shouldSyncDimension =
-        syncAllDimensions && isFirstRow && dimensionFieldNames.includes(fieldName)
+        syncAllDimensions && isFirstRow && dimensionSyncFieldNames.includes(fieldName)
+      const shouldSyncReplenishment =
+        syncAllReplenishments && isFirstRow && fieldName === 'replenishment_type'
+      const applyRowChange = (row) => {
+        const nextValue = fieldName === 'item_name' ? value.toUpperCase() : value
+        const nextRow = { ...row, [fieldName]: nextValue }
+
+        if (fieldName !== 'replenishment_type') {
+          return nextRow
+        }
+
+        const itemName = buildMatrixSuggestedItemName(
+          selectedParentItemName,
+          nextRow,
+          value,
+        )
+
+        return itemName
+          ? { ...nextRow, item_name: itemName, selling_name: toTitleCase(itemName) }
+          : nextRow
+      }
 
       return currentRows.map((row) => {
         if (row.id === rowId) {
-          return { ...row, [fieldName]: value }
+          return applyRowChange(row)
         }
 
-        if (shouldSyncDimension) {
-          return { ...row, [fieldName]: value }
+        if (shouldSyncDimension || shouldSyncReplenishment) {
+          return applyRowChange(row)
         }
 
         return row
@@ -1577,12 +1703,46 @@ function DialogCreateItem({
         }
 
         const firstRowDimensionValues = Object.fromEntries(
-          dimensionFieldNames.map((fieldName) => [fieldName, currentRows[0][fieldName]]),
+          dimensionSyncFieldNames.map((fieldName) => [fieldName, currentRows[0][fieldName]]),
         )
 
         return currentRows.map((row, index) =>
           index === 0 ? row : { ...row, ...firstRowDimensionValues },
         )
+      })
+    }
+  }
+
+  const handleSyncAllReplenishmentsToggle = (event) => {
+    const checked = event.target.checked
+
+    setErrorMessage('')
+    setSyncAllReplenishments(checked)
+
+    if (checked) {
+      setMatrixRows((currentRows) => {
+        if (currentRows.length <= 1) {
+          return currentRows
+        }
+
+        const firstRowReplenishmentType = currentRows[0].replenishment_type
+
+        return currentRows.map((row, index) => {
+          if (index === 0) {
+            return row
+          }
+
+          const nextRow = { ...row, replenishment_type: firstRowReplenishmentType }
+          const itemName = buildMatrixSuggestedItemName(
+            selectedParentItemName,
+            nextRow,
+            firstRowReplenishmentType,
+          )
+
+          return itemName
+            ? { ...nextRow, item_name: itemName, selling_name: toTitleCase(itemName) }
+            : nextRow
+        })
       })
     }
   }
@@ -1697,7 +1857,6 @@ function DialogCreateItem({
   const headerTitle = formValues.item_name || title
   const selectedMatrixRows = matrixRows.filter((row) => row.create)
   const isMatrixMode = activeVariantAttributes.length > 0
-  const selectedParentItemName = selectedParentOption?.itemName
 
   const isFieldReadOnly = (field) =>
     field.readOnly ||
@@ -1797,19 +1956,35 @@ function DialogCreateItem({
                 <span>{selectedMatrixRows.length} selected</span>
 
                 {matrixRows.length > 1 ? (
-                  <label
-                    className="item-create-popup__matrix-sync-toggle"
-                    title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
-                  >
-                    <input
-                      type="checkbox"
-                      className="register-user-popup__dropdown-checkbox"
-                      checked={syncAllDimensions}
-                      disabled={isSubmitting}
-                      onChange={handleSyncAllDimensionsToggle}
-                    />
-                    <span>Equalize Dimensions</span>
-                  </label>
+                  <>
+                    <label
+                      className="item-create-popup__matrix-sync-toggle"
+                      title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
+                    >
+                      <input
+                        type="checkbox"
+                        className="register-user-popup__dropdown-checkbox"
+                        checked={syncAllDimensions}
+                        disabled={isSubmitting}
+                        onChange={handleSyncAllDimensionsToggle}
+                      />
+                      <span>Equalize Dimensions</span>
+                    </label>
+
+                    <label
+                      className="item-create-popup__matrix-sync-toggle"
+                      title="Gunakan replenishment type baris pertama untuk seluruh row."
+                    >
+                      <input
+                        type="checkbox"
+                        className="register-user-popup__dropdown-checkbox"
+                        checked={syncAllReplenishments}
+                        disabled={isSubmitting}
+                        onChange={handleSyncAllReplenishmentsToggle}
+                      />
+                      <span>Equalize Replenishments</span>
+                    </label>
+                  </>
                 ) : null}
               </div>
 
@@ -1842,7 +2017,9 @@ function DialogCreateItem({
                     <tbody>
                       {matrixRows.map((row, rowIndex) => {
                         const isDuplicateRow = duplicateMatrixRowIds.has(row.id)
-                        const isSyncedFollowerRow = syncAllDimensions && rowIndex > 0
+                        const isSyncedDimensionFollowerRow = syncAllDimensions && rowIndex > 0
+                        const isSyncedReplenishmentFollowerRow =
+                          syncAllReplenishments && rowIndex > 0
 
                         return (
                           <tr
@@ -1887,54 +2064,69 @@ function DialogCreateItem({
                                 </p>
                               ) : null}
                             </td>
-                            {dimensionFields.map((field) => (
-                              <td
-                                key={field.name}
-                                className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}${
-                                  isSyncedFollowerRow
-                                    ? ' item-create-popup__dimension-cell--synced'
-                                    : ''
-                                }`}
-                              >
-                                {field.type === 'select' ? (
-                                  <SearchableItemSelect
-                                    id={`item-matrix-${row.id}-${field.name}`}
-                                    label={field.label}
-                                    value={row[field.name]}
-                                    options={masterOptions[field.optionsKey]}
-                                    placeholder={field.placeholder}
-                                    searchPlaceholder={field.searchPlaceholder}
-                                    emptyMessage={field.emptyMessage}
-                                    loading={isLoadingMasters}
-                                    disabled={
-                                      isSubmitting ||
-                                      isLoadingMasters ||
-                                      !row.create ||
-                                      isSyncedFollowerRow
-                                    }
-                                    forceOpenDown={Boolean(field.forceOpenDown)}
-                                    allowCreate={Boolean(field.allowCreate)}
-                                    searchTrigger={Boolean(field.searchTrigger)}
-                                    onCreate={field.name === 'uom_id' ? handleCreateUom : undefined}
-                                    onChange={(nextValue) =>
-                                      handleMatrixRowChange(row.id, field.name, nextValue)
-                                    }
-                                  />
-                                ) : (
-                                  <input
-                                    className="register-user-popup__input item-create-popup__dimension-input"
-                                    type="number"
-                                    step="any"
-                                    value={row[field.name]}
-                                    placeholder={field.placeholder}
-                                    disabled={isSubmitting || !row.create || isSyncedFollowerRow}
-                                    onChange={(event) =>
-                                      handleMatrixRowChange(row.id, field.name, event.target.value)
-                                    }
-                                  />
-                                )}
-                              </td>
-                            ))}
+                            {dimensionFields.map((field) => {
+                              const isSyncedField =
+                                field.name === 'replenishment_type'
+                                  ? isSyncedReplenishmentFollowerRow
+                                  : isSyncedDimensionFollowerRow
+                              const isMasterBackedField = Boolean(field.optionsKey)
+
+                              return (
+                                <td
+                                  key={field.name}
+                                  className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}${
+                                    isSyncedField
+                                      ? ' item-create-popup__dimension-cell--synced'
+                                      : ''
+                                  }`}
+                                >
+                                  {field.type === 'select' ? (
+                                    <SearchableItemSelect
+                                      id={`item-matrix-${row.id}-${field.name}`}
+                                      label={field.label}
+                                      value={row[field.name]}
+                                      options={getFieldOptions(field, masterOptions)}
+                                      placeholder={field.placeholder}
+                                      searchPlaceholder={field.searchPlaceholder}
+                                      emptyMessage={field.emptyMessage}
+                                      loading={isMasterBackedField && isLoadingMasters}
+                                      disabled={
+                                        isSubmitting ||
+                                        (isMasterBackedField && isLoadingMasters) ||
+                                        !row.create ||
+                                        isSyncedField
+                                      }
+                                      forceOpenDown={Boolean(field.forceOpenDown)}
+                                      allowCreate={Boolean(field.allowCreate)}
+                                      searchable={field.searchable !== false}
+                                      searchTrigger={Boolean(field.searchTrigger)}
+                                      onCreate={
+                                        field.name === 'uom_id' ? handleCreateUom : undefined
+                                      }
+                                      onChange={(nextValue) =>
+                                        handleMatrixRowChange(row.id, field.name, nextValue)
+                                      }
+                                    />
+                                  ) : (
+                                    <input
+                                      className="register-user-popup__input item-create-popup__dimension-input"
+                                      type="number"
+                                      step="any"
+                                      value={row[field.name]}
+                                      placeholder={field.placeholder}
+                                      disabled={isSubmitting || !row.create || isSyncedField}
+                                      onChange={(event) =>
+                                        handleMatrixRowChange(
+                                          row.id,
+                                          field.name,
+                                          event.target.value,
+                                        )
+                                      }
+                                    />
+                                  )}
+                                </td>
+                              )
+                            })}
                           </tr>
                         )
                       })}
@@ -1995,12 +2187,14 @@ function DialogCreateItem({
           id={`item-${field.name}`}
           label={field.label}
           value={formValues[field.name]}
-          options={masterOptions[field.optionsKey]}
+          options={getFieldOptions(field, masterOptions)}
           placeholder={field.placeholder}
           searchPlaceholder={field.searchPlaceholder}
           emptyMessage={field.emptyMessage}
           loading={
-            field.name === 'parent_id'
+            !field.optionsKey
+              ? false
+              : field.name === 'parent_id'
               ? isLoadingParentOptions && !formValues.parent_id
               : field.name === 'department_id'
               ? isLoadingDepartments
@@ -2008,7 +2202,7 @@ function DialogCreateItem({
           }
           disabled={
             isSubmitting ||
-            (field.name !== 'parent_id' && isLoadingMasters) ||
+            (field.optionsKey && field.name !== 'parent_id' && isLoadingMasters) ||
             (field.name === 'department_id' && !formValues.business_unit_id)
           }
           remoteSearch={field.name === 'parent_id'}
@@ -2018,6 +2212,7 @@ function DialogCreateItem({
               : undefined
           }
           searchTrigger={Boolean(field.searchTrigger)}
+          searchable={field.searchable !== false}
           onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
         />
       ) : (
