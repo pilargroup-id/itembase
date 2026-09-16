@@ -1,13 +1,8 @@
 import { useState } from 'react'
-import ButtonCreateVariant from '../../../components/button/variant-buttons/ButtonCreateVariant.jsx'
-import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
-import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
-import SearchVariant from '../../../components/search/SearchVariant.jsx'
 import DataTableVariantAttributes from '../../../components/table/dekstop/master/DataTableVariantAttributes.jsx'
 import DataTableVariantValue from '../../../components/table/dekstop/master/DataTableVariantValue.jsx'
 
 function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
-  const [uomRefreshKey, setUomRefreshKey] = useState(0)
   const [activeVariantTab, setActiveVariantTab] = useState('attributes')
 
   const variantTabs = [
@@ -17,48 +12,9 @@ function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
 
   return (
     <section
-      className="dashboard-panel users-table-card parents-table-card variant-table-card"
+      className="parents-table-card parents-table-page"
       aria-label={activePage.title}
     >
-      <div className="users-table-card__header">
-        <div>
-          <p className="dashboard-panel__eyebrow">{activePage.eyebrow}</p>
-          <h1 className="dashboard-panel__title">{activePage.title}</h1>
-        </div>
-
-        <div className="users-table-card__actions">
-          <ButtonExportMaster
-            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
-            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
-            aria-label={
-              activeVariantTab === 'attributes'
-                ? 'Export variant attribute data'
-                : 'Export variant value data'
-            }
-          />
-          <ButtonImportMaster
-            type={activeVariantTab === 'attributes' ? 'variant-attributes' : 'variant-values'}
-            masterLabel={activeVariantTab === 'attributes' ? 'Variant Attribute' : 'Variant Value'}
-            aria-label={
-              activeVariantTab === 'attributes'
-                ? 'Import variant attribute data'
-                : 'Import variant value data'
-            }
-            onImported={() => setUomRefreshKey((currentKey) => currentKey + 1)}
-          />
-          <SearchVariant value={searchQuery} onChange={onSearchQueryChange} />
-          <ButtonCreateVariant
-            variantType={activeVariantTab}
-            children={
-              activeVariantTab === 'attributes'
-                ? 'Create Attribute'
-                : 'Create Value'
-            }
-            onCreated={() => setUomRefreshKey((currentKey) => currentKey + 1)}
-          />
-        </div>
-      </div>
-
       <div className="variant-table-tabs" role="tablist" aria-label="Variant tabs">
         {variantTabs.map((tab) => {
           const isActive = activeVariantTab === tab.id
@@ -83,14 +39,14 @@ function VariantPage({ activePage, searchQuery, onSearchQueryChange }) {
       {activeVariantTab === 'attributes' ? (
         <DataTableVariantAttributes
           searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
           tableLabel={`${activePage.title} attributes table`}
-          refreshKey={uomRefreshKey}
         />
       ) : (
         <DataTableVariantValue
           searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
           tableLabel={`${activePage.title} value table`}
-          refreshKey={uomRefreshKey}
         />
       )}
     </section>

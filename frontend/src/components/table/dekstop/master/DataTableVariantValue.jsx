@@ -2,6 +2,11 @@
 import api from "../../../../services/api.js"
 
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
+import ButtonCreateVariant from "../../../button/variant-buttons/ButtonCreateVariant.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import SearchVariant from "../../../search/SearchVariant.jsx"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -225,6 +230,7 @@ const columns = [
 
 function DataTableVariantValue({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Variant Value",
     refreshKey = 0,
 }) {
@@ -395,6 +401,44 @@ function DataTableVariantValue({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Variant values table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchVariant
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateVariant
+                        variantType="value"
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create variant value data"
+                        onCreated={() => {}}
+                    >
+                        Create
+                    </ButtonCreateVariant>
+                    <ButtonExportMaster
+                        type="variant-values"
+                        masterLabel="Variant Value"
+                        className="parent-table-tool-button"
+                        aria-label="Export variant value data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportMaster>
+                    <ButtonImportMaster
+                        type="variant-values"
+                        masterLabel="Variant Value"
+                        className="parent-table-tool-button"
+                        aria-label="Import variant value data"
+                        onImported={() => {}}
+                    />
+                </div>
+            </div>
+
             <DataTable
                 className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
