@@ -6,8 +6,13 @@ import DialogEditUom from "../../../Dialog/dialog-uoms/DialogEditUom.jsx"
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeleteUom from "../../../button/uoms-buttons/ButtonDeleteUom.jsx"
 import ButtonEditUom from "../../../button/uoms-buttons/ButtonEditUom.jsx"
+import ButtonCreateUom from "../../../button/uoms-buttons/ButtonCreateUom.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import SearchUom from "../../../search/SearchUom.jsx"
 import FilterDropdownUom from "../../../dropdown/filter-uoms/FilterDropdownUom.jsx"
 import { uomFilterConfig } from "../../../dropdown/filter-uoms/FilterDropdownUom.config.js"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -281,6 +286,7 @@ const columns = [
 
 function DataTableUom({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Uom table",
     refreshKey = 0,
 }) {
@@ -519,6 +525,43 @@ function DataTableUom({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Uom table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchUom
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateUom
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create uom data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreateUom>
+                    <ButtonExportMaster
+                        type="uoms"
+                        masterLabel="Uom"
+                        className="parent-table-tool-button"
+                        aria-label="Export uom data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportMaster>
+                    <ButtonImportMaster
+                        type="uoms"
+                        masterLabel="Uom"
+                        className="parent-table-tool-button"
+                        aria-label="Import uom data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
+                </div>
+            </div>
+
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter uom">
                     <FilterDropdownUom

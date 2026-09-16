@@ -6,8 +6,13 @@ import DialogEditCategories from "../../../Dialog/dialog-categories/DialogEditCa
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeleteCategories from "../../../button/categories-buttons/ButtonDeleteCategories.jsx"
 import ButtonEditCategories from "../../../button/categories-buttons/ButtonEditCategories.jsx"
+import ButtonCreateCategories from "../../../button/categories-buttons/ButtonCreateCategories.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import SearchCategories from "../../../search/SearchCategories.jsx"
 import FilterDropdownCategories from "../../../dropdown/filter-categories/FilterDropdownCategories.jsx"
 import { categoriesFilterConfig } from "../../../dropdown/filter-categories/FilterDropdownCategories.config.js"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -321,6 +326,7 @@ const columns = [
 
 function DataTableCategories({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Categories table",
     refreshKey = 0,
 }) {
@@ -559,6 +565,43 @@ function DataTableCategories({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Categories table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchCategories
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateCategories
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create category data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreateCategories>
+                    <ButtonExportMaster
+                        type="categories"
+                        masterLabel="Category"
+                        className="parent-table-tool-button"
+                        aria-label="Export category data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportMaster>
+                    <ButtonImportMaster
+                        type="categories"
+                        masterLabel="Category"
+                        className="parent-table-tool-button"
+                        aria-label="Import category data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
+                </div>
+            </div>
+
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter categories">
                     <FilterDropdownCategories

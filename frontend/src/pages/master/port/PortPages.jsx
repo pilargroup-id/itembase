@@ -1,48 +1,15 @@
-import { useState } from 'react'
-
-import ButtonCreatePort from '../../../components/button/ports-buttons/ButtonCreatePort.jsx'
-import ButtonImportMaster from '../../../components/button/master-buttons/ButtonImportMaster.jsx'
-import ButtonExportMaster from '../../../components/button/master-buttons/ButtonExportMaster.jsx'
-import SearchPort from '../../../components/search/SearchPort.jsx'
 import DataTablePorts from '../../../components/table/dekstop/master/DataTablePorts.jsx'
 
 function PortsPages({ activePage, searchQuery, onSearchQueryChange }) {
-  const [portRefreshKey, setPortRefreshKey] = useState(0)
-
   return (
     <section
-      className="dashboard-panel users-table-card parents-table-card"
+      className="parents-table-card parents-table-page"
       aria-label={activePage.title}
     >
-      <div className="users-table-card__header">
-        <div>
-          <p className="dashboard-panel__eyebrow">{activePage.eyebrow}</p>
-          <h1 className="dashboard-panel__title">{activePage.title}</h1>
-        </div>
-
-        <div className="users-table-card__actions">
-          <ButtonExportMaster
-            type="ports"
-            masterLabel="Port"
-            aria-label="Export port data"
-          />
-          <ButtonImportMaster
-            type="ports"
-            masterLabel="Port"
-            aria-label="Import port data"
-            onImported={() => setPortRefreshKey((currentKey) => currentKey + 1)}
-          />
-          <SearchPort value={searchQuery} onChange={onSearchQueryChange} />
-          <ButtonCreatePort
-            onCreated={() => setPortRefreshKey((currentKey) => currentKey + 1)}
-          />
-        </div>
-      </div>
-
       <DataTablePorts
         searchQuery={searchQuery}
+        onSearchQueryChange={onSearchQueryChange}
         tableLabel={`${activePage.title} table`}
-        refreshKey={portRefreshKey}
       />
     </section>
   )

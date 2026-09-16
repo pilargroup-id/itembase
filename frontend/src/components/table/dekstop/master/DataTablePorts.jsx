@@ -6,8 +6,13 @@ import DialogEditPort from "../../../Dialog/dialog-ports/DialogEditPort.jsx"
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeletePort from "../../../button/ports-buttons/ButtonDeletePort.jsx"
 import ButtonEditPort from "../../../button/ports-buttons/ButtonEditPort.jsx"
+import ButtonCreatePort from "../../../button/ports-buttons/ButtonCreatePort.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import SearchPort from "../../../search/SearchPort.jsx"
 import FilterDropdownPort from "../../../dropdown/filter-port/FilterDropdownPort.jsx"
 import { PortFilterConfig } from "../../../dropdown/filter-port/FilterDropdownPort.config.js"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -281,6 +286,7 @@ const columns = [
 
 function DataTablePorts({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Ports table",
     refreshKey = 0,
 }) {
@@ -519,6 +525,43 @@ function DataTablePorts({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Port table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchPort
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreatePort
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create port data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreatePort>
+                    <ButtonExportMaster
+                        type="ports"
+                        masterLabel="Port"
+                        className="parent-table-tool-button"
+                        aria-label="Export port data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportMaster>
+                    <ButtonImportMaster
+                        type="ports"
+                        masterLabel="Port"
+                        className="parent-table-tool-button"
+                        aria-label="Import port data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
+                </div>
+            </div>
+
             <div className="parent-table-toolbar">
                 <div className="parent-table-filters" aria-label="Filter Port">
                     <FilterDropdownPort
