@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeleteUom from "../../../Dialog/dialog-uoms/DialogDeleteUom.jsx"
@@ -547,13 +547,14 @@ function DataTableUom({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(uom) => getUomId(uom) ?? uom.code ?? uom.uom_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditUom
@@ -591,3 +592,4 @@ function DataTableUom({
 }
 
 export default DataTableUom
+

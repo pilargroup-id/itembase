@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeleteType from "../../../Dialog/dialog-types/DialogDeleteType.jsx"
@@ -456,13 +456,14 @@ function DataTableType({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(Type) => getTypeId(Type) ?? Type.code ?? Type.Type_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditType
@@ -489,3 +490,4 @@ function DataTableType({
 }
 
 export default DataTableType
+

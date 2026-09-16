@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeleteSkuStatus from "../../../Dialog/dialog-sku-statuses/DialogDeleteSkuStatus.jsx"
@@ -549,13 +549,14 @@ function DataTableSkuStatuses({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(skuStatus) => getSkuStatusId(skuStatus) ?? skuStatus.code ?? skuStatus.sku_status_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditSkuStatus
@@ -582,3 +583,4 @@ function DataTableSkuStatuses({
 }
 
 export default DataTableSkuStatuses 
+

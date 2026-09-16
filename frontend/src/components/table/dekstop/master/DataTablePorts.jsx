@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeletePort from "../../../Dialog/dialog-ports/DialogDeletePort.jsx"
@@ -547,13 +547,14 @@ function DataTablePorts({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(Port) => getPortId(Port) ?? Port.code ?? Port.port_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditPort
@@ -591,3 +592,4 @@ function DataTablePorts({
 }
 
 export default DataTablePorts
+

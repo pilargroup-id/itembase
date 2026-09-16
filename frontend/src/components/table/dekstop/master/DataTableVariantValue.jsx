@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
@@ -396,13 +396,14 @@ function DataTableVariantValue({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(uom) => getUomId(uom) ?? uom.code ?? uom.uom_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogValidateStatusMaster
@@ -420,3 +421,4 @@ function DataTableVariantValue({
 }
 
 export default DataTableVariantValue
+

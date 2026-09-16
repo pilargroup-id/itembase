@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeleteCategories from "../../../Dialog/dialog-categories/DialogDeleteCategories.jsx"
@@ -587,13 +587,14 @@ function DataTableCategories({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(categories) => getCategoriesId(categories) ?? categories.detail_category}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditCategories
@@ -631,3 +632,4 @@ function DataTableCategories({
 }
 
 export default DataTableCategories
+

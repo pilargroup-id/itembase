@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeletePicUser from "../../../Dialog/dialog-pic-users/DialogDeletePicUser.jsx"
@@ -548,13 +548,14 @@ function DataTablePicUser({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(picUser) => getPicUserId(picUser) ?? picUser.pic_code ?? picUser.central_user_id}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditPicUser
@@ -581,3 +582,4 @@ function DataTablePicUser({
 }
 
 export default DataTablePicUser
+

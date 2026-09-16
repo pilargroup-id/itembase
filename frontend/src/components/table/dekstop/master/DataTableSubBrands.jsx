@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DataTable, { DataTableIdentity } from "../DataTable.jsx"
@@ -290,16 +290,18 @@ function DataTableSubBrands({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={columns}
                 getRowId={getSubBrandId}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
         </div>
     )
 }
 
 export default DataTableSubBrands
+

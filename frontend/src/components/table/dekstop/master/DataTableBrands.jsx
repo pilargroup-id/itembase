@@ -492,13 +492,14 @@ function DataTableBrands({
     return (
         <div className="mtickets-table-shell parent-table-shell">
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(brand) => getBrandId(brand) ?? brand.code ?? brand.brand_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditBrand

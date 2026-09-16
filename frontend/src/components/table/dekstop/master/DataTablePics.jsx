@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import api from "../../../../services/api.js"
 
 import DialogDeletePics from "../../../Dialog/dialog-pics/DialogDeletePics.jsx"
@@ -543,13 +543,14 @@ function DataTablePics({
             </div>
 
             <DataTable
-                className="mtickets-table"
+                className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
                 columns={tableColumns}
                 getRowId={(pics) => getPicsId(pics) ?? pics.code ?? pics.pics_code}
                 tableLabel={tableLabel}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
+                autoHeight={false}
             />
 
             <DialogEditPics
@@ -576,3 +577,4 @@ function DataTablePics({
 }
 
 export default DataTablePics
+
