@@ -6,6 +6,11 @@ import DialogEditBrand from "../../../Dialog/dialog-brands/DialogEditBrand.jsx"
 import DialogValidateStatusMaster from "../../../Dialog/dialog-master/DialogValidateStatusMaster.jsx"
 import ButtonDeleteBrand from "../../../button/brands-buttons/ButtonDeleteBrand.jsx"
 import ButtonEditBrand from "../../../button/brands-buttons/ButtonEditBrand.jsx"
+import ButtonCreateBrand from "../../../button/brands-buttons/ButtonCreateBrand.jsx"
+import ButtonExportMaster from "../../../button/master-buttons/ButtonExportMaster.jsx"
+import ButtonImportMaster from "../../../button/master-buttons/ButtonImportMaster.jsx"
+import SearchBrand from "../../../search/SearchBrand.jsx"
+import { Export01 } from "../../../template/TemplateIcons.jsx"
 import DataTable, {
     DataTableIdentity,
     DataTableStatus,
@@ -276,6 +281,7 @@ const columns = [
 
 function DataTableBrands({
     searchQuery = "",
+    onSearchQueryChange,
     tableLabel = "Brands table",
     refreshKey = 0,
 }) {
@@ -491,6 +497,43 @@ function DataTableBrands({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
+            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Brand table tools">
+                <div className="parent-table-toolbar__lookup">
+                    <div className="parent-table-toolbar__search">
+                        <SearchBrand
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+                </div>
+
+                <div className="parent-table-actions parent-table-actions--primary">
+                    <ButtonCreateBrand
+                        className="parent-table-tool-button parent-table-tool-button--create"
+                        aria-label="Create brand data"
+                        onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                    >
+                        Create
+                    </ButtonCreateBrand>
+                    <ButtonExportMaster
+                        type="brands"
+                        masterLabel="Brand"
+                        className="parent-table-tool-button"
+                        aria-label="Export brand data"
+                    >
+                        <Export01 size={18} aria-hidden="true" />
+                        <span>Export</span>
+                    </ButtonExportMaster>
+                    <ButtonImportMaster
+                        type="brands"
+                        masterLabel="Brand"
+                        className="parent-table-tool-button"
+                        aria-label="Import brand data"
+                        onImported={() => setReloadKey((currentKey) => currentKey + 1)}
+                    />
+                </div>
+            </div>
+
             <DataTable
                 className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={rows}
