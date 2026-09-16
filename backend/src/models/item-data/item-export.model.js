@@ -1,18 +1,19 @@
 const { db } = require('../../config/database.config');
 
 function normalizeItemStatus(status) {
-  if (status === undefined || status === null || status === '') return null;
-  return String(status).trim().toLowerCase() === 'inactive' ? 0 : 1;
+  if (status === undefined || status === null || String(status).trim() === '') return null;
+  const normalized = String(status).trim().toUpperCase();
+  return ['ACTIVE','INACTIVE','DISCONTINUE'].includes(normalized) ? normalized : null;
 }
 
 async function exportItems(status = null, kind = null) {
-  const isActive = normalizeItemStatus(status);
+  const itemStatus = normalizeItemStatus(status);
   const conditions = [];
   const params = [];
 
-  if (isActive !== null) {
-    conditions.push('i.is_active = ?');
-    params.push(isActive);
+  if (itemStatus !== null) {
+    conditions.push('i.status = ?');
+    params.push(itemStatus);
   }
 
   if (kind) {
@@ -29,13 +30,14 @@ async function exportItems(status = null, kind = null) {
       i.item_name,
       i.selling_name,
       i.item_kind,
+      i.replenishment_type,
+      i.status,
       i.qty_per_pack,
       i.height,
       i.width,
       i.depth,
       i.gross_weight_pack,
       i.production_time_days,
-      i.is_active,
       i.created_at,
       i.updated_at,
       ip.parent_code,
@@ -98,13 +100,14 @@ async function exportItems(status = null, kind = null) {
       i.item_name,
       i.selling_name,
       i.item_kind,
+      i.replenishment_type,
+      i.status,
       i.qty_per_pack,
       i.height,
       i.width,
       i.depth,
       i.gross_weight_pack,
       i.production_time_days,
-      i.is_active,
       i.created_at,
       i.updated_at,
       ip.parent_code,

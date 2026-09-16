@@ -4,6 +4,8 @@ const ActivityLogService = require('../activity-log.service');
 const DirectoryService = require('../pilargroup-directory.service');
 
 const ALLOWED_ITEM_KIND = ['regular', 'bundle'];
+const ALLOWED_ITEM_STATUS = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
+const ALLOWED_REPLENISHMENT_TYPES = ['RG', 'SS', 'BD', 'NR'];
 const STRING_LIMITS = { item_name: 255, selling_name: 255, parent_id: 36, uom_id: 36, component_item_id: 36 };
 const DECIMAL_FIELDS = ['qty_per_pack', 'height', 'width', 'depth', 'gross_weight_pack'];
 const INTEGER_FIELDS = ['production_time_days'];
@@ -18,9 +20,23 @@ function makeError(message, statusCode = 400, code = 'ERROR', errors = null) {
 
 function hasValue(value) { return value !== undefined && value !== null && value !== ''; }
 function validateRequired(value) { return hasValue(value) && String(value).trim() !== ''; }
-function normalizeBoolean(value, defaultValue = 1) { return hasValue(value) ? (Number(value) ? 1 : 0) : defaultValue; }
+function normalizeItemStatus(value, defaultValue = 'ACTIVE') {
+  if (!hasValue(value)) return defaultValue;
+  const normalized = String(value).trim().toUpperCase();
+  if (['1', 'TRUE', 'YES'].includes(normalized)) return 'ACTIVE';
+  if (['0', 'FALSE', 'NO'].includes(normalized)) return 'INACTIVE';
+  return normalized;
+}
+function normalizeReplenishmentType(value) {
+  if (!hasValue(value)) return null;
+  return String(value).trim().toUpperCase();
+}
 function normalizeNumber(value, defaultValue = null) { return hasValue(value) ? Number(value) : defaultValue; }
-function isValidBoolean(value) { return [0, 1, '0', '1', true, false].includes(value); }
+function isValidItemStatus(value) { return ALLOWED_ITEM_STATUS.includes(normalizeItemStatus(value, '')); }
+function isValidReplenishmentType(value) {
+  const normalized = normalizeReplenishmentType(value);
+  return normalized === null || ALLOWED_REPLENISHMENT_TYPES.includes(normalized);
+}
 function normalizeQty(value) { const n = Number(value); return Number.isInteger(n) ? String(n) : String(n).replace(/\.?0+$/, ''); }
 
 function isValidDecimal(value) {
@@ -52,7 +68,9 @@ function validatePayload(payload = {}, options = {}) {
   else if (!ALLOWED_ITEM_KIND.includes(payload.item_kind)) errors.item_kind = 'Item kind must be regular or bundle';
   if (requireParent && !validateRequired(payload.parent_id)) errors.parent_id = 'Parent item is required';
   if (requireItemName && payload.item_kind === 'regular' && !validateRequired(payload.item_name)) errors.item_name = 'Item name is required for regular item';
-  if (hasValue(payload.is_active) && !isValidBoolean(payload.is_active)) errors.is_active = 'Is active must be 0 or 1';
+  if (hasValue(payload.status) && !isValidItemStatus(payload.status)) errors.status = `Status must be one of: ${ALLOWED_ITEM_STATUS.join(', ')}`;
+  if (!isValidReplenishmentType(payload.replenishment_type)) errors.replenishment_type = `Replenishment type must be one of: ${ALLOWED_REPLENISHMENT_TYPES.join(', ')}`;
+  if (payload.item_kind === 'bundle' && hasValue(payload.replenishment_type)) errors.replenishment_type = 'Replenishment type is only allowed for regular items';
 
   [['item_name', 255], ['selling_name', 255], ['parent_id', 36], ['uom_id', 36]].forEach(([field, max]) => {
     if (hasValue(payload[field]) && String(payload[field]).length > max) errors[field] = `${field} cannot be longer than ${max} characters`;
@@ -181,9 +199,46 @@ async function validateVariants(parentId, variants, connection, excludeItemId=nu
 }
 function cartesian(groups){return groups.reduce((acc,group)=>acc.flatMap(prefix=>group.map(value=>[...prefix,value])),[[]]);}
 
+function masterCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+async function resolveUomInput(payload, connection, userId = null, req = null) {
+  if (payload.uom_id) {
+    const existing = await ItemModel.findUomById(payload.uom_id, connection);
+    if (!existing) throw makeError('UOM not found', 404, 'UOM_NOT_FOUND');
+    if (!Number(existing.is_active)) throw makeError(`UOM ${existing.name || existing.code} exists but is inactive`, 422, 'VALIDATION_ERROR');
+    return existing.id;
+  }
+
+  const raw = payload.uom_name ?? payload.uom;
+  if (!hasValue(raw)) return null;
+  const name = String(raw).trim().toUpperCase();
+  let existing = await ItemModel.findUomByNameOrCode(name, connection);
+  if (existing) {
+    if (!Number(existing.is_active)) throw makeError(`UOM ${name} exists but is inactive`, 422, 'VALIDATION_ERROR');
+    return existing.id;
+  }
+
+  const code = masterCode(name);
+  if (!code) throw makeError('UOM cannot generate a valid code', 422, 'VALIDATION_ERROR');
+  const codeConflict = await ItemModel.findUomByNameOrCode(code, connection);
+  if (codeConflict) {
+    if (!Number(codeConflict.is_active)) throw makeError(`UOM code ${code} exists but is inactive`, 422, 'VALIDATION_ERROR');
+    return codeConflict.id;
+  }
+
+  const created = await ItemModel.createUom({ code, name }, connection);
+  await ActivityLogService.log({
+    user_id: userId, action: 'CREATE', entity_type: 'master_uoms', entity_id: created.id,
+    description: `Created UOM ${created.name}`, before_data: null, after_data: created,
+    metadata: { source: 'ITEM_SUGGESTION_FIELD', code: created.code }, req, connection,
+  });
+  return created.id;
+}
+
 async function validateReferences(payload, connection) {
   if (payload.parent_id && !(await ItemModel.findParentById(payload.parent_id, connection))) throw makeError('Parent item not found', 404, 'PARENT_NOT_FOUND');
-  if (payload.uom_id && !(await ItemModel.findUomById(payload.uom_id, connection))) throw makeError('UOM not found', 404, 'UOM_NOT_FOUND');
 }
 
 async function validateBundleComponents(components, connection) {
@@ -211,12 +266,12 @@ function normalizeItemData(payload, userId, generatedCode = null, existing = nul
     id: existing?.id || crypto.randomUUID(), item_code: existing?.item_code || generatedCode,
     barcode: existing?.barcode || generatedCode, item_name: String(payload.item_name || '').trim(),
     selling_name: String(payload.selling_name || payload.item_name || '').trim(), item_kind: payload.item_kind,
-    parent_id: payload.parent_id, uom_id: payload.uom_id || null,
+    parent_id: payload.parent_id, uom_id: payload.uom_id || null, replenishment_type: payload.item_kind === 'regular' ? normalizeReplenishmentType(payload.replenishment_type) : null,
     qty_per_pack: normalizeNumber(payload.qty_per_pack), height: normalizeNumber(payload.height),
     width: normalizeNumber(payload.width), depth: normalizeNumber(payload.depth),
     gross_weight_pack: normalizeNumber(payload.gross_weight_pack),
     production_time_days: normalizeNumber(payload.production_time_days),
-    is_active: normalizeBoolean(payload.is_active, existing?.is_active ?? 1),
+    status: normalizeItemStatus(payload.status, existing?.status || 'ACTIVE'),
     created_by: existing?.created_by || userId, updated_by: userId,
   };
 }
@@ -270,8 +325,9 @@ async function store(payload, userId, req = null) {
   const components = validateComponents(payload.components || [], payload.item_kind, payload.components !== undefined);
   return ItemModel.transaction(async (connection) => {
     await validateReferences(payload, connection);
+    const resolvedUomId = await resolveUomInput(payload, connection, userId, req);
     const generatedCode = generateNextBarcode(await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2), connection));
-    let finalPayload = { ...payload };
+    let finalPayload = { ...payload, uom_id: resolvedUomId || payload.uom_id || null, status: normalizeItemStatus(payload.status, 'ACTIVE'), replenishment_type: normalizeReplenishmentType(payload.replenishment_type) };
     if (payload.item_kind === 'bundle') {
       const withItems = await validateBundleComponents(components, connection);
       const generatedName = buildBundleItemName(withItems);
@@ -286,6 +342,7 @@ async function store(payload, userId, req = null) {
     await ItemModel.create(itemData, connection);
     if (payload.item_kind === 'bundle') await ItemModel.replaceComponents(itemData.id, components, connection);
     await ItemModel.replaceVariants(itemData.id,variants,connection);
+    if (payload.item_kind === 'regular') await ItemModel.syncRegularItemName(itemData.id, connection);
     const finalItem = await ItemModel.findById(itemData.id, connection);
     await enrichItems([finalItem]);
     await ActivityLogService.log({ user_id: userId, action: 'CREATE', entity_type: 'items', entity_id: finalItem.id, description: `Created ${finalItem.item_kind} item ${finalItem.item_code}`, before_data: null, after_data: finalItem, metadata: { item_code: finalItem.item_code, item_kind: finalItem.item_kind, component_count: finalItem.components.length }, req, connection });
@@ -302,12 +359,13 @@ async function update(id, payload, userId, req = null) {
   const merged = {
     item_kind: payload.item_kind ?? existing.item_kind, parent_id: payload.parent_id ?? existing.parent_id,
     uom_id: payload.uom_id ?? existing.uom_id, item_name: payload.item_name ?? existing.item_name,
+    replenishment_type: payload.replenishment_type !== undefined ? normalizeReplenishmentType(payload.replenishment_type) : existing.replenishment_type,
     selling_name: payload.selling_name ?? existing.selling_name,
     qty_per_pack: payload.qty_per_pack ?? existing.qty_per_pack, height: payload.height ?? existing.height,
     width: payload.width ?? existing.width, depth: payload.depth ?? existing.depth,
     gross_weight_pack: payload.gross_weight_pack ?? existing.gross_weight_pack,
     production_time_days: payload.production_time_days ?? existing.production_time_days,
-    is_active: payload.is_active ?? existing.is_active,
+    status: payload.status !== undefined ? normalizeItemStatus(payload.status, existing.status) : existing.status,
   };
   const errors = validatePayload(merged, {
     requireParent: payload.parent_id !== undefined || hasValue(existing.parent_id),
@@ -319,7 +377,9 @@ async function update(id, payload, userId, req = null) {
   const components = shouldReplaceComponents ? validateComponents(payload.components || [], merged.item_kind, true) : null;
   return ItemModel.transaction(async (connection) => {
     await validateReferences(merged, connection);
-    let finalPayload = { ...merged };
+    const uomInputProvided = payload.uom_id !== undefined || payload.uom_name !== undefined || payload.uom !== undefined;
+    const resolvedUomId = uomInputProvided ? await resolveUomInput(payload, connection, userId, req) : merged.uom_id;
+    let finalPayload = { ...merged, uom_id: resolvedUomId };
     if (merged.item_kind === 'bundle' && components) {
       const withItems = await validateBundleComponents(components, connection);
       finalPayload.item_name = buildBundleItemName(withItems);
@@ -333,10 +393,35 @@ async function update(id, payload, userId, req = null) {
     if (merged.item_kind === 'bundle' && shouldReplaceComponents) await ItemModel.replaceComponents(id, components, connection);
     if (merged.item_kind === 'regular') await ItemModel.deleteComponents(id, connection);
     if(shouldReplaceVariants||payload.parent_id!==undefined)await ItemModel.replaceVariants(id,variants,connection);
+    if (merged.item_kind === 'regular' && (shouldReplaceVariants || payload.parent_id !== undefined || payload.replenishment_type !== undefined)) await ItemModel.syncRegularItemName(id, connection);
     const finalItem = await ItemModel.findById(id, connection);
     await enrichItems([finalItem]);
-    await ActivityLogService.log({ user_id: userId, action: Number(existing.is_active) !== Number(finalItem.is_active) ? 'STATUS_CHANGE' : 'UPDATE', entity_type: 'items', entity_id: id, description: `Updated item ${finalItem.item_code}`, before_data: existing, after_data: finalItem, metadata: { item_code: finalItem.item_code, component_count: finalItem.components.length }, req, connection });
+    await ActivityLogService.log({ user_id: userId, action: String(existing.status) !== String(finalItem.status) ? 'STATUS_CHANGE' : 'UPDATE', entity_type: 'items', entity_id: id, description: `Updated item ${finalItem.item_code}`, before_data: existing, after_data: finalItem, metadata: { item_code: finalItem.item_code, component_count: finalItem.components.length }, req, connection });
     return finalItem;
+  });
+}
+
+
+async function updateStatus(id, status, userId, req = null) {
+  const existing = await ItemModel.findRawById(id);
+  if (!existing) throw makeError('Item not found', 404, 'ITEM_NOT_FOUND');
+  const normalizedStatus = normalizeItemStatus(status, '');
+  if (!ALLOWED_ITEM_STATUS.includes(normalizedStatus)) {
+    throw makeError(`Status must be one of: ${ALLOWED_ITEM_STATUS.join(', ')}`, 422, 'VALIDATION_ERROR', { status: 'Invalid item status' });
+  }
+  if (existing.status === normalizedStatus) return show(id);
+  return ItemModel.transaction(async (connection) => {
+    await ItemModel.updateStatus(id, normalizedStatus, userId, connection);
+    const updated = await ItemModel.findById(id, connection);
+    await enrichItems([updated]);
+    await ActivityLogService.log({
+      user_id: userId, action: 'STATUS_CHANGE', entity_type: 'items', entity_id: id,
+      description: `Changed item ${updated.item_code} status from ${existing.status} to ${normalizedStatus}`,
+      before_data: existing, after_data: updated,
+      metadata: { item_code: updated.item_code, old_status: existing.status, new_status: normalizedStatus },
+      req, connection,
+    });
+    return updated;
   });
 }
 
@@ -346,14 +431,14 @@ async function previewMatrix(payload={}){
   const parent=await ItemModel.findParentById(parentId);if(!parent)throw makeError('Parent item not found',404,'PARENT_NOT_FOUND');
   const groups=payload.attributes;if(!Array.isArray(groups)||!groups.length)throw makeError('Attributes must be a non-empty array',422,'VALIDATION_ERROR');
   const seenAttrs=new Set();const normalized=[];for(const group of groups){const attribute_id=String(group.attribute_id||'');if(!attribute_id)throw makeError('Variant attribute is required',422,'VALIDATION_ERROR');if(seenAttrs.has(attribute_id))throw makeError('Duplicate variant attribute in matrix request',422,'VALIDATION_ERROR');seenAttrs.add(attribute_id);const valueIds=[...new Set((group.value_ids||[]).map(String))];if(!valueIds.length)throw makeError('Each attribute must have at least one value',422,'VALIDATION_ERROR');const rows=await ItemModel.findVariantValuesByIds(valueIds);if(rows.length!==valueIds.length||rows.some(v=>v.attribute_id!==attribute_id||!Number(v.is_active)))throw makeError('One or more variant values are invalid',422,'VALIDATION_ERROR');normalized.push(rows.map(v=>({attribute_id,value_id:v.id,attribute_code:v.attribute_code,attribute_name:v.attribute_name,value_code:v.code,value_name:v.name})));}
-  const combinations=cartesian(normalized).map((variants,index)=>({row_no:index+1,variant_summary:variants.map(v=>v.value_name).join(' / '),suggested_item_name:`${parent.parent_name} ${variants.map(v=>v.value_name).join(' ')}`.trim().toUpperCase(),suggested_selling_name:`${parent.parent_name} ${variants.map(v=>v.value_name).join(' ')}`.trim(),variants:variants.map(v=>({attribute_id:v.attribute_id,value_id:v.value_id,attribute_code:v.attribute_code,attribute_name:v.attribute_name,value_code:v.value_code,value_name:v.value_name}))}));
+  const previewReplenishment=normalizeReplenishmentType(payload.replenishment_type);if(previewReplenishment&&!ALLOWED_REPLENISHMENT_TYPES.includes(previewReplenishment))throw makeError(`Replenishment type must be one of: ${ALLOWED_REPLENISHMENT_TYPES.join(', ')}`,422,'VALIDATION_ERROR');const combinations=cartesian(normalized).map((variants,index)=>{const nameParts=[parent.parent_name,previewReplenishment==='BD'?'BD':null,...variants.map(v=>v.value_name)].filter(Boolean);const generated=nameParts.join(' ').trim().toUpperCase();return{row_no:index+1,variant_summary:variants.map(v=>v.value_name).join(' / '),replenishment_type:previewReplenishment,suggested_item_name:generated,suggested_selling_name:generated,variants:variants.map(v=>({attribute_id:v.attribute_id,value_id:v.value_id,attribute_code:v.attribute_code,attribute_name:v.attribute_name,value_code:v.value_code,value_name:v.value_name}))};});
   return{item_parent_id:parentId,total_combinations:combinations.length,combinations};
 }
 async function createMatrix(payload,userId,req=null){
   const parentId=String(payload.item_parent_id||payload.parent_id||'').trim();if(!parentId)throw makeError('Item parent is required',422,'VALIDATION_ERROR');if(!Array.isArray(payload.items)||!payload.items.length)throw makeError('Items must be a non-empty array',422,'VALIDATION_ERROR');if(payload.items.length>250)throw makeError('Maximum 250 items per matrix request',422,'VALIDATION_ERROR');
   return ItemModel.transaction(async connection=>{const parent=await ItemModel.findParentById(parentId,connection);if(!parent)throw makeError('Parent item not found',404,'PARENT_NOT_FOUND');let last=await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2),connection);const created=[];
-    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=await resolveVariantInputs(normalizeVariantInputs(row.variants)||[],connection,userId,req);await validateReferences(merged,connection);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);created.push(await ItemModel.findById(data.id,connection));}
+    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};merged.status=normalizeItemStatus(merged.status,'ACTIVE');merged.replenishment_type=normalizeReplenishmentType(merged.replenishment_type);const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=await resolveVariantInputs(normalizeVariantInputs(row.variants)||[],connection,userId,req);await validateReferences(merged,connection);merged.uom_id=await resolveUomInput(merged,connection,userId,req);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);await ItemModel.syncRegularItemName(data.id,connection);created.push(await ItemModel.findById(data.id,connection));}
     await enrichItems(created);await ActivityLogService.log({user_id:userId,action:'CREATE',entity_type:'items',entity_id:null,description:`Created ${created.length} items from variant matrix`,after_data:created,metadata:{item_parent_id:parentId,total_items:created.length},req,connection});return{total_created:created.length,items:created};});
 }
 
-module.exports = { index, show, store, update, previewMatrix, createMatrix };
+module.exports = { index, show, store, update, updateStatus, previewMatrix, createMatrix };

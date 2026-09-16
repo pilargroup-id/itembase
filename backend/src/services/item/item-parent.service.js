@@ -814,9 +814,9 @@ async function update(id, payload, userId, req = null) {
           action: 'STATUS_CHANGE',
           entity_type: 'items',
           entity_id: child.id,
-          description: `Changed item ${child.item_code} status to inactive from parent ${updated.parent_code}`,
+          description: `Changed item ${child.item_code} status to INACTIVE from parent ${updated.parent_code}`,
           before_data: child,
-          after_data: { ...child, is_active: 0 },
+          after_data: { ...child, status: 'INACTIVE' },
           metadata: { source: 'PARENT_STATUS_CHANGE', parent_id: id, parent_code: updated.parent_code },
           req,
           connection,
@@ -846,6 +846,19 @@ async function update(id, payload, userId, req = null) {
 
     return { data: updated };
   });
+}
+
+async function updateStatus(id, payload, userId, req = null) {
+  let status = payload?.status;
+  if (status === undefined && payload?.is_active !== undefined) {
+    status = Number(payload.is_active) ? 'active' : 'inactive';
+  }
+  status = trimOrNull(status);
+  status = status ? status.toLowerCase() : null;
+  if (!status || !ALLOWED_STATUS.includes(status)) {
+    return { error: { type: 'validation', message: 'Validation failed', errors: { status: `Status must be one of: ${ALLOWED_STATUS.join(', ')}` } } };
+  }
+  return update(id, { status }, userId, req);
 }
 
 async function destroy(id, userId, req = null) {
@@ -893,5 +906,6 @@ module.exports = {
   createSubbrand,
   create,
   update,
+  updateStatus,
   destroy,
 };

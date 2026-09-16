@@ -24,12 +24,13 @@ const TEMPLATES = {
     filename: 'regular-item-import-template.xlsx',
     sheets: [{
       name: 'Items',
-      headers: ['SKU ID','SKU Name','Parent ID','UOM Code','Qty/Pack','Height','Width','Depth','Gross Weight/Pack','Lead Time','Variant Attribute Value','Status'],
+      headers: ['SKU ID','SKU Name','Parent ID','UOM Code','Replenishment Type','Qty/Pack','Height','Width','Depth','Gross Weight/Pack','Lead Time','Variant Attribute Value','Status'],
       rows: [{
         'SKU ID': 'EXAMPLE_SKU_ID',
-        'SKU Name': 'ASA ASAHO LUNCH BOX DARK BLUE',
+        'SKU Name': 'ASA ASAHO LUNCH BOX BD DARK BLUE',
         'Parent ID': 'P002034',
         'UOM Code': 'PCS',
+        'Replenishment Type': 'BD',
         'Qty/Pack': 12,
         Height: 10,
         Width: 20,
@@ -37,7 +38,7 @@ const TEMPLATES = {
         'Gross Weight/Pack': 8.5,
         'Lead Time': 7,
         'Variant Attribute Value': 'COLOR=DARK_BLUE;MODEL=STANDARD',
-        Status: 'Active',
+        Status: 'ACTIVE',
       }],
     }],
   },
@@ -51,7 +52,7 @@ const TEMPLATES = {
           'SKU ID': 'EXAMPLE_BUNDLE_SKU_ID',
           'Selling Name': 'BUNDLE SAMPLE',
           'Parent ID': 'P002034',
-          Status: 'Active',
+          Status: 'ACTIVE',
         }],
       },
       {
@@ -71,6 +72,9 @@ const TEMPLATES = {
 function statusText(value) {
   return Number(value) ? 'Active' : 'Inactive';
 }
+function itemStatusText(value) {
+  return String(value || '').trim().toUpperCase();
+}
 
 async function generate(type) {
   const config = TEMPLATES[type];
@@ -87,13 +91,16 @@ async function generate(type) {
     { name: 'Ref Variant Attributes', headers: ['Attribute Code','Attribute Name','Status'], rows: refs.attributes.map((r) => ({ 'Attribute Code': r.code, 'Attribute Name': r.name, Status: statusText(r.is_active) })) },
     { name: 'Ref Variant Values', headers: ['Attribute Code','Value Code','Value Name','Status'], rows: refs.values.map((r) => ({ 'Attribute Code': r.attribute_code, 'Value Code': r.value_code, 'Value Name': r.value_name, Status: statusText(r.is_active) })) },
     { name: 'Ref Parents', headers: ['Parent ID','Parent Name','Status'], rows: refs.parents.map((r) => ({ 'Parent ID': r.parent_code, 'Parent Name': r.parent_name, Status: r.status })) },
-    { name: 'Ref Items', headers: ['SKU ID','SKU Name','SKU Type','Status'], rows: refs.items.map((r) => ({ 'SKU ID': r.item_code, 'SKU Name': r.item_name, 'SKU Type': r.item_kind === 'bundle' ? 'Bundle' : 'Regular', Status: statusText(r.is_active) })) },
+    { name: 'Ref Items', headers: ['SKU ID','SKU Name','SKU Type','Replenishment Type','Status'], rows: refs.items.map((r) => ({ 'SKU ID': r.item_code, 'SKU Name': r.item_name, 'SKU Type': r.item_kind === 'bundle' ? 'Bundle' : 'Regular', 'Replenishment Type': r.replenishment_type || '', Status: itemStatusText(r.status) })) },
     { name: 'Instructions', headers: ['Rule'], rows: [
       { Rule: 'The EXAMPLE row is ignored by import. Replace or remove it before uploading real data.' },
       { Rule: 'Blank cell on UPDATE means keep existing value.' },
       { Rule: 'Use NULL to clear an optional field.' },
       { Rule: 'Multiple values use semicolon (;).' },
       { Rule: 'Variant Attribute Value uses ATTRIBUTE=VALUE;ATTRIBUTE=VALUE.' },
+      { Rule: 'Replenishment Type is optional for regular items and accepts RG, SS, BD, or NR.' },
+      { Rule: 'BD inserts the BD token into the generated SKU Name after Parent Name and before Variant values.' },
+      { Rule: 'Regular item Status accepts ACTIVE, INACTIVE, or DISCONTINUE.' },
       { Rule: 'Bundle UOM is assigned automatically to UOM code SET.' },
       { Rule: 'Preview does not change database data.' },
     ] },

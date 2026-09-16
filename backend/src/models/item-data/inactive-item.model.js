@@ -7,7 +7,7 @@ function normalizePagination(query = {}) {
 }
 
 function buildWhereClause(query = {}) {
-  const conditions = ['i.is_active = 0'];
+  const conditions = ["i.status = 'INACTIVE'"];
   const params = [];
 
   if (query.search) {
@@ -50,7 +50,10 @@ function baseFromSql() {
       WHERE al.entity_type = 'items'
         AND al.action = 'STATUS_CHANGE'
         AND JSON_VALID(al.after_data)
-        AND LOWER(JSON_UNQUOTE(JSON_EXTRACT(al.after_data, '$.is_active'))) IN ('0', 'false')
+        AND (
+          UPPER(JSON_UNQUOTE(JSON_EXTRACT(al.after_data, '$.status'))) = 'INACTIVE'
+          OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(al.after_data, '$.is_active'))) IN ('0', 'false')
+        )
       GROUP BY al.entity_id
     ) inactive_log ON inactive_log.item_id = i.id
   `;
@@ -67,7 +70,8 @@ async function findInactiveItems(query = {}) {
       i.item_name,
       i.selling_name,
       i.item_kind,
-      i.is_active,
+      i.replenishment_type,
+      i.status,
       i.created_at,
       i.updated_at,
       ip.id AS parent_id,
@@ -95,8 +99,8 @@ async function findInactiveItems(query = {}) {
       item_name: row.item_name,
       selling_name: row.selling_name,
       item_kind: row.item_kind,
-      is_active: row.is_active,
-      status: 'inactive',
+      replenishment_type: row.replenishment_type,
+      status: row.status,
       inactive_date: row.inactive_date,
       created_at: row.created_at,
       updated_at: row.updated_at,

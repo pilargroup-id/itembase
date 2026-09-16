@@ -10,7 +10,9 @@ const ITEM_DEFAULT_COLUMNS = [
   { key: 'parent_name', header: 'Parent Name' },
   { key: 'sku', header: 'SKU ID' },
   { key: 'item_kind', header: 'SKU Type' },
+  { key: 'replenishment_type', header: 'Replenishment Type' },
   { key: 'item_name', header: 'SKU Name' },
+  { key: 'status', header: 'Status' },
 ];
 
 const ITEM_OPTIONAL_COLUMNS = [
@@ -56,18 +58,28 @@ const PARENT_OPTIONAL_COLUMNS = [
   { key: 'item_source', header: 'Item Source' },
 ];
 
-const ALLOWED_STATUSES = ['active', 'inactive'];
+const ALLOWED_ITEM_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
+const ALLOWED_PARENT_STATUSES = ['active', 'inactive'];
 const ALLOWED_KINDS = ['regular', 'bundle'];
 
 function makeError(message) {
   return Object.assign(new Error(message), { statusCode: 422 });
 }
 
-function normalizeStatus(value) {
+function normalizeItemStatus(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const status = String(value).trim().toUpperCase();
+  if (!ALLOWED_ITEM_STATUSES.includes(status)) {
+    throw makeError('Item status must be ACTIVE, INACTIVE, or DISCONTINUE');
+  }
+  return status;
+}
+
+function normalizeParentStatus(value) {
   if (value === undefined || value === null || String(value).trim() === '') return null;
   const status = String(value).trim().toLowerCase();
-  if (!ALLOWED_STATUSES.includes(status)) {
-    throw makeError('Status must be active or inactive');
+  if (!ALLOWED_PARENT_STATUSES.includes(status)) {
+    throw makeError('Parent status must be active or inactive');
   }
   return status;
 }
@@ -169,7 +181,9 @@ function mapItemRow(row, businessUnits, users) {
     'Parent Name': row.parent_name || '',
     'SKU ID': row.item_code || '',
     'SKU Type': row.item_kind === 'bundle' ? 'Bundle' : 'Regular',
+    'Replenishment Type': row.item_kind === 'regular' ? (row.replenishment_type || '') : '',
     'SKU Name': row.item_name || '',
+    Status: row.status || '',
     'Main Category': row.main_category || '',
     'Sub Category': row.sub_category || '',
     'Brand Category': row.brand_category || '',
@@ -217,7 +231,7 @@ function filenameSuffix(status) {
 }
 
 async function exportItems(query = {}) {
-  const status = normalizeStatus(query.status);
+  const status = normalizeItemStatus(query.status);
   const kind = normalizeKind(query.kind);
   const columns = selectedColumns(query, ITEM_DEFAULT_COLUMNS, ITEM_OPTIONAL_COLUMNS);
   const rows = await ExportModel.exportItems(status, kind);
@@ -229,7 +243,7 @@ async function exportItems(query = {}) {
   return {
     filename: `${filenamePrefix}-${filenameSuffix(status)}.xlsx`,
     buffer: await createWorkbookBuffer([{
-      name: status === 'active' ? `Active ${kindLabel}` : status === 'inactive' ? `Inactive ${kindLabel}` : `All ${kindLabel}`,
+      name: status === 'ACTIVE' ? `Active ${kindLabel}` : status === 'INACTIVE' ? `Inactive ${kindLabel}` : status === 'DISCONTINUE' ? `Discontinue ${kindLabel}` : `All ${kindLabel}`,
       headers,
       rows: rows.map((row) => mapItemRow(row, businessUnits, users)),
     }]),
@@ -237,7 +251,7 @@ async function exportItems(query = {}) {
 }
 
 async function exportParents(query = {}) {
-  const status = normalizeStatus(query.status);
+  const status = normalizeParentStatus(query.status);
   const columns = selectedColumns(query, PARENT_DEFAULT_COLUMNS, PARENT_OPTIONAL_COLUMNS);
   const rows = await ExportModel.exportParents(status);
   const { businessUnits, users } = await loadDirectories(rows, columns);

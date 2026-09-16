@@ -21,9 +21,10 @@ function buildOrderByClause(sort = '') {
   return `ORDER BY ${sortMap[sort] || sortMap['date-desc']}`;
 }
 
-function normalizeBooleanFilter(value) {
-  if (value === undefined || value === null || value === '') return null;
-  return Number(value) ? 1 : 0;
+function normalizeItemStatusFilter(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const normalized = String(value).trim().toUpperCase();
+  return ['ACTIVE', 'INACTIVE', 'DISCONTINUE'].includes(normalized) ? normalized : null;
 }
 
 function buildSearchTokenCondition() {
@@ -67,14 +68,15 @@ function buildWhereClause(query = {}) {
 
   const directFilters = [
     ['item_kind', 'i.item_kind'], ['parent_id', 'i.parent_id'], ['uom_id', 'i.uom_id'],
-    ['status', 'ip.status'], ['brand_id', 'ip.brand_id'], ['category_id', 'ip.category_id'],
+    ['status', 'i.status'], ['parent_status', 'ip.status'], ['replenishment_type', 'i.replenishment_type'], ['brand_id', 'ip.brand_id'], ['category_id', 'ip.category_id'],
     ['item_type_id', 'ip.item_type_id'], ['item_code', 'i.item_code'], ['barcode', 'i.barcode'],
     ['created_by', 'i.created_by'],
   ];
   directFilters.forEach(([key, column]) => {
     if (query[key] !== undefined && query[key] !== null && query[key] !== '') {
       conditions.push(`${column} = ?`);
-      params.push(query[key]);
+      const value = ['status','replenishment_type'].includes(key) ? String(query[key]).trim().toUpperCase() : query[key];
+      params.push(value);
     }
   });
 
@@ -94,10 +96,10 @@ function buildWhereClause(query = {}) {
     }
   });
 
-  const isActive = normalizeBooleanFilter(query.is_active);
-  if (isActive !== null) {
-    conditions.push('i.is_active = ?');
-    params.push(isActive);
+  const legacyActive = normalizeItemStatusFilter(query.is_active === undefined ? null : (Number(query.is_active) ? 'ACTIVE' : 'INACTIVE'));
+  if (legacyActive !== null) {
+    conditions.push('i.status = ?');
+    params.push(legacyActive);
   }
 
   if (query.variant_attribute_id) { conditions.push('EXISTS (SELECT 1 FROM item_variant_values ivf WHERE ivf.item_id=i.id AND ivf.attribute_id=?)'); params.push(query.variant_attribute_id); }
@@ -150,8 +152,8 @@ function baseSelectSql() {
   return `
     SELECT
       i.id, i.item_code, i.barcode, i.item_name, i.selling_name, i.item_kind,
-      i.parent_id, i.uom_id, i.qty_per_pack, i.height, i.width,
-      i.depth, i.gross_weight_pack, i.production_time_days, i.is_active,
+      i.parent_id, i.uom_id, i.replenishment_type, i.qty_per_pack, i.height, i.width,
+      i.depth, i.gross_weight_pack, i.production_time_days, i.status,
       i.created_by, i.updated_by, i.created_at, i.updated_at,
       ip.parent_code, ip.parent_name, ip.status AS parent_status,
       mb.id AS brand_id, mb.code AS brand_code, mb.name AS brand_name,
@@ -184,7 +186,8 @@ function mapBaseRow(row) {
     depth: row.depth,
     gross_weight_pack: row.gross_weight_pack,
     production_time_days: row.production_time_days,
-    is_active: row.is_active,
+    replenishment_type: row.replenishment_type,
+    status: row.status,
     created_by: row.created_by,
     updated_by: row.updated_by,
     created_at: row.created_at,
@@ -282,15 +285,36 @@ async function findParentById(id, connection = db) {
   return rows[0] || null;
 }
 
+async function findUomByNameOrCode(value, connection = db) {
+  const normalized = String(value || '').trim();
+  const [rows] = await connection.query(
+    `SELECT id,code,name,is_active FROM master_uoms
+     WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) OR UPPER(TRIM(code)) = UPPER(TRIM(?))
+     LIMIT 1`,
+    [normalized, normalized]
+  );
+  return rows[0] || null;
+}
+
+async function createUom(data, connection = db) {
+  const crypto = require('crypto');
+  const id = crypto.randomUUID();
+  await connection.query(
+    'INSERT INTO master_uoms (id,code,name,is_active) VALUES (?,?,?,1)',
+    [id, data.code, data.name]
+  );
+  return findUomById(id, connection);
+}
+
 async function findUomById(id, connection = db) {
-  const [rows] = await connection.query('SELECT id FROM master_uoms WHERE id = ? LIMIT 1', [id]);
+  const [rows] = await connection.query('SELECT id,code,name,is_active FROM master_uoms WHERE id = ? LIMIT 1', [id]);
   return rows[0] || null;
 }
 
 async function findItemsByIds(ids = [], connection = db) {
   if (!ids.length) return [];
   const placeholders = ids.map(() => '?').join(', ');
-  const [rows] = await connection.query(`SELECT id, item_code, item_name, selling_name, item_kind, is_active FROM items WHERE id IN (${placeholders})`, ids);
+  const [rows] = await connection.query(`SELECT id, item_code, item_name, selling_name, item_kind, status, replenishment_type FROM items WHERE id IN (${placeholders})`, ids);
   return rows;
 }
 
@@ -308,16 +332,16 @@ async function findLastBarcodeByYear(yearTwoDigits, connection = db) {
 async function create(data, connection = db) {
   await connection.query(`
     INSERT INTO items (
-      id, item_code, barcode, item_name, selling_name, item_kind, parent_id, uom_id,
+      id, item_code, barcode, item_name, selling_name, item_kind, parent_id, uom_id, replenishment_type,
       qty_per_pack, height, width, depth, gross_weight_pack,
-      production_time_days, is_active, created_by, updated_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      production_time_days, status, created_by, updated_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     data.id, data.item_code, data.barcode, data.item_name, data.selling_name,
-    data.item_kind, data.parent_id, data.uom_id || null,
+    data.item_kind, data.parent_id, data.uom_id || null, data.replenishment_type || null,
     data.qty_per_pack ?? null, data.height ?? null, data.width ?? null,
     data.depth ?? null, data.gross_weight_pack ?? null,
-    data.production_time_days ?? null, data.is_active ?? 1,
+    data.production_time_days ?? null, data.status || 'ACTIVE',
     data.created_by || null, data.updated_by || null,
   ]);
   return findById(data.id, connection);
@@ -326,16 +350,16 @@ async function create(data, connection = db) {
 async function update(id, data, connection = db) {
   await connection.query(`
     UPDATE items SET
-      item_name = ?, selling_name = ?, item_kind = ?, parent_id = ?, uom_id = ?,
+      item_name = ?, selling_name = ?, item_kind = ?, parent_id = ?, uom_id = ?, replenishment_type = ?,
       qty_per_pack = ?, height = ?, width = ?, depth = ?,
-      gross_weight_pack = ?, production_time_days = ?, is_active = ?, updated_by = ?
+      gross_weight_pack = ?, production_time_days = ?, status = ?, updated_by = ?
     WHERE id = ?
   `, [
     data.item_name, data.selling_name, data.item_kind, data.parent_id,
-    data.uom_id || null, data.qty_per_pack ?? null,
+    data.uom_id || null, data.replenishment_type || null, data.qty_per_pack ?? null,
     data.height ?? null, data.width ?? null, data.depth ?? null,
     data.gross_weight_pack ?? null, data.production_time_days ?? null,
-    data.is_active, data.updated_by || null, id,
+    data.status, data.updated_by || null, id,
   ]);
   return findById(id, connection);
 }
@@ -443,6 +467,36 @@ async function findComponentsByBundleItemIds(bundleItemIds = [], connection = db
   }, {});
 }
 
+
+async function updateStatus(id, status, updatedBy, connection = db) {
+  await connection.query('UPDATE items SET status=?,updated_by=?,updated_at=NOW() WHERE id=?', [status, updatedBy || null, id]);
+  return findById(id, connection);
+}
+
+async function syncRegularItemName(itemId, connection = db) {
+  const [rows] = await connection.query(`
+    SELECT i.id,i.item_kind,i.replenishment_type,ip.parent_name,
+      GROUP_CONCAT(mvv.name ORDER BY COALESCE(ipva.sort_order,9999), mva.name, mvv.sort_order, mvv.name SEPARATOR ' ') AS variant_names
+    FROM items i
+    LEFT JOIN item_parents ip ON ip.id=i.parent_id
+    LEFT JOIN item_variant_values ivv ON ivv.item_id=i.id
+    LEFT JOIN master_variant_attributes mva ON mva.id=ivv.attribute_id
+    LEFT JOIN master_variant_values mvv ON mvv.id=ivv.variant_value_id
+    LEFT JOIN item_parent_variant_attributes ipva ON ipva.item_parent_id=i.parent_id AND ipva.attribute_id=ivv.attribute_id
+    WHERE i.id=?
+    GROUP BY i.id,i.item_kind,i.replenishment_type,ip.parent_name
+    LIMIT 1
+  `,[itemId]);
+  const row=rows[0];
+  if(!row || row.item_kind!=='regular') return findById(itemId,connection);
+  const parts=[row.parent_name, row.replenishment_type==='BD' ? 'BD' : null, row.variant_names]
+    .map(v=>String(v||'').trim()).filter(Boolean);
+  const generated=parts.join(' ').replace(/\s+/g,' ').trim().toUpperCase();
+  if(!generated) return findById(itemId,connection);
+  await connection.query('UPDATE items SET item_name=? WHERE id=?',[generated,itemId]);
+  return findById(itemId,connection);
+}
+
 async function transaction(callback) {
   const connection = await db.getConnection();
   try {
@@ -459,7 +513,7 @@ async function transaction(callback) {
 }
 
 module.exports = {
-  findAll, findById, findRawById, findParentById, findUomById,
-  findItemsByIds, findLastBarcodeByYear, create, update,
+  findAll, findById, findRawById, findParentById, findUomById, findUomByNameOrCode, createUom,
+  findItemsByIds, findLastBarcodeByYear, create, update, updateStatus, syncRegularItemName,
   replaceComponents, deleteComponents, findVariantsByItemIds, findParentVariantAttributesByParentIds, findParentVariantAttributes, findVariantValuesByIds, findVariantValueByNameOrCode, findVariantValueByCode, nextVariantValueSortOrder, createVariantValue, replaceVariants, findDuplicateVariantCombination, transaction,
 };
