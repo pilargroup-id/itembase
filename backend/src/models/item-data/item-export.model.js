@@ -132,7 +132,7 @@ async function exportItems(status = null, kind = null) {
 async function exportParents(status = null) {
   const normalizedStatus = status === undefined || status === null || status === ''
     ? null
-    : String(status).trim().toLowerCase();
+    : String(status).trim().toUpperCase();
   const whereSql = normalizedStatus ? 'WHERE ip.status = ?' : '';
   const params = normalizedStatus ? [normalizedStatus] : [];
 

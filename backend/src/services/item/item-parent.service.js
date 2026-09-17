@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const ItemParentModel = require('../../models/item/item-parent.model');
 const ActivityLogService = require('../activity-log.service');
 
-const ALLOWED_STATUS = ['draft', 'active', 'inactive', 'discontinued'];
+const ALLOWED_STATUS = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
 
 const STRING_LIMITS = {
   parent_code: 50,
@@ -619,7 +619,7 @@ async function create(payload, userId, req = null) {
     item_type_id: trimOrNull(payload.item_type_id),
     ports: normalizePorts(payload) || [],
     parent_name: null,
-    status: trimOrNull(payload.status) || 'active',
+    status: (trimOrNull(payload.status) || 'ACTIVE').toUpperCase(),
     parent_code: payload.parent_code,
     variant_attributes: normalizeVariantAttributes(payload) || [],
   };
@@ -733,7 +733,7 @@ async function update(id, payload, userId, req = null) {
       ? normalizePorts(payload)
       : (existingFull?.ports || []).map((port) => ({ port_id: port.id, is_primary: port.is_primary, sort_order: port.sort_order })),
     parent_name: existing.parent_name,
-    status: hasOwn(payload, 'status') ? trimOrNull(payload.status) : existing.status,
+    status: hasOwn(payload, 'status') ? String(trimOrNull(payload.status) || '').toUpperCase() : existing.status,
     parent_code: payload.parent_code,
     variant_attributes: (hasOwn(payload, 'variant_attributes') || hasOwn(payload, 'variant_attribute_ids'))
       ? (normalizeVariantAttributes(payload) || [])
@@ -805,7 +805,7 @@ async function update(id, payload, userId, req = null) {
 
     await syncSubbrandItem(updated, connection);
 
-    if (existing.status !== 'inactive' && mergedPayload.status === 'inactive') {
+    if (existing.status !== 'INACTIVE' && mergedPayload.status === 'INACTIVE') {
       const activeChildren = await ItemParentModel.findActiveChildItems(id, connection);
       await ItemParentModel.deactivateChildItems(id, connection);
       for (const child of activeChildren) {
@@ -851,10 +851,10 @@ async function update(id, payload, userId, req = null) {
 async function updateStatus(id, payload, userId, req = null) {
   let status = payload?.status;
   if (status === undefined && payload?.is_active !== undefined) {
-    status = Number(payload.is_active) ? 'active' : 'inactive';
+    status = Number(payload.is_active) ? 'ACTIVE' : 'INACTIVE';
   }
   status = trimOrNull(status);
-  status = status ? status.toLowerCase() : null;
+  status = status ? status.toUpperCase() : null;
   if (!status || !ALLOWED_STATUS.includes(status)) {
     return { error: { type: 'validation', message: 'Validation failed', errors: { status: `Status must be one of: ${ALLOWED_STATUS.join(', ')}` } } };
   }

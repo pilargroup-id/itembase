@@ -59,7 +59,7 @@ const PARENT_OPTIONAL_COLUMNS = [
 ];
 
 const ALLOWED_ITEM_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
-const ALLOWED_PARENT_STATUSES = ['active', 'inactive'];
+const ALLOWED_PARENT_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
 const ALLOWED_KINDS = ['regular', 'bundle'];
 
 function makeError(message) {
@@ -77,9 +77,9 @@ function normalizeItemStatus(value) {
 
 function normalizeParentStatus(value) {
   if (value === undefined || value === null || String(value).trim() === '') return null;
-  const status = String(value).trim().toLowerCase();
+  const status = String(value).trim().toUpperCase();
   if (!ALLOWED_PARENT_STATUSES.includes(status)) {
-    throw makeError('Parent status must be active or inactive');
+    throw makeError('Parent status must be ACTIVE, INACTIVE, or DISCONTINUE');
   }
   return status;
 }
@@ -260,7 +260,7 @@ async function exportParents(query = {}) {
   return {
     filename: `parents-${filenameSuffix(status)}.xlsx`,
     buffer: await createWorkbookBuffer([{
-      name: status === 'active' ? 'Active Parents' : status === 'inactive' ? 'Inactive Parents' : 'All Parents',
+      name: status === 'ACTIVE' ? 'Active Parents' : status === 'INACTIVE' ? 'Inactive Parents' : status === 'DISCONTINUE' ? 'Discontinue Parents' : 'All Parents',
       headers,
       rows: rows.map((row) => mapParentRow(row, businessUnits, users)),
     }]),

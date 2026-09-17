@@ -46,8 +46,8 @@ function toNumber(value, integer = false) {
   return n;
 }
 function parentStatus(value) {
-  const v = text(value).toLowerCase();
-  return ['draft','active','inactive','discontinued'].includes(v) ? v : null;
+  const v = text(value).toUpperCase();
+  return ['ACTIVE','INACTIVE','DISCONTINUE'].includes(v) ? v : null;
 }
 function rowResult(row, action, errors = [], normalized = null) {
   return { source_row: row._source_row, action, status: errors.length ? 'INVALID' : 'VALID', errors, normalized, original: row };
@@ -148,9 +148,9 @@ async function validateParentRow(row) {
     if (isNull(row.status)) errors.push(error('Status cannot be cleared'));
     else {
       fields.status = parentStatus(row.status);
-      if (!fields.status) errors.push(error('Status must be Draft, Active, Inactive, or Discontinued'));
+      if (!fields.status) errors.push(error('Status must be ACTIVE, INACTIVE, or DISCONTINUE'));
     }
-  } else if (!existing) fields.status = 'active';
+  } else if (!existing) fields.status = 'ACTIVE';
 
   const finalBrandId = fields.brand_id ?? existing?.brand_id;
   const finalSubBrand = fields.sub_brand ?? existing?.sub_brand;

@@ -95,7 +95,7 @@ async function insertParent(data, connection = db) {
     (id,subbrand_id,parent_code,brand_id,sub_brand,item_name,category_id,item_type_id,parent_name,status,created_by,updated_by)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [
     id, data.subbrand_id, data.parent_code, data.brand_id, data.sub_brand, data.item_name,
-    data.category_id, data.item_type_id, data.parent_name, data.status || 'active', data.user_id, data.user_id,
+    data.category_id, data.item_type_id, data.parent_name, data.status || 'ACTIVE', data.user_id, data.user_id,
   ]);
   return id;
 }

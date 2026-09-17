@@ -41,7 +41,7 @@ function buildWhereClause(query = {}) {
     }
   }
   const exact = [['status','ip.status'],['main_category','mc.main_category'],['sub_category','mc.sub_category'],['detail_category','mc.detail_category'],['brand_category','mc.brand_category'],['brand_name','mb.name'],['sub_brand','ip.sub_brand'],['subbrand_id','ip.subbrand_id'],['brand_id','ip.brand_id'],['category_id','ip.category_id'],['item_type_id','ip.item_type_id']];
-  exact.forEach(([key,column]) => { if (query[key]) { conditions.push(`${column} = ?`); params.push(query[key]); } });
+  exact.forEach(([key,column]) => { if (query[key]) { conditions.push(`${column} = ?`); params.push(key === 'status' ? String(query[key]).trim().toUpperCase() : query[key]); } });
   if (query.port_id) {
     conditions.push('EXISTS (SELECT 1 FROM item_parent_ports ipp_f WHERE ipp_f.item_parent_id = ip.id AND ipp_f.port_id = ?)');
     params.push(query.port_id);
@@ -113,7 +113,7 @@ async function findOptions(query = {}) {
   const limit = Math.min(Math.max(parseInt(query.limit || 20, 10), 1), 100);
   const offset = (page - 1) * limit;
   const search = String(query.search || '').trim();
-  const status = String(query.status || 'active').trim();
+  const status = String(query.status || 'ACTIVE').trim().toUpperCase();
   const selectedId = String(query.selected_id || '').trim();
 
   const conditions = [];
@@ -206,7 +206,7 @@ async function findRawById(id, connection = db) { const [rows] = await connectio
 async function findLastParentCode(connection = db) { const [rows] = await connection.query("SELECT parent_code FROM item_parents WHERE parent_code REGEXP '^P[0-9]{6}$' ORDER BY CAST(SUBSTRING(parent_code,2) AS UNSIGNED) DESC LIMIT 1"); return rows[0]?.parent_code||null; }
 
 async function create(data, connection = db) {
-  await connection.query(`INSERT INTO item_parents (id,subbrand_id,parent_code,brand_id,sub_brand,item_name,category_id,item_type_id,parent_name,status,created_by,updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [data.id,data.subbrand_id||null,data.parent_code,data.brand_id||null,data.sub_brand||null,data.item_name||null,data.category_id,data.item_type_id||null,data.parent_name,data.status||'active',data.created_by||null,data.updated_by||null]);
+  await connection.query(`INSERT INTO item_parents (id,subbrand_id,parent_code,brand_id,sub_brand,item_name,category_id,item_type_id,parent_name,status,created_by,updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [data.id,data.subbrand_id||null,data.parent_code,data.brand_id||null,data.sub_brand||null,data.item_name||null,data.category_id,data.item_type_id||null,data.parent_name,data.status||'ACTIVE',data.created_by||null,data.updated_by||null]);
   return findById(data.id, connection);
 }
 
