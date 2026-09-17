@@ -114,23 +114,26 @@ function isBundleItem(item) {
   return getItemKind(item) === 'bundle'
 }
 
-function isInactiveItem(item) {
-  const skuStatusText = [
-    item?.sku_status?.code,
-    item?.sku_status?.name,
-    item?.sku_status_code,
-    item?.sku_status_name,
-    item?.sku_status,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
+function getItemStatus(item) {
+  const normalized = String(item?.status ?? '').trim().toUpperCase()
 
-  return item?.is_active === 0 || item?.is_active === false || skuStatusText.includes('inactive')
+  if (normalized === 'ACTIVE' || normalized === 'INACTIVE' || normalized === 'DISCONTINUE') {
+    return normalized
+  }
+
+  if (item?.is_active !== undefined && item?.is_active !== null) {
+    return Number(item.is_active) === 1 ? 'ACTIVE' : 'INACTIVE'
+  }
+
+  return ''
 }
 
 function isActiveItem(item) {
-  return !isInactiveItem(item)
+  return getItemStatus(item) === 'ACTIVE'
+}
+
+function isInactiveItem(item) {
+  return !isActiveItem(item)
 }
 
 async function loadAllPages(resource, params, signal) {

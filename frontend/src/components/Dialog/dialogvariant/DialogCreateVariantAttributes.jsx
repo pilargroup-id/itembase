@@ -149,7 +149,7 @@ function DialogCreateVariantAttributes({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
-                  <div className="register-user-popup__field">
+                  <div className="register-user-popup__field register-user-popup__field--full">
                     <label className="register-user-popup__label" htmlFor="variant-attribute-name">
                       Name
                     </label>

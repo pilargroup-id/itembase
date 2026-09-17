@@ -8,8 +8,12 @@ import ValidationAlertBanner from '../ValidationAlertBanner.jsx'
 
 const DEFAULT_COUNTRY_CODE = 'ID'
 
+const COUNTRY_CODE_OPTIONS = ['ID', 'CN']
+
 const initialFormValues = {
   name: '',
+  code: '',
+  country_code: DEFAULT_COUNTRY_CODE,
   is_active: '1',
 }
 
@@ -18,6 +22,11 @@ const PortFields = [
     name: 'name',
     label: 'Name',
     placeholder: 'Enter PORT..',
+  },
+  {
+    name: 'code',
+    label: 'Code',
+    placeholder: 'Enter Code..',
   },
 ]
 
@@ -50,6 +59,8 @@ function createFormValuesFromPort(Port) {
 
   return {
     name: Port.name ?? Port.port_name ?? '',
+    code: Port.code ?? '',
+    country_code: Port.country_code ?? DEFAULT_COUNTRY_CODE,
     is_active: getPortStatusValue(Port),
   }
 }
@@ -110,9 +121,9 @@ function DialogEditPort({
   }
 
   const buildPayload = () => ({
-    code: formValues.name.trim().slice(0, 50),
+    code: formValues.code.trim().slice(0, 50),
     name: formValues.name.trim(),
-    country_code: Port?.country_code ?? DEFAULT_COUNTRY_CODE,
+    country_code: formValues.country_code,
     is_active: Number(formValues.is_active),
   })
 
@@ -123,6 +134,11 @@ function DialogEditPort({
 
     if (!payload.name) {
       setErrorMessage('Please complete the name for the Port first.')
+      return
+    }
+
+    if (!payload.code) {
+      setErrorMessage('Please complete the code for the Port first.')
       return
     }
 
@@ -195,6 +211,28 @@ function DialogEditPort({
             <div className="register-user-popup__main">
               <div className="register-user-popup__form">
                 <div className="register-user-popup__grid">
+                  <div className="register-user-popup__field register-user-popup__field--full">
+                    <label
+                      className="register-user-popup__label"
+                      htmlFor="Port-country_code"
+                    >
+                      Country Code
+                    </label>
+                    <select
+                      id="Port-country_code"
+                      name="country_code"
+                      className="register-user-popup__select"
+                      value={formValues.country_code}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                    >
+                      {COUNTRY_CODE_OPTIONS.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {PortFields.map((field) => (
                     <div
                       key={field.name}
