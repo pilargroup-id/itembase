@@ -2039,6 +2039,21 @@ input[type='radio'] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.download-select__status-group--single-row {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.download-select__status-group--single-row .download-select__status-option {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 104px;
+  padding-inline: 0.5rem;
+  white-space: nowrap;
+}
+
 .download-select__status-option {
   width: 100%;
   padding: 0.5rem 0.6rem;
@@ -10198,8 +10213,14 @@ input[type='radio'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .header-nav {
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
   .header-menu-button {
     display: inline-flex;
+    margin-left: 1rem;
   }
 
   .header-nav-logo {
@@ -10211,6 +10232,7 @@ input[type='radio'] {
   }
 
   .header-profile-button {
+    height: 40px;
     padding: 0 0.7rem;
   }
 
@@ -10218,6 +10240,7 @@ input[type='radio'] {
     padding: 0 1rem;
     margin-left: 0;
     border-left: none;
+    gap: 0.5rem;
   }
 
   .header-nav-list {

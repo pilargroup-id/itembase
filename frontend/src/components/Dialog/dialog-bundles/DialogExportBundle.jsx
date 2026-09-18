@@ -8,6 +8,7 @@ const statusOptions = [
   { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Item Active' },
   { value: 'inactive', label: 'Item Inactive' },
+  { value: 'discontinue', label: 'Item Discontinue' },
 ]
 
 const optionalFields = [
@@ -240,7 +241,7 @@ function DialogExportBundleContent({
                     <div className="download-select__status">
                       <p className="download-select__column-group-title">Item Status</p>
                       <div
-                        className="download-select__status-group download-select__status-group--triple"
+                        className="download-select__status-group download-select__status-group--single-row"
                         role="radiogroup"
                         aria-label="Select Item status"
                       >
