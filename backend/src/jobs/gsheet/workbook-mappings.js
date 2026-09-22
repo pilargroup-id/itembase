@@ -2,7 +2,7 @@ module.exports = [
   { sheetName:'DB Parent', viewName:'vw_db_parent', clearStartRow:2, dataStartRow:2,
     columns:['timestamp','parent_id','brand','sub_brand','item_name','detail_category','item_type','port','parent_name','business_unit'], orderBy:['timestamp','parent_id'] },
   { sheetName:'DB Item', viewName:'vw_db_item', clearStartRow:2, dataStartRow:2,
-    columns:['timestamp','barcode','item_id','item_name','uom','parent_name','variant','replenishment_type','parent_id','qty_per_pack','h','w','d','gw_pack','feet_20','hq_40','production_time','status_sku','bisnis_unit','channel','brand_category','pic','_blank_v','_blank_w','_blank_x','_blank_y'], orderBy:['timestamp','item_id'] },
+    columns:['timestamp','barcode','item_id','item_name','uom','parent_name','variant','parent_id','qty_per_pack','h','w','d','gw_pack','feet_20','hq_40','production_time','status_sku','bisnis_unit','channel','brand_category','pic','replenishment_type'], orderBy:['timestamp','item_id'] },
   { sheetName:'DB Bundling', viewName:'vw_db_bundling', clearStartRow:2, dataStartRow:2,
     columns:['timestamp','bundling_id','component_id','qty'], orderBy:['timestamp','bundling_id','component_id'] },
   { sheetName:'Process DB', viewName:'vw_process_db', clearStartRow:2, dataStartRow:2,
