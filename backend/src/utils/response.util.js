@@ -28,9 +28,10 @@ function paginated(res, data = [], meta = {}, message = 'OK') {
   });
 }
 
-function error(res, message = 'Internal Server Error', statusCode = 500, errors = null) {
+function error(res, message = 'Internal Server Error', statusCode = 500, errors = null, code = null) {
   const body = { success: false, message };
   if (errors) body.errors = errors;
+  if (code) body.code = code;
   return res.status(statusCode).json(body);
 }
 

@@ -492,6 +492,8 @@ function DataTableDashboard({ selectedKey }) {
           row.id ?? row.item_code ?? row.parent_code ?? row.barcode ?? index
         }
         tableLabel={`${config.title} table`}
+        loading={isLoading}
+        loadingMessage={`Memuat data ${config.title.toLowerCase()}...`}
         emptyMessage={emptyMessage}
         pagination={pagination}
       />

@@ -12,7 +12,6 @@ const initialFormValues = {
   item_name: '',
   selling_name: '',
   uom_id: '',
-  variant: '',
   qty_per_pack: '',
   height: '',
   width: '',
@@ -36,7 +35,7 @@ const itemFields = [
   },
   {
     name: 'item_name',
-    label: 'Item Name',
+    label: 'SKU Name',
     placeholder: 'Enter Item Name',
     required: true,
     half: true,
@@ -278,7 +277,6 @@ function createFormValuesFromItem(item) {
     item_name: item.item_name ?? '',
     selling_name: item.selling_name ?? '',
     uom_id: String(getNestedId(item, 'uom')),
-    variant: item.variant ?? '',
     qty_per_pack: item.qty_per_pack ?? '',
     height: item.height ?? '',
     width: item.width ?? '',
@@ -313,9 +311,25 @@ function hasRequiredValues(payload) {
   return true
 }
 
+function getApiErrorMessage(error, fallbackMessage) {
+  const responseErrors = error?.data?.errors
+
+  if (responseErrors && typeof responseErrors === 'object' && !Array.isArray(responseErrors)) {
+    const fieldMessage = Object.values(responseErrors).find(
+      (value) => typeof value === 'string' && value.trim(),
+    )
+
+    if (fieldMessage) {
+      return fieldMessage
+    }
+  }
+
+  return error?.message || fallbackMessage
+}
+
 function DialogEditItem({
   isOpen = false,
-  eyebrow = 'Edit Item',
+  eyebrow = 'Edit SKU',
   title = 'Edit Item',
   item = null,
   parent = null,
@@ -330,17 +344,48 @@ function DialogEditItem({
   const [isLoadingMasters, setIsLoadingMasters] = useState(false)
   const [masterOptions, setMasterOptions] = useState(emptyMasterOptions)
   const [errorMessage, setErrorMessage] = useState('')
+  const [parentVariantsRequired, setParentVariantsRequired] = useState(null)
+  const [missingVariantSelections, setMissingVariantSelections] = useState({})
+  const [missingVariantValueOptions, setMissingVariantValueOptions] = useState({})
+  const [isLoadingVariantValues, setIsLoadingVariantValues] = useState(false)
   const { notifySuccess } = useAlertAction()
   const parentOptions = useMemo(
     () => mergeOptions(masterOptions.parents, normalizeParentOptionFromItem(selectedItem)),
     [masterOptions.parents, selectedItem],
   )
 
+  const retainedVariantDisplay = useMemo(() => {
+    if (!parentVariantsRequired) {
+      return []
+    }
+
+    const existingByAttribute = new Map(
+      (selectedItem?.variants || []).map((variant) => [String(variant.attribute?.id), variant]),
+    )
+
+    return (parentVariantsRequired.retained_variants || []).map((retained) => {
+      const existing = existingByAttribute.get(String(retained.attribute_id))
+
+      return {
+        attribute_id: retained.attribute_id,
+        attributeName: existing?.attribute?.name || 'Attribute',
+        valueName: existing?.value?.name || retained.value_id,
+      }
+    })
+  }, [parentVariantsRequired, selectedItem])
+
+  const clearParentVariantsRequirement = useCallback(() => {
+    setParentVariantsRequired(null)
+    setMissingVariantSelections({})
+    setMissingVariantValueOptions({})
+  }, [])
+
   const resetDialogState = useCallback(() => {
     setFormValues(createFormValuesFromItem(selectedItem))
     setIsSubmitting(false)
     setErrorMessage('')
-  }, [selectedItem])
+    clearParentVariantsRequirement()
+  }, [selectedItem, clearParentVariantsRequirement])
 
   const handleClose = useCallback(() => {
     resetDialogState()
@@ -351,8 +396,9 @@ function DialogEditItem({
     if (isOpen) {
       setDetailItem(incomingItem)
       setFormValues(createFormValuesFromItem(incomingItem))
+      clearParentVariantsRequirement()
     }
-  }, [incomingItem, isOpen])
+  }, [incomingItem, isOpen, clearParentVariantsRequirement])
 
   useEffect(() => {
     if (!isOpen || !incomingItem?.id) {
@@ -460,6 +506,11 @@ function DialogEditItem({
 
   const handleFieldChange = (name, value) => {
     setErrorMessage('')
+
+    if (name === 'parent_id') {
+      clearParentVariantsRequirement()
+    }
+
     setFormValues((currentValues) => {
       const selectedParent =
         name === 'parent_id'
@@ -491,8 +542,54 @@ function DialogEditItem({
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
+    const nextValue = name === 'item_name' ? value.toUpperCase() : value
 
-    handleFieldChange(name, value)
+    handleFieldChange(name, nextValue)
+  }
+
+  const handleMissingVariantChange = (attributeId, valueId) => {
+    setErrorMessage('')
+    setMissingVariantSelections((current) => ({ ...current, [attributeId]: valueId }))
+  }
+
+  const handleParentVariantsRequired = async (errors) => {
+    const missingAttributes = errors?.missing_variant_attributes || []
+    const retainedVariants = errors?.retained_variants || []
+
+    setParentVariantsRequired({
+      parent_id: errors?.parent_id ?? formValues.parent_id,
+      missing_variant_attributes: missingAttributes,
+      retained_variants: retainedVariants,
+    })
+    setMissingVariantSelections({})
+    setErrorMessage(
+      'The selected parent has new variant attributes. Please fill them in below, then save again.',
+    )
+
+    if (!missingAttributes.length) {
+      return
+    }
+
+    setIsLoadingVariantValues(true)
+
+    try {
+      const results = await Promise.all(
+        missingAttributes.map((attribute) =>
+          api.variants.values({ attribute_id: attribute.id, is_active: 1 }),
+        ),
+      )
+
+      setMissingVariantValueOptions(
+        missingAttributes.reduce((options, attribute, index) => {
+          options[attribute.id] = normalizeMasterOptions(results[index])
+          return options
+        }, {}),
+      )
+    } catch {
+      setMissingVariantValueOptions({})
+    } finally {
+      setIsLoadingVariantValues(false)
+    }
   }
 
   const handleSubmit = async (event) => {
@@ -510,6 +607,28 @@ function DialogEditItem({
       return
     }
 
+    if (parentVariantsRequired) {
+      const missingAttributeIds = parentVariantsRequired.missing_variant_attributes.map(
+        (attribute) => attribute.id,
+      )
+      const unfilledAttributeIds = missingAttributeIds.filter(
+        (attributeId) => !missingVariantSelections[attributeId],
+      )
+
+      if (unfilledAttributeIds.length) {
+        setErrorMessage('Please select a value for every new variant attribute before saving.')
+        return
+      }
+
+      payload.variants = [
+        ...parentVariantsRequired.retained_variants,
+        ...missingAttributeIds.map((attributeId) => ({
+          attribute_id: attributeId,
+          value_id: missingVariantSelections[attributeId],
+        })),
+      ]
+    }
+
     setIsSubmitting(true)
     setErrorMessage('')
 
@@ -520,7 +639,12 @@ function DialogEditItem({
       notifySuccess('SKU updated successfully.')
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Failed to update item.')
+      if (error?.data?.code === 'PARENT_VARIANTS_REQUIRED') {
+        await handleParentVariantsRequired(error.data.errors)
+        return
+      }
+
+      setErrorMessage(getApiErrorMessage(error, 'Failed to update item.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -585,9 +709,11 @@ function DialogEditItem({
             id={`item-${field.name}`}
             name={field.name}
             className={`register-user-popup__input${
-              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
-                ? ' register-user-popup__input--readonly'
-                : ''
+              field.name === 'item_name'
+                ? ' item-create-popup__input--sku-locked'
+                : field.readOnly
+                  ? ' register-user-popup__input--readonly'
+                  : ''
             }${field.unitSuffix ? ' item-create-popup__input--with-unit' : ''}`}
             type={field.type === 'number' ? 'number' : 'text'}
             step={field.type === 'number' ? 'any' : undefined}
@@ -595,12 +721,8 @@ function DialogEditItem({
             placeholder={field.placeholder}
             onChange={handleInputChange}
             disabled={isSubmitting}
-            readOnly={field.readOnly || (field.name === 'item_name' && Boolean(formValues.parent_id))}
-            aria-readonly={
-              field.readOnly || (field.name === 'item_name' && formValues.parent_id)
-                ? 'true'
-                : undefined
-            }
+            readOnly={field.readOnly || field.name === 'item_name'}
+            aria-readonly={field.readOnly || field.name === 'item_name' ? 'true' : undefined}
           />
           {field.unitSuffix ? (
             <span className="item-create-popup__unit" aria-hidden="true">
@@ -663,6 +785,56 @@ function DialogEditItem({
                       .map(renderField)}
                   </div>
                 </div>
+
+                {parentVariantsRequired ? (
+                  <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
+                    <div className="parent-create-popup__section-header">
+                      <h3 className="parent-create-popup__section-title">New Variant Required</h3>
+                      <p className="parent-create-popup__section-description">
+                        The selected parent has variant attributes not present on the current
+                        parent. Compatible variants are kept as-is; fill in the new ones below
+                        before saving.
+                      </p>
+                    </div>
+
+                    {retainedVariantDisplay.length ? (
+                      <p className="register-user-popup__hint">
+                        Kept: {retainedVariantDisplay
+                          .map((variant) => `${variant.attributeName}: ${variant.valueName}`)
+                          .join(', ')}
+                      </p>
+                    ) : null}
+
+                    <div
+                      className="register-user-popup__grid item-create-popup__dimension-grid"
+                      style={{ rowGap: '12px' }}
+                    >
+                      {parentVariantsRequired.missing_variant_attributes.map((attribute) => (
+                        <div
+                          key={attribute.id}
+                          className="register-user-popup__field item-create-popup__field--half"
+                        >
+                          <label className="register-user-popup__label" htmlFor={`item-variant-${attribute.id}`}>
+                            {attribute.name}
+                            <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
+                          </label>
+                          <SearchableItemSelect
+                            id={`item-variant-${attribute.id}`}
+                            label={attribute.name}
+                            value={missingVariantSelections[attribute.id] || ''}
+                            options={missingVariantValueOptions[attribute.id] || []}
+                            placeholder={`Select ${attribute.name}`}
+                            searchPlaceholder={`Search ${attribute.name}...`}
+                            emptyMessage="No value found."
+                            loading={isLoadingVariantValues}
+                            disabled={isSubmitting || isLoadingVariantValues}
+                            onChange={(nextValue) => handleMissingVariantChange(attribute.id, nextValue)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="parent-create-popup__section item-create-popup__dimension-backdrop">
                   <div className="parent-create-popup__section-header">

@@ -1562,6 +1562,8 @@ function DataTableItem({
                 columns={tableColumns}
                 getRowId={(item) => item.id ?? item.item_code ?? item.barcode}
                 tableLabel={tableLabel}
+                loading={isLoading}
+                loadingMessage={loadingPageMessage}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
                 autoHeight={false}
@@ -1591,7 +1593,7 @@ function DataTableItem({
             <DialogEditItem
                 key={`edit-item-${selectedItem?.id ?? selectedItem?.item_code ?? "empty"}`}
                 isOpen={activeActionDialog === "edit"}
-                eyebrow="Edit Item"
+                eyebrow="Edit SKU"
                 title={`Edit ${selectedItemName}`}
                 item={selectedItem}
                 onClose={closeActionDialog}

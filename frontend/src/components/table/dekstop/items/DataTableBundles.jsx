@@ -1235,6 +1235,8 @@ function DataTableBundles({
                 columns={tableColumns}
                 getRowId={(item) => item.id ?? item.item_code ?? item.barcode}
                 tableLabel={tableLabel}
+                loading={isLoading}
+                loadingMessage={loadingPageMessage}
                 emptyMessage={emptyMessage}
                 pagination={pagination}
                 autoHeight={false}

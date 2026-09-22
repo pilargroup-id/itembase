@@ -3,7 +3,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import { Dialog, DialogContent } from '@mui/material'
 
 import CreateButton from '../../button/CreateButton.jsx'
-import { ChevronDown, ChevronLeft, ChevronRight } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw05 } from '../../template/TemplateIcons.jsx'
 
 const MIN_COLUMN_WIDTH = 64
 const ESTIMATED_ROW_HEIGHT = 72
@@ -287,6 +287,8 @@ function DataTable({
   tableLabel = 'Data table',
   tableMessage = '',
   emptyMessage,
+  loading = false,
+  loadingMessage = 'Memuat data...',
   className = '',
   autoHeight = true,
   onRowClick,
@@ -327,6 +329,18 @@ function DataTable({
 
   const closeDetail = () => setActiveDetail(null)
   const openDetail = (row, index) => setActiveDetail({ row, index })
+
+  const renderLoadingIndicator = ({ fill = false } = {}) => (
+    <div
+      className={[emptyClassName, 'users-table__loading'].filter(Boolean).join(' ')}
+      style={fill ? { height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}
+    >
+      <span className="users-table__loading-content">
+        <RefreshCw05 size={20} className="users-table__loading-icon" aria-hidden="true" />
+        {loadingMessage}
+      </span>
+    </div>
+  )
 
   const cardColumnGroups = useMemo(() => {
     const primaryColumn =
@@ -652,7 +666,9 @@ function DataTable({
           .join(' ')}
       >
         {isMobile ? (
-          rows.length > 0 ? (
+          loading ? (
+            renderLoadingIndicator()
+          ) : rows.length > 0 ? (
             renderCardList()
           ) : (
             <div className={emptyClassName}>{resolvedEmptyMessage}</div>
@@ -672,12 +688,14 @@ function DataTable({
           getRowClassName={(params) =>
             getRowClassName?.(params.row, rowMeta.idToIndex.get(params.id) ?? 0) ?? ''
           }
+          loading={loading}
           slots={{
             noRowsOverlay: () => (
               <div className={emptyClassName} style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {resolvedEmptyMessage}
               </div>
             ),
+            loadingOverlay: () => renderLoadingIndicator({ fill: true }),
           }}
           sx={{
             border: 'none',

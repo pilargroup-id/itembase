@@ -15,11 +15,11 @@ function handleError(res, error) {
   }
 
   if (error.statusCode === 409) {
-    return response.error(res, error.message, 409, error.errors || null);
+    return response.error(res, error.message, 409, error.errors || null, error.code || null);
   }
 
   if (error.statusCode === 422) {
-    return response.badRequest(res, error.message, error.errors || null);
+    return response.error(res, error.message, 422, error.errors || null, error.code || null);
   }
 
   return response.badRequest(res, error.message || 'Request failed', error.errors || null);

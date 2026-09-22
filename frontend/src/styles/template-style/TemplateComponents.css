@@ -6998,6 +6998,21 @@ input[type='radio'] {
   line-height: 1.7;
 }
 
+.users-table__loading-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #5a6b88;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.users-table__loading-icon {
+  flex-shrink: 0;
+  color: #2a9d8f;
+  animation: dashboard-popup-spin 0.8s linear infinite;
+}
+
 .users-table__accordion-row {
   background: transparent;
 }
@@ -8433,6 +8448,15 @@ input[type='radio'] {
   font-weight: 600;
   border-color: rgba(42, 157, 143, 0.26);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 248, 246, 0.98));
+}
+
+.register-user-popup__input.item-create-popup__input--sku-locked,
+.register-user-popup__input.item-create-popup__input--sku-locked:focus {
+  cursor: not-allowed;
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.18);
+  box-shadow: none;
 }
 
 .item-create-popup {
