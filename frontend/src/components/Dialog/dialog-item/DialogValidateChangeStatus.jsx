@@ -130,7 +130,7 @@ function DialogValidateChangeStatus({
   if (!isOpen || typeof document === 'undefined') {
     return null
   }
-
+  
   const dialogNode = (
     <div
       className="dashboard-popup-overlay"

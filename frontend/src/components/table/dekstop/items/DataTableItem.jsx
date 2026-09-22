@@ -15,6 +15,7 @@ import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
 import ButtonExportItem from "../../../button/item-buttons/ButtonExportItem.jsx"
 import ButtonImportItem from "../../../button/item-buttons/ButtonImportItem.jsx"
+import SplitActionButton from "../../../button/SplitActionButton.jsx"
 import SearchItem from "../../../search/SearchItem.jsx"
 import { Export01, FilterFunnel, XClose } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-item/FilterDropdownItem.config.js"
@@ -1414,7 +1415,10 @@ function DataTableItem({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Item table tools">
+            <div
+                className="parent-table-toolbar parent-table-toolbar--actions parent-table-toolbar--desktop"
+                aria-label="Item table tools"
+            >
                 <div className="parent-table-toolbar__lookup">
                     <div className="parent-table-filter-entry" aria-label="Filter item">
                         <button
@@ -1473,6 +1477,76 @@ function DataTableItem({
                     >
                         {isImportPreviewing ? "Previewing..." : "Import"}
                     </ButtonImportItem>
+                </div>
+            </div>
+
+            <div
+                className="parent-table-toolbar parent-table-toolbar--actions parent-table-toolbar--mobile"
+                aria-label="Item table tools (mobile)"
+            >
+                <div className="parent-table-toolbar__search-group">
+                    <div className="parent-table-toolbar__search">
+                        <SearchItem
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+
+                    <SplitActionButton
+                        menuLabel="More item actions"
+                        mainAction={
+                            <ButtonCreateItem
+                                className="parent-table-tool-button parent-table-tool-button--create parent-table-split-button__main"
+                                aria-label="Create item data"
+                                onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                            >
+                                Create
+                            </ButtonCreateItem>
+                        }
+                    >
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={[
+                                "parent-table-split-button__item",
+                                selectedFilterKeys.length > 0 ? "parent-table-split-button__item--active" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            aria-label="Open item filter dialog"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            <FilterFunnel size={17} aria-hidden="true" />
+                            <span>Filter</span>
+                            {selectedFilterKeys.length > 0 ? (
+                                <span className="parent-table-split-button__dot" aria-hidden="true" />
+                            ) : null}
+                        </button>
+                        <ButtonExportItem
+                            role="menuitem"
+                            variant="action"
+                            className="parent-table-split-button__item"
+                            dialogEyebrow="Export Item"
+                            dialogTitle="Export Item Management"
+                            aria-label="Export item data"
+                        >
+                            <Export01 size={17} aria-hidden="true" />
+                            <span>Export</span>
+                        </ButtonExportItem>
+                        <ButtonImportItem
+                            role="menuitem"
+                            className="parent-table-split-button__item"
+                            aria-label="Import item data"
+                            onClick={(event) => {
+                                event.preventDefault()
+                                openImportDialog()
+                            }}
+                            disabled={isImportPreviewing}
+                            aria-busy={isImportPreviewing}
+                        >
+                            {isImportPreviewing ? "Previewing..." : "Import"}
+                        </ButtonImportItem>
+                    </SplitActionButton>
                 </div>
             </div>
 

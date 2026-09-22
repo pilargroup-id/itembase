@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
+import FormControl from "@mui/material/FormControl"
+import MenuItem from "@mui/material/MenuItem"
+import Select from "@mui/material/Select"
+
 import api from "../../../../services/api.js"
 
 import DialogEditBundle from "../../../Dialog/dialog-bundles/DialogEditBundle.jsx"
 import DialogFilterBundle from "../../../Dialog/dialog-bundles/DialogFilterBundle.jsx"
-import DialogValidateStatusBundle from "../../../Dialog/dialog-bundles/DialogValidateStatusBundle.jsx"
 import DialogImportBundle from "../../../Dialog/dialog-bundles/DialogImportBundle.jsx"
 import ButtonCreateBundle from "../../../button/bundles-buttons/ButtonCreateBundle.jsx"
 import ButtonDownloadBundle from "../../../button/bundles-buttons/ButtonDownloadBundle.jsx"
 import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
 import ButtonExportBundle from "../../../button/bundles-buttons/ButtonExportBundle.jsx"
 import ButtonImportBundle from "../../../button/bundles-buttons/ButtonImportBundle.jsx"
+import SplitActionButton from "../../../button/SplitActionButton.jsx"
 import SearchBundle from "../../../search/SearchBundle.jsx"
-import { Export01, FilterFunnel } from "../../../template/TemplateIcons.jsx"
+import { Export01, FilterFunnel, XClose } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
 import DataTable, {
     DataTableIdentity,
-    DataTableStatus,
 } from "../DataTable.jsx"
 import {
     DEFAULT_PAGE_SIZE,
@@ -40,6 +44,22 @@ const bundleFilterMenuProps = {
         },
     },
 }
+const itemTableSelectMenuProps = {
+    PaperProps: {
+        className: "parent-table-mui-menu item-table__mui-menu",
+        sx: {
+            maxHeight: 280,
+            borderRadius: "10px",
+            mt: 0.5,
+        },
+    },
+}
+const itemStatusOptions = [
+    { value: "ACTIVE", label: "Active", variant: "active" },
+    { value: "INACTIVE", label: "Inactive", variant: "inactive" },
+    { value: "DISCONTINUE", label: "Discontinue", variant: "discontinue" },
+]
+const itemStatusOptionMap = new Map(itemStatusOptions.map((option) => [option.value, option]))
 const bundleFilterConfig = itemFilterConfig.filter((filterConfig) => filterConfig.key !== "itemKind")
 
 const defaultBundleFilters = bundleFilterConfig.reduce(
@@ -58,19 +78,41 @@ function getItemId(item) {
     return item?.id ?? item?.item_id ?? null
 }
 
+function getItemDisplayName(item) {
+    return item?.item_name || item?.item_code || item?.barcode || "bundle ini"
+}
+
+function normalizeItemStatus(value) {
+    const normalizedStatus = String(value ?? "").trim().toUpperCase()
+
+    if (normalizedStatus === "ACTIVE" || normalizedStatus === "INACTIVE" || normalizedStatus === "DISCONTINUE") {
+        return normalizedStatus
+    }
+
+    if (normalizedStatus === "DISCONTINUED") {
+        return "DISCONTINUE"
+    }
+
+    if (normalizedStatus === "1") {
+        return "ACTIVE"
+    }
+
+    if (normalizedStatus === "0") {
+        return "INACTIVE"
+    }
+
+    return ""
+}
+
 function getItemStatusValue(item) {
+    const statusValue = normalizeItemStatus(item?.status)
+
+    if (statusValue) {
+        return statusValue
+    }
+
     if (item?.is_active !== undefined && item?.is_active !== null) {
-        return Number(item.is_active) === 1 ? "1" : "0"
-    }
-
-    const normalizedStatus = String(item?.status ?? "").toLowerCase()
-
-    if (normalizedStatus === "active") {
-        return "1"
-    }
-
-    if (normalizedStatus === "inactive") {
-        return "0"
+        return Number(item.is_active) === 1 ? "ACTIVE" : "INACTIVE"
     }
 
     return ""
@@ -79,29 +121,29 @@ function getItemStatusValue(item) {
 function getItemStatusLabel(item) {
     const statusValue = getItemStatusValue(item)
 
-    if (statusValue === "1") {
-        return "active"
-    }
-
-    if (statusValue === "0") {
-        return "inactive"
-    }
-
-    return "-"
+    return itemStatusOptionMap.get(statusValue)?.label ?? "-"
 }
 
 function getItemStatusVariant(item) {
     const statusValue = getItemStatusValue(item)
 
-    if (statusValue === "1") {
-        return "active"
-    }
+    return itemStatusOptionMap.get(statusValue)?.variant ?? "pending"
+}
 
-    if (statusValue === "0") {
-        return "inactive"
-    }
+function getOptionLabel(optionMap, value, fallback = "-") {
+    return optionMap.get(value)?.label ?? fallback
+}
 
-    return "pending"
+function getResponseItem(responseData) {
+    const candidates = [
+        responseData?.data?.data,
+        responseData?.data,
+        responseData,
+    ]
+
+    return candidates.find((candidate) =>
+        candidate && typeof candidate === "object" && !Array.isArray(candidate) && getItemId(candidate),
+    ) ?? null
 }
 
 function formatDisplayValue(value) {
@@ -327,6 +369,166 @@ function useDebouncedValue(value, delay = 350) {
     return debouncedValue
 }
 
+function ItemTableSelect({
+    id,
+    type,
+    variant,
+    value,
+    options,
+    ariaLabel,
+    title,
+    disabled = false,
+    onChange,
+}) {
+    return (
+        <div
+            className={[
+                "item-table__select-wrap",
+                type ? `item-table__select-wrap--${type}` : "",
+            ]
+                .filter(Boolean)
+                .join(" ")}
+            onClick={(event) => event.stopPropagation()}
+        >
+            <FormControl
+                size="small"
+                className={[
+                    "parent-table-mui-filter",
+                    "item-table__mui-select",
+                    type ? `item-table__mui-select--${type}` : "",
+                    variant ? `item-table__mui-select--${variant}` : "",
+                    disabled ? "item-table__mui-select--disabled" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")}
+            >
+                <Select
+                    id={id}
+                    value={value}
+                    aria-label={ariaLabel}
+                    title={title}
+                    disabled={disabled}
+                    displayEmpty
+                    MenuProps={itemTableSelectMenuProps}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    onChange={(event) => onChange?.(event.target.value)}
+                >
+                    {options.map((option) => (
+                        <MenuItem
+                            key={option.value || "empty"}
+                            value={option.value}
+                            dense
+                            disabled={option.disabled}
+                        >
+                            {option.label}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+        </div>
+    )
+}
+
+function DialogValidateInlineBundleStatus({
+    change = null,
+    isSubmitting = false,
+    onClose,
+    onConfirm,
+}) {
+    useEffect(() => {
+        if (!change) {
+            return undefined
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape" && !isSubmitting) {
+                onClose?.()
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [change, isSubmitting, onClose])
+
+    if (!change || typeof document === "undefined") {
+        return null
+    }
+
+    const dialogNode = (
+        <div
+            className="dashboard-popup-overlay"
+            role="presentation"
+            onClick={() => {
+                if (!isSubmitting) {
+                    onClose?.()
+                }
+            }}
+        >
+            <div
+                className="dashboard-popup item-table-validation-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="dialog-inline-bundle-status-title"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="dashboard-popup__header">
+                    <div>
+                        <p className="dashboard-popup__eyebrow">Validasi Perubahan Bundle</p>
+                        <h2 className="dashboard-popup__title" id="dialog-inline-bundle-status-title">
+                            Konfirmasi Perubahan Status
+                        </h2>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="dashboard-popup__close"
+                        aria-label="Close dialog"
+                        onClick={onClose}
+                        disabled={isSubmitting}
+                    >
+                        <XClose size={18} />
+                    </button>
+                </div>
+
+                <div className="dashboard-popup__body">
+                    <p className="dashboard-popup__text">
+                        Ubah <strong>{change.itemName}</strong> dari{" "}
+                        <strong>{change.previousLabel}</strong> ke <strong>{change.nextLabel}</strong>?
+                    </p>
+                    <p className="dashboard-popup__text">
+                        Status bundle akan diperbarui menggunakan enum item terbaru.
+                    </p>
+                </div>
+
+                <div className="dashboard-popup__actions">
+                    <button
+                        type="button"
+                        className="dashboard-popup__button dashboard-popup__button--secondary"
+                        onClick={onClose}
+                        disabled={isSubmitting}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        className="dashboard-popup__button dashboard-popup__button--primary"
+                        onClick={onConfirm}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? "Saving..." : "Confirm"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+
+    return createPortal(dialogNode, document.body)
+}
+
 const columns = [
     {
         key: "identity",
@@ -431,6 +633,10 @@ function DataTableBundles({
     const [isImportPreviewing, setIsImportPreviewing] = useState(false)
     const [importDialogKey, setImportDialogKey] = useState(0)
     const [reloadKey, setReloadKey] = useState(0)
+    const [pendingStatusUpdates, setPendingStatusUpdates] = useState({})
+    const [pendingInlineChange, setPendingInlineChange] = useState(null)
+    const [isInlineValidationSubmitting, setIsInlineValidationSubmitting] = useState(false)
+    const [inlineUpdateErrorMessage, setInlineUpdateErrorMessage] = useState("")
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
         () => JSON.stringify({ filters, pageSize, searchQuery: debouncedSearchQuery, sortValue }),
@@ -562,18 +768,118 @@ function DataTableBundles({
         setActiveActionDialog("import")
     }
 
-    const handleStatusChanged = (changedItem, newStatus) => {
+    const updateItemRow = (changedItem, nextValues) => {
         const itemId = getItemId(changedItem)
 
         setItemRows((currentRows) =>
             currentRows.map((row) =>
                 getItemId(row) === itemId
-                    ? { ...row, is_active: newStatus, status: newStatus === 1 ? "active" : "inactive" }
+                    ? { ...row, ...nextValues }
                     : row,
             ),
         )
+    }
 
-        closeActionDialog()
+    const updateItemRowStatus = (changedItem, newStatus) => {
+        updateItemRow(changedItem, {
+            status: newStatus,
+            is_active: newStatus === "ACTIVE" ? 1 : 0,
+        })
+    }
+
+    const handleStatusChange = async (item, nextStatusValue) => {
+        const itemId = getItemId(item)
+        const previousStatus = getItemStatusValue(item)
+        const nextStatus = normalizeItemStatus(nextStatusValue)
+
+        if (!itemId || !nextStatus || nextStatus === previousStatus) {
+            return false
+        }
+
+        setInlineUpdateErrorMessage("")
+        setPendingStatusUpdates((currentUpdates) => ({
+            ...currentUpdates,
+            [itemId]: true,
+        }))
+        updateItemRowStatus(item, nextStatus)
+
+        try {
+            const response = await api.items.updateStatus(itemId, nextStatus)
+            const updatedItem = getResponseItem(response)
+
+            if (updatedItem) {
+                updateItemRow(item, updatedItem)
+            }
+
+            return true
+        } catch (error) {
+            updateItemRowStatus(item, previousStatus)
+            setInlineUpdateErrorMessage(error?.message || "Gagal mengubah status bundle.")
+            return false
+        } finally {
+            setPendingStatusUpdates((currentUpdates) => {
+                const nextUpdates = { ...currentUpdates }
+
+                delete nextUpdates[itemId]
+
+                return nextUpdates
+            })
+        }
+    }
+
+    const requestStatusChange = (item, nextStatusValue) => {
+        const itemId = getItemId(item)
+        const previousStatus = getItemStatusValue(item)
+        const nextStatus = normalizeItemStatus(nextStatusValue)
+
+        if (!itemId) {
+            setInlineUpdateErrorMessage("Item ID tidak ditemukan.")
+            return
+        }
+
+        if (!itemStatusOptionMap.has(nextStatus)) {
+            setInlineUpdateErrorMessage("Status bundle tidak valid.")
+            return
+        }
+
+        if (nextStatus === previousStatus) {
+            return
+        }
+
+        setInlineUpdateErrorMessage("")
+        setPendingInlineChange({
+            item,
+            nextValue: nextStatus,
+            previousLabel: getOptionLabel(itemStatusOptionMap, previousStatus),
+            nextLabel: getOptionLabel(itemStatusOptionMap, nextStatus),
+            itemName: getItemDisplayName(item),
+        })
+    }
+
+    const closeInlineValidationDialog = () => {
+        if (isInlineValidationSubmitting) {
+            return
+        }
+
+        setPendingInlineChange(null)
+    }
+
+    const confirmInlineValidationChange = async () => {
+        if (!pendingInlineChange || isInlineValidationSubmitting) {
+            return
+        }
+
+        setIsInlineValidationSubmitting(true)
+
+        try {
+            const isSaved = await handleStatusChange(pendingInlineChange.item, pendingInlineChange.nextValue)
+
+            if (isSaved) {
+                setPendingInlineChange(null)
+            }
+        } finally {
+            setIsInlineValidationSubmitting(false)
+        }
     }
 
     const actionColumn = {
@@ -603,28 +909,31 @@ function DataTableBundles({
         {
             key: "status",
             header: "Status",
-            headerStyle: { width: "7%", minWidth: 150 },
-            cellStyle: { width: "7%", minWidth: 150 },
-            render: (item) => (
-                <div className="item-table__status-cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <label
-                        className="users-table__toggle item-table__status-toggle"
-                        onClick={(event) => event.stopPropagation()}
-                        title={`Tandai ${item.item_name || item.item_code || "bundle"} sebagai ${getItemStatusValue(item) === "1" ? "non-aktif" : "aktif"}`}
-                    >
-                        <input
-                            type="checkbox"
-                            checked={getItemStatusValue(item) === "1"}
-                            onChange={() => openActionDialog("status", item)}
-                        />
-                        <span className="users-table__toggle-track" aria-hidden="true" />
-                        <span className="users-table__toggle-thumb" aria-hidden="true" />
-                    </label>
-                    <DataTableStatus inline variant={getItemStatusVariant(item)}>
-                        {getItemStatusLabel(item)}
-                    </DataTableStatus>
-                </div>
-            ),
+            headerStyle: { width: "6%", minWidth: 124 },
+            cellStyle: { width: "6%", minWidth: 124 },
+            render: (item) => {
+                const itemId = getItemId(item)
+                const statusValue = getItemStatusValue(item)
+                const statusVariant = getItemStatusVariant(item)
+                const isUpdatingStatus = Boolean(itemId && pendingStatusUpdates[itemId])
+                const statusOptions = statusValue
+                    ? itemStatusOptions
+                    : [{ value: "", label: "Unknown", disabled: true }, ...itemStatusOptions]
+
+                return (
+                    <ItemTableSelect
+                        id={`bundle-status-${itemId ?? item.item_code ?? item.barcode ?? "unknown"}`}
+                        type="status"
+                        variant={statusVariant}
+                        value={statusValue}
+                        options={statusOptions}
+                        ariaLabel={`Status ${item.item_name || item.item_code || "bundle"}`}
+                        title={isUpdatingStatus ? "Menyimpan status..." : getItemStatusLabel(item)}
+                        disabled={isUpdatingStatus || !itemId}
+                        onChange={(nextValue) => requestStatusChange(item, nextValue)}
+                    />
+                )
+            },
         },
     ]
 
@@ -779,7 +1088,10 @@ function DataTableBundles({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Bundle table tools">
+            <div
+                className="parent-table-toolbar parent-table-toolbar--actions parent-table-toolbar--desktop"
+                aria-label="Bundle table tools"
+            >
                 <div className="parent-table-toolbar__lookup">
                     <div className="parent-table-filter-entry" aria-label="Filter bundle">
                         <button
@@ -841,6 +1153,82 @@ function DataTableBundles({
                 </div>
             </div>
 
+            <div
+                className="parent-table-toolbar parent-table-toolbar--actions parent-table-toolbar--mobile"
+                aria-label="Bundle table tools (mobile)"
+            >
+                <div className="parent-table-toolbar__search-group">
+                    <div className="parent-table-toolbar__search">
+                        <SearchBundle
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+
+                    <SplitActionButton
+                        menuLabel="More bundle actions"
+                        mainAction={
+                            <ButtonCreateBundle
+                                className="parent-table-tool-button parent-table-tool-button--create parent-table-split-button__main"
+                                aria-label="Create bundle data"
+                                onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                            >
+                                Create
+                            </ButtonCreateBundle>
+                        }
+                    >
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={[
+                                "parent-table-split-button__item",
+                                selectedFilterKeys.length > 0 ? "parent-table-split-button__item--active" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            aria-label="Open bundle filter dialog"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            <FilterFunnel size={17} aria-hidden="true" />
+                            <span>Filter</span>
+                            {selectedFilterKeys.length > 0 ? (
+                                <span className="parent-table-split-button__dot" aria-hidden="true" />
+                            ) : null}
+                        </button>
+                        <ButtonExportBundle
+                            role="menuitem"
+                            variant="action"
+                            className="parent-table-split-button__item"
+                            dialogEyebrow="Export Bundle"
+                            dialogTitle="Export Bundle Management"
+                            aria-label="Export bundle data"
+                        >
+                            <Export01 size={17} aria-hidden="true" />
+                            <span>Export</span>
+                        </ButtonExportBundle>
+                        <ButtonImportBundle
+                            role="menuitem"
+                            className="parent-table-split-button__item"
+                            aria-label="Import bundle data"
+                            onClick={(event) => {
+                                event.preventDefault()
+                                openImportDialog()
+                            }}
+                            disabled={isImportPreviewing}
+                            aria-busy={isImportPreviewing}
+                        >
+                            {isImportPreviewing ? "Previewing..." : "Import"}
+                        </ButtonImportBundle>
+                    </SplitActionButton>
+                </div>
+            </div>
+
+            {inlineUpdateErrorMessage ? (
+                <p className="register-user-popup__hint item-table__status-error" role="alert">
+                    {inlineUpdateErrorMessage}
+                </p>
+            ) : null}
+
             <DataTable
                 className="mtickets-table parent-table-grid parent-items-table-grid"
                 rows={isLoading ? [] : rows}
@@ -883,14 +1271,11 @@ function DataTableBundles({
                 onEdited={handleEditConfirm}
             />
 
-            <DialogValidateStatusBundle
-                key={`status-bundle-${selectedItem?.id ?? selectedItem?.item_code ?? "empty"}`}
-                isOpen={activeActionDialog === "status"}
-                eyebrow="Ubah Status Bundle"
-                title="Konfirmasi Perubahan Status"
-                item={selectedItem}
-                onClose={closeActionDialog}
-                onChanged={handleStatusChanged}
+            <DialogValidateInlineBundleStatus
+                change={pendingInlineChange}
+                isSubmitting={isInlineValidationSubmitting}
+                onClose={closeInlineValidationDialog}
+                onConfirm={confirmInlineValidationChange}
             />
 
             <DialogImportBundle

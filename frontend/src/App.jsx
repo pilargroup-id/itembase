@@ -23,6 +23,7 @@ import api from './services/api.js'
 const AUTH_TOKEN_STORAGE_KEY = 'itembase.auth.token'
 const AUTH_USER_STORAGE_KEY = 'itembase.auth.user'
 const DEFAULT_PATH = '/dashboard'
+const DEFAULT_LOGIN_URL = 'https://pilargroup.id/login'
 
 function getCurrentPath() {
   if (typeof window === 'undefined') {
@@ -120,6 +121,17 @@ function getTokenFromUrl() {
   window.history.replaceState({}, '', nextUrl)
 
   return tokenFromUrl
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const loginUrl = import.meta.env.VITE_LOGIN_URL || DEFAULT_LOGIN_URL
+  const returnUrl = window.location.href
+
+  window.location.href = `${loginUrl}?return_url=${encodeURIComponent(returnUrl)}`
 }
 
 function storeAuthUser(user) {
@@ -240,6 +252,7 @@ function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isAuthReady, setIsAuthReady] = useState(false)
   const [authError, setAuthError] = useState(null)
+  const [isRedirectingToLogin, setIsRedirectingToLogin] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -305,6 +318,9 @@ function App() {
           storeAuthToken(null)
           storeAuthUser(null)
           setAuthUser(null)
+          setIsRedirectingToLogin(true)
+          redirectToLogin()
+          return
         }
 
         setAuthError(error)
@@ -343,6 +359,10 @@ function App() {
     isParentsPage || isItemsPage || isBundlesPage || isCategoriesPage || isBrandsPage || isSubBrandsPage || isTypePage || isPortsPage || isUomsPage
   const headerUserName = getAuthUserName(authUser, isAuthLoading)
   const headerUserRole = getAuthUserRole(authUser, isAuthLoading, authError)
+
+  if (isRedirectingToLogin) {
+    return null
+  }
 
   const navigateToPage = (nextPath) => {
     if (!nextPath || typeof window === 'undefined') {

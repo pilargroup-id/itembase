@@ -1,12 +1,45 @@
-import { isValidElement, useMemo, useState } from 'react'
+import { isValidElement, useEffect, useMemo, useState } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
 import { Dialog, DialogContent } from '@mui/material'
 
 import CreateButton from '../../button/CreateButton.jsx'
-import { ChevronDown } from '../../template/TemplateIcons.jsx'
+import { ChevronDown, ChevronLeft, ChevronRight } from '../../template/TemplateIcons.jsx'
 
 const MIN_COLUMN_WIDTH = 64
 const ESTIMATED_ROW_HEIGHT = 72
+const MOBILE_LAYOUT_BREAKPOINT = 1024
+
+function useIsMobileLayout(breakpoint = MOBILE_LAYOUT_BREAKPOINT) {
+  const getMatches = () =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(`(max-width: ${breakpoint}px)`).matches
+      : false
+
+  const [isMobile, setIsMobile] = useState(getMatches)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined
+    }
+
+    const mediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`)
+    const handleChange = (event) => setIsMobile(event.matches)
+
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [breakpoint])
+
+  return isMobile
+}
+
+function isActionLikeColumn(column) {
+  if (column.key === 'action' || column.key === '__actions') {
+    return true
+  }
+
+  return /action/i.test(column.headerClassName ?? '') || /action/i.test(column.cellClassName ?? '')
+}
 
 function getInitials(value = '') {
   return String(value)
@@ -271,6 +304,7 @@ function DataTable({
   actionGroupClassName = 'users-table__action-group',
 }) {
   const [activeDetail, setActiveDetail] = useState(null)
+  const isMobile = useIsMobileLayout()
   const hasDetail = Boolean(detail)
   const resolvedEmptyMessage = emptyMessage ?? tableMessage ?? 'Belum ada data.'
   const currentPageSize = Number(pagination?.pageSize)
@@ -293,6 +327,67 @@ function DataTable({
 
   const closeDetail = () => setActiveDetail(null)
   const openDetail = (row, index) => setActiveDetail({ row, index })
+
+  const cardColumnGroups = useMemo(() => {
+    const primaryColumn =
+      columns.find((column) => column.key === 'identity') ??
+      columns.find((column) => !isActionLikeColumn(column)) ??
+      null
+    const bodyColumns = columns.filter(
+      (column) => column !== primaryColumn && !isActionLikeColumn(column),
+    )
+    const inlineActionColumns = columns.filter(isActionLikeColumn)
+
+    return { primaryColumn, bodyColumns, inlineActionColumns }
+  }, [columns])
+
+  const renderActionButtons = (row, index) => (
+    <div className={actionGroupClassName}>
+      {actions.map((action) => {
+        if (action.hidden?.(row, index)) {
+          return null
+        }
+
+        const Icon = action.icon
+        const buttonLabel = action.label ?? action.key ?? 'Action'
+
+        return (
+          <CreateButton
+            key={action.key ?? buttonLabel}
+            variant="accordion"
+            tone={action.variant === 'danger' ? 'danger' : 'default'}
+            type="button"
+            disabled={action.disabled?.(row, index) ?? action.disabled}
+            aria-label={buttonLabel}
+            title={buttonLabel}
+            onClick={(event) => {
+              event.stopPropagation()
+              action.onClick?.(row, index, event)
+            }}
+          >
+            {Icon ? <Icon size={16} aria-hidden="true" /> : buttonLabel}
+          </CreateButton>
+        )
+      })}
+    </div>
+  )
+
+  const renderDetailTrigger = (row, index) => (
+    <CreateButton
+      variant="detail"
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation()
+        openDetail(row, index)
+      }}
+      title="Buka detail"
+    >
+      {detail?.buttonLabel !== '' && detail?.buttonLabel !== null && detail?.buttonLabel !== undefined ? (
+        <span>{detail.buttonLabel}</span>
+      ) : null}
+      <ChevronDown size={16} aria-hidden="true" />
+    </CreateButton>
+  )
 
   const gridColumns = useMemo(() => {
     const dataColumns = columns.map((column) => {
@@ -337,38 +432,8 @@ function DataTable({
         width: Math.max(96, actions.length * 44),
         renderCell: (params) => {
           const index = rowMeta.idToIndex.get(params.id) ?? 0
-          const row = params.row
 
-          return (
-            <div className={actionGroupClassName}>
-              {actions.map((action) => {
-                if (action.hidden?.(row, index)) {
-                  return null
-                }
-
-                const Icon = action.icon
-                const buttonLabel = action.label ?? action.key ?? 'Action'
-
-                return (
-                  <CreateButton
-                    key={action.key ?? buttonLabel}
-                    variant="accordion"
-                    tone={action.variant === 'danger' ? 'danger' : 'default'}
-                    type="button"
-                    disabled={action.disabled?.(row, index) ?? action.disabled}
-                    aria-label={buttonLabel}
-                    title={buttonLabel}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      action.onClick?.(row, index, event)
-                    }}
-                  >
-                    {Icon ? <Icon size={16} aria-hidden="true" /> : buttonLabel}
-                  </CreateButton>
-                )
-              })}
-            </div>
-          )
+          return renderActionButtons(params.row, index)
         },
       })
     }
@@ -384,36 +449,29 @@ function DataTable({
         renderCell: (params) => {
           const index = rowMeta.idToIndex.get(params.id) ?? 0
 
-          return (
-            <CreateButton
-              variant="detail"
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                openDetail(params.row, index)
-              }}
-              title="Buka detail"
-            >
-              {detail.buttonLabel !== '' && detail.buttonLabel !== null && detail.buttonLabel !== undefined ? (
-                <span>{detail.buttonLabel}</span>
-              ) : null}
-              <ChevronDown size={16} aria-hidden="true" />
-            </CreateButton>
-          )
+          return renderDetailTrigger(params.row, index)
         },
       })
     }
 
     return dataColumns
-  }, [columns, actions, hasDetail, detail, rowMeta])
+  }, [
+    columns,
+    actions,
+    hasDetail,
+    detail,
+    rowMeta,
+    cellContentClassName,
+    actionHeaderClassName,
+    renderActionButtons,
+    renderDetailTrigger,
+  ])
 
-  const handleRowClick = (params) => {
-    const index = rowMeta.idToIndex.get(params.id) ?? 0
-
-    onRowClick?.(params.row, index)
+  const handleRowActivate = (row, index) => {
+    onRowClick?.(row, index)
 
     if (hasDetail) {
-      openDetail(params.row, index)
+      openDetail(row, index)
     }
   }
 
@@ -452,9 +510,154 @@ function DataTable({
       }
     : {}
 
+  const renderCardList = () => {
+    const { primaryColumn, bodyColumns, inlineActionColumns } = cardColumnGroups
+    const hasFooter = inlineActionColumns.length > 0 || actions.length > 0 || hasDetail
+
+    return (
+    <div className="users-table-cards">
+      {rows.map((row, index) => {
+        const rowId = rowMeta.rowToId.get(row)
+        const isInteractive = Boolean(onRowClick || hasDetail)
+        const rowExtraClassName = getRowClassName?.(row, index) ?? ''
+        const activateRow = () => handleRowActivate(row, index)
+
+        return (
+          <div
+            key={rowId}
+            className={['users-table-cards__item', isInteractive ? 'users-table-cards__item--interactive' : '', rowExtraClassName]
+              .filter(Boolean)
+              .join(' ')}
+            role={isInteractive ? 'button' : undefined}
+            tabIndex={isInteractive ? 0 : undefined}
+            onClick={isInteractive ? activateRow : undefined}
+            onKeyDown={
+              isInteractive
+                ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      activateRow()
+                    }
+                  }
+                : undefined
+            }
+          >
+            {primaryColumn ? (
+              <div className="users-table-cards__primary">
+                {renderBasicValue(getColumnValue(primaryColumn, row, index))}
+              </div>
+            ) : null}
+
+            {bodyColumns.length > 0 ? (
+              <dl className="users-table__detail-list users-table-cards__list">
+                {bodyColumns.map((column) => (
+                  <div className="users-table__detail-row" key={column.key}>
+                    <dt className="users-table__detail-label">
+                      {typeof column.header === 'string' ? column.header : ''}
+                    </dt>
+                    <dd className="users-table__detail-field">
+                      {renderDetailValue(getColumnValue(column, row, index))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+
+            {hasFooter ? (
+              <div className="users-table-cards__footer">
+                {inlineActionColumns.length > 0 ? (
+                  <div className="users-table-cards__inline-actions">
+                    {inlineActionColumns.map((column) => (
+                      <div key={column.key}>{renderBasicValue(getColumnValue(column, row, index))}</div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {actions.length > 0 || hasDetail ? (
+                  <div className="users-table-cards__footer-actions">
+                    {actions.length > 0 ? renderActionButtons(row, index) : null}
+                    {hasDetail ? renderDetailTrigger(row, index) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+    )
+  }
+
+  const renderCardPagination = () => {
+    if (!hasPagination) {
+      return null
+    }
+
+    const safeCurrentPage = Math.max(1, Number(pagination.currentPage) || 1)
+    const safeTotalPages = Math.max(1, Number(pagination.totalPages) || 1)
+
+    return (
+      <div className="users-table-cards__pagination">
+        <div className="users-table-cards__pagination-nav">
+          <button
+            type="button"
+            className="users-table-cards__pagination-button"
+            disabled={safeCurrentPage <= 1}
+            onClick={() => pagination.onSelect?.(Math.max(1, safeCurrentPage - 1))}
+            aria-label="Halaman sebelumnya"
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+          </button>
+
+          <span className="users-table-cards__pagination-label">
+            Halaman {safeCurrentPage} dari {safeTotalPages}
+          </span>
+
+          <button
+            type="button"
+            className="users-table-cards__pagination-button"
+            disabled={safeCurrentPage >= safeTotalPages}
+            onClick={() => pagination.onSelect?.(Math.min(safeTotalPages, safeCurrentPage + 1))}
+            aria-label="Halaman berikutnya"
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+
+        {pageSizeOptions.length > 1 ? (
+          <label className="users-table-cards__pagination-size">
+            Tampilkan
+            <select
+              className="users-table-cards__pagination-select"
+              value={currentPageSize}
+              onChange={(event) => pagination.onPageSizeChange?.(Number(event.target.value))}
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <>
-      <div className={[wrapperClassName, className].filter(Boolean).join(' ')}>
+      <div
+        className={[wrapperClassName, isMobile ? 'users-table-wrapper--cards' : '', className]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {isMobile ? (
+          rows.length > 0 ? (
+            renderCardList()
+          ) : (
+            <div className={emptyClassName}>{resolvedEmptyMessage}</div>
+          )
+        ) : (
         <DataGrid
           aria-label={tableLabel}
           rows={rows}
@@ -465,7 +668,7 @@ function DataTable({
           autoHeight={autoHeight}
           disableColumnMenu
           disableRowSelectionOnClick
-          onRowClick={handleRowClick}
+          onRowClick={(params) => handleRowActivate(params.row, rowMeta.idToIndex.get(params.id) ?? 0)}
           getRowClassName={(params) =>
             getRowClassName?.(params.row, rowMeta.idToIndex.get(params.id) ?? 0) ?? ''
           }
@@ -514,7 +717,10 @@ function DataTable({
           }}
           {...paginationProps}
         />
+        )}
       </div>
+
+      {isMobile ? renderCardPagination() : null}
 
       {hasDetail ? (
         <Dialog
