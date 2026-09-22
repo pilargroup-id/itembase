@@ -342,7 +342,7 @@ async function store(payload, userId, req = null) {
     await ItemModel.create(itemData, connection);
     if (payload.item_kind === 'bundle') await ItemModel.replaceComponents(itemData.id, components, connection);
     await ItemModel.replaceVariants(itemData.id,variants,connection);
-    if (payload.item_kind === 'regular') await ItemModel.syncRegularItemName(itemData.id, connection);
+    if (payload.item_kind === 'regular') await ItemModel.syncRegularItemName(itemData.id, connection, userId);
     const finalItem = await ItemModel.findById(itemData.id, connection);
     await enrichItems([finalItem]);
     await ActivityLogService.log({ user_id: userId, action: 'CREATE', entity_type: 'items', entity_id: finalItem.id, description: `Created ${finalItem.item_kind} item ${finalItem.item_code}`, before_data: null, after_data: finalItem, metadata: { item_code: finalItem.item_code, item_kind: finalItem.item_kind, component_count: finalItem.components.length }, req, connection });
@@ -384,19 +384,87 @@ async function update(id, payload, userId, req = null) {
       const withItems = await validateBundleComponents(components, connection);
       finalPayload.item_name = buildBundleItemName(withItems);
     }
-    const shouldRevalidateVariants = shouldReplaceVariants || payload.parent_id !== undefined;
-    const variants=shouldReplaceVariants?await resolveVariantInputs(normalizeVariantInputs(payload.variants)||[],connection,userId,req):(await ItemModel.findVariantsByItemIds([id],connection))[id]?.map(v=>({attribute_id:v.attribute.id,value_id:v.value.id}))||[];
-    if(merged.item_kind==='bundle'&&variants.length)throw makeError('Variants are only allowed for regular items',422,'VALIDATION_ERROR');
-    if(merged.item_kind==='regular'&&shouldRevalidateVariants)await validateVariants(merged.parent_id,variants,connection,id);
+    const parentChanged = payload.parent_id !== undefined && String(merged.parent_id) !== String(existing.parent_id || '');
+    const shouldRevalidateVariants = shouldReplaceVariants || parentChanged;
+    const existingVariants = (await ItemModel.findVariantsByItemIds([id], connection))[id] || [];
+    let variants;
+
+    if (shouldReplaceVariants) {
+      variants = await resolveVariantInputs(normalizeVariantInputs(payload.variants) || [], connection, userId, req);
+    } else if (parentChanged && merged.item_kind === 'regular') {
+      const parentAttributes = await ItemModel.findParentVariantAttributes(merged.parent_id, connection);
+      const allowedAttributes = new Set(parentAttributes.map((attribute) => String(attribute.attribute_id)));
+      variants = existingVariants
+        .filter((variant) => allowedAttributes.has(String(variant.attribute.id)))
+        .map((variant) => ({ attribute_id: variant.attribute.id, value_id: variant.value.id }));
+
+      const retainedAttributes = new Set(variants.map((variant) => String(variant.attribute_id)));
+      const missingAttributes = parentAttributes.filter(
+        (attribute) => !retainedAttributes.has(String(attribute.attribute_id))
+      );
+
+      if (missingAttributes.length) {
+        throw makeError(
+          'Variants are required when moving item to the selected parent',
+          422,
+          'PARENT_VARIANTS_REQUIRED',
+          {
+            parent_id: merged.parent_id,
+            missing_variant_attributes: missingAttributes.map((attribute) => ({
+              id: attribute.attribute_id,
+              code: attribute.code,
+              name: attribute.name,
+              sort_order: attribute.sort_order,
+            })),
+            retained_variants: variants,
+          }
+        );
+      }
+    } else {
+      variants = existingVariants.map((variant) => ({
+        attribute_id: variant.attribute.id,
+        value_id: variant.value.id,
+      }));
+    }
+
+    if (merged.item_kind === 'bundle' && variants.length) {
+      throw makeError('Variants are only allowed for regular items', 422, 'VALIDATION_ERROR');
+    }
+
+    if (merged.item_kind === 'regular' && shouldRevalidateVariants) {
+      await validateVariants(merged.parent_id, variants, connection, id, {
+        requireAllParentAttributes: parentChanged,
+      });
+    }
+
     const itemData = normalizeItemData(finalPayload, userId, null, existing);
     await ItemModel.update(id, itemData, connection);
     if (merged.item_kind === 'bundle' && shouldReplaceComponents) await ItemModel.replaceComponents(id, components, connection);
     if (merged.item_kind === 'regular') await ItemModel.deleteComponents(id, connection);
-    if(shouldReplaceVariants||payload.parent_id!==undefined)await ItemModel.replaceVariants(id,variants,connection);
-    if (merged.item_kind === 'regular' && (shouldReplaceVariants || payload.parent_id !== undefined || payload.replenishment_type !== undefined)) await ItemModel.syncRegularItemName(id, connection);
+    if (shouldReplaceVariants || parentChanged) await ItemModel.replaceVariants(id, variants, connection);
+    if (merged.item_kind === 'regular' && (shouldReplaceVariants || parentChanged || payload.replenishment_type !== undefined)) {
+      await ItemModel.syncRegularItemName(id, connection, userId);
+    }
     const finalItem = await ItemModel.findById(id, connection);
     await enrichItems([finalItem]);
-    await ActivityLogService.log({ user_id: userId, action: String(existing.status) !== String(finalItem.status) ? 'STATUS_CHANGE' : 'UPDATE', entity_type: 'items', entity_id: id, description: `Updated item ${finalItem.item_code}`, before_data: existing, after_data: finalItem, metadata: { item_code: finalItem.item_code, component_count: finalItem.components.length }, req, connection });
+    await ActivityLogService.log({
+      user_id: userId,
+      action: String(existing.status) !== String(finalItem.status) ? 'STATUS_CHANGE' : 'UPDATE',
+      entity_type: 'items',
+      entity_id: id,
+      description: `Updated item ${finalItem.item_code}`,
+      before_data: existing,
+      after_data: finalItem,
+      metadata: {
+        item_code: finalItem.item_code,
+        component_count: finalItem.components.length,
+        parent_changed: parentChanged,
+        old_parent_id: existing.parent_id || null,
+        new_parent_id: finalItem.parent_id || null,
+      },
+      req,
+      connection,
+    });
     return finalItem;
   });
 }
@@ -437,7 +505,7 @@ async function previewMatrix(payload={}){
 async function createMatrix(payload,userId,req=null){
   const parentId=String(payload.item_parent_id||payload.parent_id||'').trim();if(!parentId)throw makeError('Item parent is required',422,'VALIDATION_ERROR');if(!Array.isArray(payload.items)||!payload.items.length)throw makeError('Items must be a non-empty array',422,'VALIDATION_ERROR');if(payload.items.length>250)throw makeError('Maximum 250 items per matrix request',422,'VALIDATION_ERROR');
   return ItemModel.transaction(async connection=>{const parent=await ItemModel.findParentById(parentId,connection);if(!parent)throw makeError('Parent item not found',404,'PARENT_NOT_FOUND');let last=await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2),connection);const created=[];
-    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};merged.status=normalizeItemStatus(merged.status,'ACTIVE');merged.replenishment_type=normalizeReplenishmentType(merged.replenishment_type);const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=await resolveVariantInputs(normalizeVariantInputs(row.variants)||[],connection,userId,req);await validateReferences(merged,connection);merged.uom_id=await resolveUomInput(merged,connection,userId,req);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);await ItemModel.syncRegularItemName(data.id,connection);created.push(await ItemModel.findById(data.id,connection));}
+    for(const [index,row] of payload.items.entries()){const merged={...(payload.common_values||{}),...row,parent_id:parentId,item_kind:'regular'};merged.status=normalizeItemStatus(merged.status,'ACTIVE');merged.replenishment_type=normalizeReplenishmentType(merged.replenishment_type);const errors=validatePayload(merged);if(Object.keys(errors).length)throw makeError(`Validation failed at matrix row ${index+1}`,422,'VALIDATION_ERROR',errors);const variants=await resolveVariantInputs(normalizeVariantInputs(row.variants)||[],connection,userId,req);await validateReferences(merged,connection);merged.uom_id=await resolveUomInput(merged,connection,userId,req);await validateVariants(parentId,variants,connection);const next=generateNextBarcode(last);last=next;const data=normalizeItemData(merged,userId,next);await ItemModel.create(data,connection);await ItemModel.replaceVariants(data.id,variants,connection);await ItemModel.syncRegularItemName(data.id,connection,userId);created.push(await ItemModel.findById(data.id,connection));}
     await enrichItems(created);await ActivityLogService.log({user_id:userId,action:'CREATE',entity_type:'items',entity_id:null,description:`Created ${created.length} items from variant matrix`,after_data:created,metadata:{item_parent_id:parentId,total_items:created.length},req,connection});return{total_created:created.length,items:created};});
 }
 

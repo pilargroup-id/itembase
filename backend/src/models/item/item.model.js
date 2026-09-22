@@ -473,7 +473,18 @@ async function updateStatus(id, status, updatedBy, connection = db) {
   return findById(id, connection);
 }
 
-async function syncRegularItemName(itemId, connection = db) {
+async function findRegularItemsByParentId(parentId, connection = db) {
+  const [rows] = await connection.query(
+    `SELECT id,item_code,item_name,selling_name,item_kind,parent_id,replenishment_type,status,created_by,updated_by,created_at,updated_at
+     FROM items
+     WHERE parent_id=? AND item_kind='regular'
+     ORDER BY item_code ASC`,
+    [parentId]
+  );
+  return rows;
+}
+
+async function syncRegularItemName(itemId, connection = db, updatedBy = null) {
   const [rows] = await connection.query(`
     SELECT i.id,i.item_kind,i.replenishment_type,ip.parent_name,
       GROUP_CONCAT(mvv.name ORDER BY COALESCE(ipva.sort_order,9999), mva.name, mvv.sort_order, mvv.name SEPARATOR ' ') AS variant_names
@@ -493,7 +504,7 @@ async function syncRegularItemName(itemId, connection = db) {
     .map(v=>String(v||'').trim()).filter(Boolean);
   const generated=parts.join(' ').replace(/\s+/g,' ').trim().toUpperCase();
   if(!generated) return findById(itemId,connection);
-  await connection.query('UPDATE items SET item_name=? WHERE id=?',[generated,itemId]);
+  await connection.query('UPDATE items SET item_name=?,updated_by=COALESCE(?,updated_by),updated_at=NOW() WHERE id=?',[generated,updatedBy,itemId]);
   return findById(itemId,connection);
 }
 
@@ -514,6 +525,6 @@ async function transaction(callback) {
 
 module.exports = {
   findAll, findById, findRawById, findParentById, findUomById, findUomByNameOrCode, createUom,
-  findItemsByIds, findLastBarcodeByYear, create, update, updateStatus, syncRegularItemName,
+  findItemsByIds, findLastBarcodeByYear, create, update, updateStatus, findRegularItemsByParentId, syncRegularItemName,
   replaceComponents, deleteComponents, findVariantsByItemIds, findParentVariantAttributesByParentIds, findParentVariantAttributes, findVariantValuesByIds, findVariantValueByNameOrCode, findVariantValueByCode, nextVariantValueSortOrder, createVariantValue, replaceVariants, findDuplicateVariantCombination, transaction,
 };

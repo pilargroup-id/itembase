@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const ItemParentModel = require('../../models/item/item-parent.model');
+const ItemModel = require('../../models/item/item.model');
 const ActivityLogService = require('../activity-log.service');
 
 const ALLOWED_STATUS = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
@@ -804,6 +805,34 @@ async function update(id, payload, userId, req = null) {
     const updated = await ItemParentModel.findById(id, connection);
 
     await syncSubbrandItem(updated, connection);
+
+    if (String(existing.parent_name || '') !== String(updated.parent_name || '')) {
+      const childItems = await ItemModel.findRegularItemsByParentId(id, connection);
+      for (const child of childItems) {
+        const beforeName = child.item_name;
+        const syncedChild = await ItemModel.syncRegularItemName(child.id, connection, userId);
+        if (syncedChild && String(beforeName || '') !== String(syncedChild.item_name || '')) {
+          await ActivityLogService.log({
+            user_id: userId,
+            action: 'UPDATE',
+            entity_type: 'items',
+            entity_id: child.id,
+            description: `Regenerated item ${child.item_code} name after parent ${updated.parent_code} rename`,
+            before_data: child,
+            after_data: syncedChild,
+            metadata: {
+              source: 'PARENT_NAME_CHANGE',
+              parent_id: id,
+              parent_code: updated.parent_code,
+              old_parent_name: existing.parent_name,
+              new_parent_name: updated.parent_name,
+            },
+            req,
+            connection,
+          });
+        }
+      }
+    }
 
     if (existing.status !== 'INACTIVE' && mergedPayload.status === 'INACTIVE') {
       const activeChildren = await ItemParentModel.findActiveChildItems(id, connection);
