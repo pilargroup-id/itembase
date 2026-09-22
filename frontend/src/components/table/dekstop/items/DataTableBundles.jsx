@@ -14,6 +14,7 @@ import ButtonDownloadBundle from "../../../button/bundles-buttons/ButtonDownload
 import ButtonEditBundle from "../../../button/bundles-buttons/ButtonEditBundle.jsx"
 import ButtonExportBundle from "../../../button/bundles-buttons/ButtonExportBundle.jsx"
 import ButtonImportBundle from "../../../button/bundles-buttons/ButtonImportBundle.jsx"
+import SplitActionButton from "../../../button/SplitActionButton.jsx"
 import SearchBundle from "../../../search/SearchBundle.jsx"
 import { Export01, FilterFunnel, XClose } from "../../../template/TemplateIcons.jsx"
 import { itemFilterConfig } from "../../../dropdown/filter-bundles/FilterDropdownBundles.config.js"
@@ -1087,7 +1088,10 @@ function DataTableBundles({
 
     return (
         <div className="mtickets-table-shell parent-table-shell">
-            <div className="parent-table-toolbar parent-table-toolbar--actions" aria-label="Bundle table tools">
+            <div
+                className="parent-table-toolbar parent-table-toolbar--actions parent-table-toolbar--desktop"
+                aria-label="Bundle table tools"
+            >
                 <div className="parent-table-toolbar__lookup">
                     <div className="parent-table-filter-entry" aria-label="Filter bundle">
                         <button
@@ -1146,6 +1150,76 @@ function DataTableBundles({
                     >
                         {isImportPreviewing ? "Previewing..." : "Import"}
                     </ButtonImportBundle>
+                </div>
+            </div>
+
+            <div
+                className="parent-table-toolbar parent-table-toolbar--actions parent-table-toolbar--mobile"
+                aria-label="Bundle table tools (mobile)"
+            >
+                <div className="parent-table-toolbar__search-group">
+                    <div className="parent-table-toolbar__search">
+                        <SearchBundle
+                            value={searchQuery}
+                            onChange={onSearchQueryChange}
+                        />
+                    </div>
+
+                    <SplitActionButton
+                        menuLabel="More bundle actions"
+                        mainAction={
+                            <ButtonCreateBundle
+                                className="parent-table-tool-button parent-table-tool-button--create parent-table-split-button__main"
+                                aria-label="Create bundle data"
+                                onCreated={() => setReloadKey((currentKey) => currentKey + 1)}
+                            >
+                                Create
+                            </ButtonCreateBundle>
+                        }
+                    >
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={[
+                                "parent-table-split-button__item",
+                                selectedFilterKeys.length > 0 ? "parent-table-split-button__item--active" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            aria-label="Open bundle filter dialog"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            <FilterFunnel size={17} aria-hidden="true" />
+                            <span>Filter</span>
+                            {selectedFilterKeys.length > 0 ? (
+                                <span className="parent-table-split-button__dot" aria-hidden="true" />
+                            ) : null}
+                        </button>
+                        <ButtonExportBundle
+                            role="menuitem"
+                            variant="action"
+                            className="parent-table-split-button__item"
+                            dialogEyebrow="Export Bundle"
+                            dialogTitle="Export Bundle Management"
+                            aria-label="Export bundle data"
+                        >
+                            <Export01 size={17} aria-hidden="true" />
+                            <span>Export</span>
+                        </ButtonExportBundle>
+                        <ButtonImportBundle
+                            role="menuitem"
+                            className="parent-table-split-button__item"
+                            aria-label="Import bundle data"
+                            onClick={(event) => {
+                                event.preventDefault()
+                                openImportDialog()
+                            }}
+                            disabled={isImportPreviewing}
+                            aria-busy={isImportPreviewing}
+                        >
+                            {isImportPreviewing ? "Previewing..." : "Import"}
+                        </ButtonImportBundle>
+                    </SplitActionButton>
                 </div>
             </div>
 

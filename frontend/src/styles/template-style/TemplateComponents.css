@@ -2987,6 +2987,169 @@ input[type='radio'] {
   color: #8291a8;
 }
 
+/* Parents/Items/Bundles render two toolbars and let CSS pick one per breakpoint:
+   the original desktop layout stays untouched, the split-button layout is mobile-only. */
+.parent-table-toolbar--mobile {
+  display: none;
+}
+
+/* Search box + split action button sit side by side as one group. */
+.parent-table-toolbar__search-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Split button: a default "Create" action plus a caret that reveals Filter/Export/Import. */
+.parent-table-split-button {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  box-shadow: 0 1px 2px rgba(26, 42, 87, 0.05);
+}
+
+.parent-table-tool-button.parent-table-split-button__main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.parent-table-split-button__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 34px;
+  border: 1px solid #23877b;
+  border-left: 1px solid rgba(255, 255, 255, 0.32);
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  background: #2a9d8f;
+  color: #ffffff;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.parent-table-split-button__toggle:hover,
+.parent-table-split-button--open .parent-table-split-button__toggle {
+  background: #23877b;
+  border-color: #1f7a70;
+}
+
+.parent-table-split-button__toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.18);
+}
+
+.parent-table-split-button__toggle svg {
+  transition: transform 0.2s ease;
+}
+
+.parent-table-split-button--open .parent-table-split-button__toggle svg {
+  transform: rotate(180deg);
+}
+
+.parent-table-split-button__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 188px;
+  margin-top: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 12px;
+  border: 1px solid rgba(26, 42, 87, 0.1);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(17, 38, 75, 0.16);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    visibility 0.18s ease;
+}
+
+.parent-table-split-button--open .parent-table-split-button__menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.parent-table-split-button__menu .parent-table-split-button__item,
+.parent-table-split-button__menu .parent-table-tool-button.parent-table-tool-button--import {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #1f2a44;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  box-shadow: none;
+  transform: none;
+}
+
+.parent-table-split-button__menu .parent-table-split-button__item:hover,
+.parent-table-split-button__menu .parent-table-tool-button.parent-table-tool-button--import:hover {
+  background: rgba(42, 157, 143, 0.1);
+  color: var(--accent-teal-dark);
+  transform: none;
+  box-shadow: none;
+}
+
+.parent-table-split-button__menu .parent-table-split-button__item:focus-visible,
+.parent-table-split-button__menu .parent-table-tool-button.parent-table-tool-button--import:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.14);
+}
+
+.parent-table-split-button__menu .parent-table-split-button__item svg,
+.parent-table-split-button__menu .parent-table-tool-button.parent-table-tool-button--import svg {
+  color: var(--secondary-blue);
+  flex-shrink: 0;
+}
+
+.parent-table-split-button__menu .parent-table-split-button__item:hover svg,
+.parent-table-split-button__menu .parent-table-tool-button.parent-table-tool-button--import:hover svg {
+  color: var(--accent-teal-dark);
+}
+
+.parent-table-split-button__menu .parent-table-split-button__item--active {
+  background: rgba(42, 157, 143, 0.08);
+  color: var(--accent-teal-dark);
+}
+
+.parent-table-split-button__dot {
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--accent-teal);
+}
+
+.parent-table-split-button__menu .parent-table-tool-button.parent-table-tool-button--import:disabled {
+  opacity: 0.6;
+}
+
 .parent-table-import-input {
   display: none;
 }
@@ -5676,6 +5839,167 @@ input[type='radio'] {
   border: 1px solid rgba(26, 42, 87, 0.08);
   border-radius: 0;
   background: rgba(255, 255, 255, 0.92);
+}
+
+/* Selector repeats .users-table-wrapper to match the specificity of the
+   fixed-height/overflow:hidden rules that size the desktop grid (e.g.
+   .parent-items-table-grid.users-table-wrapper) so the mobile card list can
+   override them here without touching those (desktop-only) rules at all. */
+.users-table-wrapper.users-table-wrapper--cards {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.users-table-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.users-table-cards__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 16px;
+  border: 1px solid rgba(26, 42, 87, 0.08);
+  border-radius: var(--radius-md, 20px);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.users-table-cards__item--interactive {
+  cursor: pointer;
+}
+
+.users-table-cards__item--interactive:hover,
+.users-table-cards__item--interactive:focus-visible {
+  border-color: rgba(42, 157, 143, 0.32);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.users-table-cards__item--interactive:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(42, 157, 143, 0.14),
+    0 14px 30px rgba(15, 23, 42, 0.1);
+}
+
+.users-table-cards__primary {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+}
+
+.users-table-cards__list {
+  padding-top: 0.2rem;
+  border-top: 1px dashed rgba(26, 42, 87, 0.08);
+}
+
+.users-table-cards__footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed rgba(26, 42, 87, 0.08);
+}
+
+.users-table-cards__inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.users-table-cards__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.users-table-cards__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 14px;
+}
+
+.users-table-cards__pagination-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.users-table-cards__pagination-button {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(26, 42, 87, 0.12);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary-blue);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.users-table-cards__pagination-button:hover:not(:disabled) {
+  border-color: rgba(42, 157, 143, 0.35);
+  box-shadow: 0 8px 18px rgba(26, 42, 87, 0.08);
+}
+
+.users-table-cards__pagination-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.14);
+}
+
+.users-table-cards__pagination-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.users-table-cards__pagination-label {
+  color: #5a6b88;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.users-table-cards__pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #5a6b88;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.users-table-cards__pagination-select {
+  min-height: 38px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgba(26, 42, 87, 0.12);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--primary-blue);
+  font-weight: 700;
 }
 
 @media (min-width: 1025px) {
@@ -10215,12 +10539,21 @@ input[type='radio'] {
 
   .header-nav {
     justify-content: space-between;
+    align-items: center;
     gap: 0.5rem;
+    padding: 0.6rem 0.75rem 0.6rem 1rem;
   }
 
   .header-menu-button {
     display: inline-flex;
-    margin-left: 1rem;
+    margin-left: 0;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .header-menu-button:hover {
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.16);
   }
 
   .header-nav-logo {
@@ -10237,10 +10570,26 @@ input[type='radio'] {
   }
 
   .header-nav-actions {
-    padding: 0 1rem;
-    margin-left: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0;
+    margin-left: auto;
     border-left: none;
-    gap: 0.5rem;
+    gap: 0.4rem;
+  }
+
+  .header-nav-actions .header-icon-button,
+  .header-nav-actions .header-profile-button {
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .header-nav-actions .header-icon-button:hover,
+  .header-nav-actions .header-profile-button:hover {
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.16);
   }
 
   .header-nav-list {
@@ -10293,7 +10642,7 @@ input[type='radio'] {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .header-nav-dropdown {
+  .header-nav-list .header-nav-dropdown {
     position: static;
     min-width: 0;
     margin-top: 0;
@@ -10310,7 +10659,7 @@ input[type='radio'] {
     transition: max-height 0.25s ease;
   }
 
-  .header-nav-item-wrapper--open .header-nav-dropdown {
+  .header-nav-list .header-nav-item-wrapper--open .header-nav-dropdown {
     max-height: 480px;
   }
 
@@ -10411,6 +10760,30 @@ input[type='radio'] {
 
   .parent-table-actions--primary .parent-table-tool-button {
     min-width: 0;
+  }
+
+  .parent-table-toolbar--desktop {
+    display: none;
+  }
+
+  .parent-table-toolbar.parent-table-toolbar--mobile {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .parent-table-toolbar__search-group {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .parent-table-split-button {
+    flex: 0 0 auto;
+  }
+
+  .parent-table-split-button__menu {
+    left: auto;
+    right: 0;
   }
 
   .parent-table-filters {
@@ -10930,6 +11303,23 @@ input[type='radio'] {
   .team-performance-chart__legend-item {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .users-table-cards__item {
+    padding: 14px;
+  }
+
+  .users-table-cards__footer {
+    justify-content: flex-start;
+  }
+
+  .users-table-cards__pagination {
+    justify-content: center;
+  }
+
+  .users-table-cards__pagination-size {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 

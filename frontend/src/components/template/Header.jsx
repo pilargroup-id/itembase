@@ -23,6 +23,116 @@ function isItemActive(item, currentPath) {
   return item.children?.some((child) => isItemActive(child, currentPath)) ?? false
 }
 
+function NotificationModal({ isOpen, notificationData, onClose }) {
+  if (!isOpen) return null
+
+  return (
+    <div className="header-modal-overlay" onClick={onClose}>
+      <div className="header-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="header-modal__header">
+          <h2 className="header-modal__title">Notifications</h2>
+          <button
+            type="button"
+            className="header-modal__close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        <div className="header-modal__body">
+          {notificationData.length > 0 ? (
+            <div className="notification-list">
+              {notificationData.map((item, idx) => (
+                <div key={idx} className="notification-item">
+                  <div className="notification-item__time">
+                    {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
+                  </div>
+                  <div className="notification-item__content">
+                    <strong>{item.action || 'Activity'}</strong>
+                    <div className="notification-item__detail">{item.description || item.message}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="notification-empty">No activities yet</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProfileDropdown({ isOpen, userName, userRole, profileMenuItems, onSelect, onClose }) {
+  return (
+    <div
+      className={[
+        'header-nav-item-wrapper',
+        'header-profile-wrapper',
+        isOpen ? 'header-nav-item-wrapper--open' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <button
+        type="button"
+        className="header-profile-button"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        aria-label="Profile"
+        title={userRole || undefined}
+        onClick={onClose}
+      >
+        <User01 size={18} />
+        <span className="header-profile-button__name">{userName}</span>
+        <ChevronDown className="header-nav-item__chevron" size={14} />
+      </button>
+
+      <div className="header-nav-dropdown header-profile-dropdown" role="menu" aria-hidden={!isOpen}>
+        {profileMenuItems.map((item) => (
+          <a
+            key={getItemKey(item)}
+            href={item.href}
+            role="menuitem"
+            className="header-nav-dropdown__item"
+            onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                event.button !== 0
+              ) {
+                return
+              }
+
+              event.preventDefault()
+              onSelect(item)
+            }}
+          >
+            {item.icon ? <item.icon size={18} /> : null}
+            <span>{item.label}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MobileMenuOverlay({ isOpen, onClose }) {
+  if (!isOpen) return null
+
+  return (
+    <button
+      type="button"
+      className="header-nav-overlay active"
+      aria-label="Close navigation"
+      onClick={onClose}
+    />
+  )
+}
+
 function HeaderNavItem({ item, activePath, openKey, onOpen, onSelect }) {
   const Icon = item.icon
   const hasChildren = item.children?.length > 0
@@ -335,105 +445,19 @@ function Header({
             <span className="header-icon-button__dot" aria-hidden="true" />
           </button>
 
-          <div
-            className={[
-              'header-nav-item-wrapper',
-              'header-profile-wrapper',
-              profileOpen ? 'header-nav-item-wrapper--open' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            <button
-              type="button"
-              className="header-profile-button"
-              aria-haspopup="true"
-              aria-expanded={profileOpen}
-              aria-label="Profile"
-              title={userRole || undefined}
-              onClick={() => setProfileOpen((current) => !current)}
-            >
-              <User01 size={18} />
-              <span className="header-profile-button__name">{userName}</span>
-              <ChevronDown className="header-nav-item__chevron" size={14} />
-            </button>
-
-            <div className="header-nav-dropdown header-profile-dropdown" role="menu" aria-hidden={!profileOpen}>
-              {profileMenuItems.map((item) => (
-                <a
-                  key={getItemKey(item)}
-                  href={item.href}
-                  role="menuitem"
-                  className="header-nav-dropdown__item"
-                  onClick={(event) => {
-                    if (
-                      event.metaKey ||
-                      event.ctrlKey ||
-                      event.shiftKey ||
-                      event.altKey ||
-                      event.button !== 0
-                    ) {
-                      return
-                    }
-
-                    event.preventDefault()
-                    handleSelect(item)
-                  }}
-                >
-                  {item.icon ? <item.icon size={18} /> : null}
-                  <span>{item.label}</span>
-                </a>
-              ))}
-            </div>
-          </div>
+          <ProfileDropdown
+            isOpen={profileOpen}
+            userName={userName}
+            userRole={userRole}
+            profileMenuItems={profileMenuItems}
+            onSelect={handleSelect}
+            onClose={() => setProfileOpen((current) => !current)}
+          />
         </div>
       </nav>
 
-      {mobileNavOpen ? (
-        <button
-          type="button"
-          className="header-nav-overlay active"
-          aria-label="Close navigation"
-          onClick={() => setMobileNavOpen(false)}
-        />
-      ) : null}
-
-      {notificationOpen ? (
-        <div className="header-modal-overlay" onClick={() => setNotificationOpen(false)}>
-          <div className="header-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="header-modal__header">
-              <h2 className="header-modal__title">Notifications</h2>
-              <button
-                type="button"
-                className="header-modal__close"
-                aria-label="Close"
-                onClick={() => setNotificationOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="header-modal__body">
-              {notificationData.length > 0 ? (
-                <div className="notification-list">
-                  {notificationData.map((item, idx) => (
-                    <div key={idx} className="notification-item">
-                      <div className="notification-item__time">
-                        {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
-                      </div>
-                      <div className="notification-item__content">
-                        <strong>{item.action || 'Activity'}</strong>
-                        <div className="notification-item__detail">{item.description || item.message}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="notification-empty">No activities yet</div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <MobileMenuOverlay isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <NotificationModal isOpen={notificationOpen} notificationData={notificationData} onClose={() => setNotificationOpen(false)} />
     </header>
   )
 }
