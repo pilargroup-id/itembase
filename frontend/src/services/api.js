@@ -319,6 +319,8 @@ const api = {
     ...createResource('/item/items'),
     updateStatus: (id, status, options) =>
       api.patch(`/item/items/${id}/status`, { status: normalizeItemStatusPayload(status) }, options),
+    duplicateBd: (id, options) =>
+      api.post(`/item/items/${id}/duplicate-bd`, undefined, options),
     matrixPreview: (data, options) =>
       api.post('/item/items/matrix/preview', data, options),
     createMatrix: (data, options) =>

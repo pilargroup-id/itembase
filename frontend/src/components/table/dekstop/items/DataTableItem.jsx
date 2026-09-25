@@ -5,12 +5,14 @@ import MenuItem from "@mui/material/MenuItem"
 import Select from "@mui/material/Select"
 
 import api from "../../../../services/api.js"
+import { useAlertAction } from "../../../alert/alert-action/AlertActionContext.jsx"
 
 import DialogDeleteItem from "../../../Dialog/dialog-item/DialogDeleteItem.jsx"
 import DialogEditItem from "../../../Dialog/dialog-item/DialogEditItem.jsx"
 import DialogFilterItem from "../../../Dialog/dialog-item/DialogFilterItem.jsx"
 import DialogImportItem from "../../../Dialog/dialog-item/DialogImportItem.jsx"
 import ButtonCreateItem from "../../../button/item-buttons/ButtonCreateItem.jsx"
+import ButtonDuplicateBdItem from "../../../button/item-buttons/ButtonDuplicateBdItem.jsx"
 import ButtonDownloadItem from "../../../button/item-buttons/ButtonDownloadItem.jsx"
 import ButtonEditItem from "../../../button/item-buttons/ButtonEditItem.jsx"
 import ButtonExportItem from "../../../button/item-buttons/ButtonExportItem.jsx"
@@ -128,6 +130,16 @@ function getItemDisplayName(item) {
     return item?.item_name || item?.item_code || item?.barcode || "item ini"
 }
 
+function canDuplicateItemToBd(item) {
+    const itemKind = String(item?.item_kind ?? "regular").trim().toLowerCase()
+
+    return itemKind === "regular" && getItemReplenishmentTypeValue(item) !== "BD"
+}
+
+function hasItemBdDuplicate(item) {
+    return item?.has_bd_duplicate === true || Number(item?.has_bd_duplicate) === 1
+}
+
 function getResponseItem(responseData) {
     const candidates = [
         responseData?.data?.data,
@@ -204,6 +216,7 @@ function ItemTableSelect({
 function DialogValidateInlineItemChange({
     change = null,
     isSubmitting = false,
+    errorMessage = "",
     onClose,
     onConfirm,
 }) {
@@ -229,15 +242,21 @@ function DialogValidateInlineItemChange({
         return null
     }
 
-    const dialogTitle =
-        change.type === "status"
+    const isDuplicateBd = change.type === "duplicate-bd"
+    const dialogEyebrow = isDuplicateBd ? "Validasi Duplicate Item" : "Validasi Perubahan Item"
+    const dialogTitle = isDuplicateBd
+        ? "Konfirmasi Duplicate to BD"
+        : change.type === "status"
             ? "Konfirmasi Perubahan Status"
             : "Konfirmasi Perubahan Replenishment"
 
-    const description =
-        change.type === "status"
+    const description = isDuplicateBd
+        ? "SKU baru akan dibuat dengan replenishment Business Driven dan barcode yang sama dengan SKU sumber. SKU Name akan diregenerate oleh backend (Parent Name + BD + Variant)."
+        : change.type === "status"
             ? "Status item akan diperbarui menggunakan enum item terbaru."
             : "Replenishment type akan diperbarui dan SKU Name dapat diregenerate oleh backend, terutama saat memilih Business Driven."
+    const confirmLabel = isDuplicateBd ? "Duplicate" : "Confirm"
+    const submittingLabel = isDuplicateBd ? "Duplicating..." : "Saving..."
 
     const dialogNode = (
         <div
@@ -258,7 +277,7 @@ function DialogValidateInlineItemChange({
             >
                 <div className="dashboard-popup__header">
                     <div>
-                        <p className="dashboard-popup__eyebrow">Validasi Perubahan Item</p>
+                        <p className="dashboard-popup__eyebrow">{dialogEyebrow}</p>
                         <h2 className="dashboard-popup__title" id="dialog-inline-item-change-title">
                             {dialogTitle}
                         </h2>
@@ -276,13 +295,26 @@ function DialogValidateInlineItemChange({
                 </div>
 
                 <div className="dashboard-popup__body">
-                    <p className="dashboard-popup__text">
-                        Ubah <strong>{change.itemName}</strong> dari{" "}
-                        <strong>{change.previousLabel}</strong> ke <strong>{change.nextLabel}</strong>?
-                    </p>
+                    {isDuplicateBd ? (
+                        <p className="dashboard-popup__text">
+                            Duplikasi <strong>{change.itemName}</strong> (<strong>{change.sourceCode}</strong>)
+                            {" "}menjadi SKU <strong>{change.targetCode}</strong> dengan barcode{" "}
+                            <strong>{change.barcode}</strong>?
+                        </p>
+                    ) : (
+                        <p className="dashboard-popup__text">
+                            Ubah <strong>{change.itemName}</strong> dari{" "}
+                            <strong>{change.previousLabel}</strong> ke <strong>{change.nextLabel}</strong>?
+                        </p>
+                    )}
                     <p className="dashboard-popup__text">
                         {description}
                     </p>
+                    {errorMessage ? (
+                        <p className="register-user-popup__hint item-table__status-error--dialog" role="alert">
+                            {errorMessage}
+                        </p>
+                    ) : null}
                 </div>
 
                 <div className="dashboard-popup__actions">
@@ -300,7 +332,7 @@ function DialogValidateInlineItemChange({
                         onClick={onConfirm}
                         disabled={isSubmitting}
                     >
-                        {isSubmitting ? "Saving..." : "Confirm"}
+                        {isSubmitting ? submittingLabel : confirmLabel}
                     </button>
                 </div>
             </div>
@@ -822,6 +854,8 @@ function DataTableItem({
     const [pendingInlineChange, setPendingInlineChange] = useState(null)
     const [isInlineValidationSubmitting, setIsInlineValidationSubmitting] = useState(false)
     const [inlineUpdateErrorMessage, setInlineUpdateErrorMessage] = useState("")
+    const [inlineValidationErrorMessage, setInlineValidationErrorMessage] = useState("")
+    const { notifySuccess } = useAlertAction()
     const debouncedSearchQuery = useDebouncedValue(searchQuery)
     const filterResetKey = useMemo(
         () => JSON.stringify({ filters, pageSize, searchQuery: debouncedSearchQuery, sortValue }),
@@ -1152,12 +1186,67 @@ function DataTableItem({
         })
     }
 
+    const requestDuplicateToBd = (item) => {
+        const itemId = getItemId(item)
+
+        if (!itemId) {
+            setInlineUpdateErrorMessage("Item ID tidak ditemukan.")
+            return
+        }
+
+        if (!canDuplicateItemToBd(item)) {
+            setInlineUpdateErrorMessage("Duplicate to BD hanya bisa untuk regular item dengan replenishment type selain Business Driven.")
+            return
+        }
+
+        if (hasItemBdDuplicate(item)) {
+            setInlineUpdateErrorMessage(`SKU BD ${item.item_code}-BD sudah ada.`)
+            return
+        }
+
+        const sourceCode = formatDisplayValue(item.item_code)
+
+        setInlineUpdateErrorMessage("")
+        setInlineValidationErrorMessage("")
+        setPendingInlineChange({
+            type: "duplicate-bd",
+            item,
+            itemName: getItemDisplayName(item),
+            sourceCode,
+            targetCode: `${sourceCode}-BD`,
+            barcode: formatDisplayValue(item.barcode),
+        })
+    }
+
+    const handleDuplicateToBd = async (item) => {
+        const itemId = getItemId(item)
+
+        if (!itemId) {
+            return false
+        }
+
+        try {
+            const response = await api.items.duplicateBd(itemId)
+            const createdItem = getResponseItem(response)
+            const createdCode = createdItem?.item_code || `${item.item_code}-BD`
+
+            notifySuccess(`SKU BD ${createdCode} created successfully.`)
+            setReloadKey((currentKey) => currentKey + 1)
+
+            return true
+        } catch (error) {
+            setInlineValidationErrorMessage(error?.message || "Gagal menduplikasi item ke BD.")
+            return false
+        }
+    }
+
     const closeInlineValidationDialog = () => {
         if (isInlineValidationSubmitting) {
             return
         }
 
         setPendingInlineChange(null)
+        setInlineValidationErrorMessage("")
     }
 
     const confirmInlineValidationChange = async () => {
@@ -1168,10 +1257,15 @@ function DataTableItem({
         setIsInlineValidationSubmitting(true)
 
         try {
-            const isSaved =
-                pendingInlineChange.type === "status"
-                    ? await handleStatusChange(pendingInlineChange.item, pendingInlineChange.nextValue)
-                    : await handleReplenishmentTypeChange(pendingInlineChange.item, pendingInlineChange.nextValue)
+            let isSaved = false
+
+            if (pendingInlineChange.type === "duplicate-bd") {
+                isSaved = await handleDuplicateToBd(pendingInlineChange.item)
+            } else if (pendingInlineChange.type === "status") {
+                isSaved = await handleStatusChange(pendingInlineChange.item, pendingInlineChange.nextValue)
+            } else {
+                isSaved = await handleReplenishmentTypeChange(pendingInlineChange.item, pendingInlineChange.nextValue)
+            }
 
             if (isSaved) {
                 setPendingInlineChange(null)
@@ -1186,10 +1280,12 @@ function DataTableItem({
         header: "Action",
         headerClassName: "users-table__action-header",
         cellClassName: "users-table__action-cell",
-        headerStyle: { width: "7%", minWidth: 96 },
-        cellStyle: { width: "7%", minWidth: 96, whiteSpace: "nowrap" },
+        headerStyle: { width: "7%", minWidth: 110 },
+        cellStyle: { width: "7%", minWidth: 110, whiteSpace: "nowrap" },
         render: (item) => {
             const isItemEditable = getItemStatusValue(item) === "ACTIVE"
+            const isBdDuplicable = canDuplicateItemToBd(item)
+            const hasBdDuplicate = hasItemBdDuplicate(item)
 
             return (
                 <div className="parent-action-buttons">
@@ -1207,6 +1303,23 @@ function DataTableItem({
                             openActionDialog("edit", item)
                         }}
                     />
+                    {isBdDuplicable ? (
+                        <ButtonDuplicateBdItem
+                            className={hasBdDuplicate ? "parent-action-button--duplicate-exists" : ""}
+                            title={hasBdDuplicate ? `SKU BD ${item.item_code}-BD sudah ada` : "Duplicate to BD"}
+                            aria-label={`Duplicate ${item.item_name || item.item_code || "item"} to BD`}
+                            disabled={hasBdDuplicate || !getItemId(item)}
+                            onClick={(event) => {
+                                event.stopPropagation()
+
+                                if (hasBdDuplicate) {
+                                    return
+                                }
+
+                                requestDuplicateToBd(item)
+                            }}
+                        />
+                    ) : null}
                 </div>
             )
         },
@@ -1614,6 +1727,7 @@ function DataTableItem({
             <DialogValidateInlineItemChange
                 change={pendingInlineChange}
                 isSubmitting={isInlineValidationSubmitting}
+                errorMessage={inlineValidationErrorMessage}
                 onClose={closeInlineValidationDialog}
                 onConfirm={confirmInlineValidationChange}
             />

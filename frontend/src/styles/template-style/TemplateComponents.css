@@ -6387,6 +6387,25 @@ input[type='radio'] {
   box-shadow: 0 0 0 3px rgba(242, 201, 76, 0.28);
 }
 
+.parent-action-button.parent-action-button--duplicate {
+  color: #2563eb;
+}
+
+.parent-action-button.parent-action-button--duplicate:hover {
+  background: transparent;
+  color: #1d4ed8;
+  box-shadow: none;
+}
+
+.parent-action-button.parent-action-button--duplicate:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.parent-action-button.parent-action-button--duplicate.parent-action-button--duplicate-exists,
+.parent-action-button.parent-action-button--duplicate.parent-action-button--duplicate-exists:hover {
+  color: #dc2626;
+}
+
 .parent-action-button.parent-action-button--delete {
   color: #dc2626;
 }
@@ -6858,6 +6877,11 @@ input[type='radio'] {
 
 .item-table__status-error {
   margin: -0.25rem 0 0.75rem;
+}
+
+.item-table__status-error--dialog {
+  margin: 0;
+  color: #dc2626;
 }
 
 .users-table__accordion-header {

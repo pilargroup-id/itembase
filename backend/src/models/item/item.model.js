@@ -161,7 +161,8 @@ function baseSelectSql() {
       mc.sub_category AS category_sub_category, mc.main_category AS category_main_category,
       mc.brand_category AS category_brand_category,
       mit.id AS item_type_id, mit.code AS item_type_code, mit.name AS item_type_name,
-      mu.code AS uom_code, mu.name AS uom_name
+      mu.code AS uom_code, mu.name AS uom_name,
+      EXISTS (SELECT 1 FROM items bd WHERE bd.item_code = CONCAT(i.item_code, '-BD')) AS has_bd_duplicate
     FROM items i
     LEFT JOIN item_parents ip ON ip.id = i.parent_id
     LEFT JOIN master_brands mb ON mb.id = ip.brand_id
@@ -187,6 +188,7 @@ function mapBaseRow(row) {
     gross_weight_pack: row.gross_weight_pack,
     production_time_days: row.production_time_days,
     replenishment_type: row.replenishment_type,
+    has_bd_duplicate: Number(row.has_bd_duplicate) === 1,
     status: row.status,
     created_by: row.created_by,
     updated_by: row.updated_by,
