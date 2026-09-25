@@ -75,7 +75,24 @@ function getDuplicateDetailItemIds(items, itemName) {
   return duplicateIds
 }
 
-function buildDetailItemTitle(itemName, variant, index) {
+export const replenishmentTypeOptions = [
+  { value: '', label: 'None', searchText: 'None no replenishment null' },
+  { value: 'RG', label: 'Regular', searchText: 'Regular RG' },
+  { value: 'SS', label: 'Seasonal', searchText: 'Seasonal SS' },
+  { value: 'BD', label: 'Business Driven', searchText: 'Business Driven BD' },
+  { value: 'NR', label: 'Non Replenish', searchText: 'Non Replenish NR' },
+]
+
+export function buildDetailItemName(itemName, variant, replenishmentType = '') {
+  const normalizedItemName = normalizeDetailItemText(itemName)
+  const normalizedVariant = normalizeDetailItemText(variant)
+  const replenishmentSuffix =
+    String(replenishmentType ?? '').toUpperCase() === 'BD' ? 'BD' : ''
+
+  return [normalizedItemName, replenishmentSuffix, normalizedVariant].filter(Boolean).join(' ')
+}
+
+function buildDetailItemTitle(itemName, variant, index, replenishmentType = '') {
   const normalizedItemName = normalizeDetailItemText(itemName)
   const normalizedVariant = normalizeDetailItemText(variant)
 
@@ -83,9 +100,9 @@ function buildDetailItemTitle(itemName, variant, index) {
     return `SKU #${index + 1}`
   }
 
-  return normalizedVariant
-    ? `${normalizedItemName} ${normalizedVariant}`
-    : `${normalizedItemName}...`
+  const detailItemName = buildDetailItemName(itemName, variant, replenishmentType)
+
+  return normalizedVariant ? detailItemName : `${detailItemName}...`
 }
 
 function createDetailItemId() {
@@ -123,6 +140,7 @@ export function createInitialDetailItem() {
     item_variant: '',
     variant_values_by_attribute_id: {},
     uom_id: '',
+    replenishment_type: '',
     hwd: '',
     lead_time_days: '',
   }
@@ -208,6 +226,7 @@ function buildMatrixDetailItems(attributes, combinations, previousItems, getVari
       item_variant: itemVariant,
       variant_values_by_attribute_id: valuesByAttributeId,
       uom_id: '',
+      replenishment_type: '',
       hwd: '',
       lead_time_days: '',
     }
@@ -259,6 +278,7 @@ function CreateDetailItem({
   getLoadingVariantValues = () => false,
   loadingUoms = false,
   SearchableSelect = null,
+  ReplenishmentSelect = null,
   VariantMultiSelect = null,
   onCreateUom = null,
   onCreateVariantValue = null,
@@ -275,8 +295,10 @@ function CreateDetailItem({
   const isMatrixMode = variantAttributeOptions.length > 0
   const detailItems = isMatrixMode ? items : items.length ? items : [createInitialDetailItem()]
   const DetailSearchableSelect = SearchableSelect
+  const DetailReplenishmentSelect = ReplenishmentSelect
   const DetailVariantMultiSelect = VariantMultiSelect
   const [syncAllDimensions, setSyncAllDimensions] = useState(false)
+  const [syncAllReplenishments, setSyncAllReplenishments] = useState(false)
   const [variantValueSelections, setVariantValueSelections] = useState({})
   const [matrixSelectionError, setMatrixSelectionError] = useState('')
   const [previousIsMatrixMode, setPreviousIsMatrixMode] = useState(isMatrixMode)
@@ -338,7 +360,9 @@ function CreateDetailItem({
   const handleFieldChange = (id, fieldName, value) => {
     const isFirstRow = detailItems[0]?.id === id
     const shouldSyncField =
-      syncAllDimensions && isFirstRow && syncableDimensionFieldNames.includes(fieldName)
+      isFirstRow &&
+      ((syncAllDimensions && syncableDimensionFieldNames.includes(fieldName)) ||
+        (syncAllReplenishments && fieldName === 'replenishment_type'))
 
     onChange?.(
       detailItems.map((item) => {
@@ -367,6 +391,22 @@ function CreateDetailItem({
 
       onChange?.(
         detailItems.map((item, index) => (index === 0 ? item : { ...item, ...firstRowValues })),
+      )
+    }
+  }
+
+  const handleSyncAllReplenishmentsToggle = (event) => {
+    const checked = event.target.checked
+
+    setSyncAllReplenishments(checked)
+
+    if (checked && detailItems.length > 1) {
+      const firstRowReplenishmentType = detailItems[0].replenishment_type ?? ''
+
+      onChange?.(
+        detailItems.map((item, index) =>
+          index === 0 ? item : { ...item, replenishment_type: firstRowReplenishmentType },
+        ),
       )
     }
   }
@@ -588,19 +628,35 @@ function CreateDetailItem({
       ) : (
         <>
           {detailItems.length > 1 ? (
-            <label
-              className="parent-detail-item__sync-toggle parent-detail-item__sync-toggle--above-table"
-              title="Isi dimensi carton di baris pertama, baris lain otomatis mengikuti."
-            >
-              <input
-                type="checkbox"
-                className="register-user-popup__dropdown-checkbox"
-                checked={syncAllDimensions}
-                disabled={disabled}
-                onChange={handleSyncAllDimensionsToggle}
-              />
-              <span>Equalize Dimensions</span>
-            </label>
+            <div className="parent-detail-item__sync-toggles">
+              <label
+                className="parent-detail-item__sync-toggle"
+                title="Isi UOM dan dimensi carton di baris pertama, baris lain otomatis mengikuti."
+              >
+                <input
+                  type="checkbox"
+                  className="register-user-popup__dropdown-checkbox"
+                  checked={syncAllDimensions}
+                  disabled={disabled}
+                  onChange={handleSyncAllDimensionsToggle}
+                />
+                <span>Equalize UOM</span>
+              </label>
+
+              <label
+                className="parent-detail-item__sync-toggle"
+                title="Gunakan replenishment type baris pertama untuk seluruh row."
+              >
+                <input
+                  type="checkbox"
+                  className="register-user-popup__dropdown-checkbox"
+                  checked={syncAllReplenishments}
+                  disabled={disabled}
+                  onChange={handleSyncAllReplenishmentsToggle}
+                />
+                <span>Equalize Replenishments</span>
+              </label>
+            </div>
           ) : null}
 
           <div className="parent-detail-item__table-wrapper">
@@ -624,6 +680,9 @@ function CreateDetailItem({
                   UOM
                   <span style={{ color: 'red', marginLeft: '4px' }}>*</span>
                 </th>
+                <th scope="col" className="parent-detail-item__table-replenishment-header">
+                  Replenishment Type
+                </th>
                 {hwdFieldLabels.map((fieldLabel) => (
                   <th key={fieldLabel} scope="col" className="parent-detail-item__table-hwd-header">
                     {fieldLabel} (cm)
@@ -644,7 +703,14 @@ function CreateDetailItem({
               {detailItems.map((item, index) => {
                 const isDuplicateRow = duplicateDetailItemIds.has(item.id)
                 const isSyncedFollowerRow = syncAllDimensions && index > 0
+                const isSyncedReplenishmentFollowerRow = syncAllReplenishments && index > 0
                 const isRowCreateEnabled = isRowEnabled(item)
+                const detailItemTitle = buildDetailItemTitle(
+                  itemName,
+                  item.item_variant,
+                  index,
+                  item.replenishment_type,
+                )
 
                 return (
                   <tr
@@ -664,7 +730,7 @@ function CreateDetailItem({
                           checked={isRowCreateEnabled}
                           disabled={disabled}
                           onChange={() => handleRowCreateToggle(item.id)}
-                          aria-label={`Create ${buildDetailItemTitle(itemName, item.item_variant, index)}`}
+                          aria-label={`Create ${detailItemTitle}`}
                         />
                       </td>
                     ) : null}
@@ -688,7 +754,7 @@ function CreateDetailItem({
                         <input
                           type="text"
                           className="register-user-popup__input register-user-popup__input--readonly parent-detail-item__row-title-input"
-                          value={buildDetailItemTitle(itemName, item.item_variant, index)}
+                          value={detailItemTitle}
                           readOnly
                           disabled={disabled}
                           aria-label={`SKU Name ${index + 1}`}
@@ -738,6 +804,45 @@ function CreateDetailItem({
                           </option>
                           {uomOptions.map((option) => (
                             <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+
+                    <td
+                      className={`parent-detail-item__field--replenishment${
+                        isSyncedReplenishmentFollowerRow ? ' parent-detail-item__field--synced' : ''
+                      }`}
+                    >
+                      {DetailReplenishmentSelect ? (
+                        <DetailReplenishmentSelect
+                          id={`parent-detail-replenishment-${item.id}`}
+                          label="Replenishment Type"
+                          value={item.replenishment_type ?? ''}
+                          options={replenishmentTypeOptions}
+                          placeholder="Select Type"
+                          searchPlaceholder="Search Type..."
+                          emptyMessage="Replenishment type not found."
+                          searchable={false}
+                          disabled={disabled || isSyncedReplenishmentFollowerRow}
+                          onChange={(nextValue) =>
+                            handleFieldChange(item.id, 'replenishment_type', nextValue)
+                          }
+                        />
+                      ) : (
+                        <select
+                          id={`parent-detail-replenishment-${item.id}`}
+                          className="register-user-popup__select"
+                          value={item.replenishment_type ?? ''}
+                          onChange={(event) =>
+                            handleFieldChange(item.id, 'replenishment_type', event.target.value)
+                          }
+                          disabled={disabled || isSyncedReplenishmentFollowerRow}
+                        >
+                          {replenishmentTypeOptions.map((option) => (
+                            <option key={option.value || 'none'} value={option.value}>
                               {option.label}
                             </option>
                           ))}

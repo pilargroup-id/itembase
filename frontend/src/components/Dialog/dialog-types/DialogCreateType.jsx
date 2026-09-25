@@ -101,9 +101,9 @@ function DialogCreateType({
     }
   }
 
-  if (!isOpen) {
+  if (!isOpen) {  
     return null
-  }
+  }                    
 
   if (typeof document === 'undefined') {
     return null
@@ -130,7 +130,7 @@ function DialogCreateType({
               {title}
             </h2>
           </div>
-
+    
           <button
             type="button"
             className="dashboard-popup__close"

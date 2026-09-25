@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import api from '../../../services/api.js'
 import { ChevronDown, Edit03, Plus, SearchMd, XClose, XCircle } from '../../template/TemplateIcons.jsx'
 import CreateDetailItem, {
+  buildDetailItemName,
   createInitialDetailItem,
   hasDuplicateVariantSelection,
 } from './detail-item/CreateDetailItem.jsx'
@@ -317,19 +318,20 @@ function buildDetailItemPayloads(detailItems, itemName, parentId, attributeIds) 
   return detailItems
     .filter((detailItem) => detailItem.create !== false)
     .map((detailItem) => {
-      const normalizedItemName = normalizeFieldValue(itemName)
-      const normalizedVariant = normalizeFieldValue(detailItem.item_variant)
+      const replenishmentType = normalizeFieldValue(detailItem.replenishment_type)
+      const detailItemName = buildDetailItemName(
+        itemName,
+        detailItem.item_variant,
+        replenishmentType,
+      )
       const [height, width, depth] = getHwdParts(detailItem.hwd)
       const payload = compactPayload({
         item_kind: 'regular',
         parent_id: parentId,
-        item_name: normalizedVariant
-          ? `${normalizedItemName} ${normalizedVariant}`
-          : normalizedItemName,
-        selling_name: normalizedVariant
-          ? `${normalizedItemName} ${normalizedVariant}`
-          : normalizedItemName,
+        item_name: detailItemName,
+        selling_name: detailItemName,
         uom_id: normalizeFieldValue(detailItem.uom_id),
+        replenishment_type: replenishmentType,
         height: normalizeNumberPayloadValue(height),
         width: normalizeNumberPayloadValue(width),
         depth: normalizeNumberPayloadValue(depth),
@@ -2422,6 +2424,7 @@ function DialogCreateParent({
                       }
                       loadingUoms={isLoadingMasters}
                       SearchableSelect={SearchableCreatableSelect}
+                      ReplenishmentSelect={SearchableMasterSelect}
                       VariantMultiSelect={SearchableCheckboxSelect}
                       onCreateUom={handleCreateUom}
                       onCreateVariantValue={handleCreateVariantValue}

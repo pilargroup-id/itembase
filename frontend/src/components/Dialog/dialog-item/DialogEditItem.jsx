@@ -96,7 +96,7 @@ const itemFields = [
   },
   {
     name: 'gross_weight_pack',
-    label: 'Gross Weight / Pack',
+    label: 'G.Weight / Pack',
     placeholder: '0.00',
     type: 'number',
     compactDimension: true,
@@ -110,6 +110,18 @@ const itemFields = [
     unitSuffix: 'day',
   },
 ]
+
+const dimensionFieldNames = [
+  'uom_id',
+  'qty_per_pack',
+  'height',
+  'width',
+  'depth',
+  'gross_weight_pack',
+  'production_time_days',
+]
+
+const dimensionFields = itemFields.filter((field) => dimensionFieldNames.includes(field.name))
 
 const numericFields = new Set([
   'qty_per_pack',
@@ -655,6 +667,12 @@ function DialogEditItem({
   }
 
   const headerTitle = formValues.item_name || title
+  const variantSummary =
+    selectedItem?.variant_summary ||
+    (selectedItem?.variants || [])
+      .map((variant) => variant?.value?.name)
+      .filter(Boolean)
+      .join(' / ')
 
   const renderField = (field) => (
     <div
@@ -844,20 +862,63 @@ function DialogEditItem({
                     </p>
                   </div>
 
-                  <div className="register-user-popup__grid item-create-popup__dimension-grid" style={{ rowGap: '12px' }}>
-                    {itemFields
-                      .filter((field) =>
-                        [
-                          'uom_id',
-                          'qty_per_pack',
-                          'height',
-                          'width',
-                          'depth',
-                          'gross_weight_pack',
-                          'production_time_days',
-                        ].includes(field.name),
-                      )
-                      .map(renderField)}
+                  <div className="item-create-popup__matrix-table-wrap">
+                    <table className="item-create-popup__matrix-table item-create-popup__matrix-table--edit">
+                      <thead>
+                        <tr>
+                          <th>Variant</th>
+                          {dimensionFields.map((field) => (
+                            <th key={field.name}>
+                              {field.label}
+                              {field.unitSuffix ? ` (${field.unitSuffix})` : ''}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span className="item-create-popup__matrix-variant">
+                              {variantSummary || '-'}
+                            </span>
+                          </td>
+                          {dimensionFields.map((field) => (
+                            <td
+                              key={field.name}
+                              className={`item-create-popup__dimension-cell item-create-popup__dimension-cell--${field.name}`}
+                            >
+                              {field.type === 'select' ? (
+                                <SearchableItemSelect
+                                  id={`item-${field.name}`}
+                                  label={field.label}
+                                  value={formValues[field.name]}
+                                  options={masterOptions[field.optionsKey]}
+                                  placeholder={field.placeholder}
+                                  searchPlaceholder={field.searchPlaceholder}
+                                  emptyMessage={field.emptyMessage}
+                                  loading={isLoadingMasters}
+                                  disabled={isSubmitting || isLoadingMasters}
+                                  searchTrigger={Boolean(field.searchTrigger)}
+                                  onChange={(nextValue) => handleFieldChange(field.name, nextValue)}
+                                />
+                              ) : (
+                                <input
+                                  id={`item-${field.name}`}
+                                  name={field.name}
+                                  className="register-user-popup__input item-create-popup__dimension-input"
+                                  type="number"
+                                  step="any"
+                                  value={formValues[field.name]}
+                                  placeholder={field.placeholder}
+                                  disabled={isSubmitting}
+                                  onChange={handleInputChange}
+                                />
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 

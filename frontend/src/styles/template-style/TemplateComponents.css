@@ -8123,6 +8123,14 @@ input[type='radio'] {
   margin-bottom: 0.5rem;
 }
 
+.parent-detail-item__sync-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
 .parent-detail-item__field--synced {
   background: rgba(42, 157, 143, 0.06);
 }
@@ -8257,6 +8265,11 @@ input[type='radio'] {
 
 .parent-detail-item__field--uom {
   min-width: 160px;
+}
+
+.parent-detail-item__table-replenishment-header,
+.parent-detail-item__field--replenishment {
+  min-width: 170px;
 }
 
 .parent-detail-item__field--hwd {
@@ -8991,6 +9004,10 @@ input[type='radio'] {
   width: 100%;
   min-width: 1588px;
   border-collapse: collapse;
+}
+
+.item-create-popup__matrix-table.item-create-popup__matrix-table--edit {
+  min-width: 860px;
 }
 
 .item-create-popup__matrix-table th,

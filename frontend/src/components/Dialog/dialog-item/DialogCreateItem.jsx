@@ -1968,7 +1968,7 @@ function DialogCreateItem({
                         disabled={isSubmitting}
                         onChange={handleSyncAllDimensionsToggle}
                       />
-                      <span>Equalize Dimensions</span>
+                      <span>Equalize UOM</span>
                     </label>
 
                     <label
