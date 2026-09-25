@@ -15,11 +15,11 @@ function handleError(res, error) {
   }
 
   if (error.statusCode === 409) {
-    return response.error(res, error.message, 409, error.errors || null, error.code || null);
+    return response.error(res, error.message, 409, error.errors || null);
   }
 
   if (error.statusCode === 422) {
-    return response.error(res, error.message, 422, error.errors || null, error.code || null);
+    return response.badRequest(res, error.message, error.errors || null);
   }
 
   return response.badRequest(res, error.message || 'Request failed', error.errors || null);
@@ -88,6 +88,15 @@ async function update(req, res) {
 }
 
 
+async function duplicateToBd(req, res) {
+  try {
+    const item = await ItemService.duplicateToBd(req.params.id, req.user.id, req);
+    return response.created(res, item, 'Item duplicated to BD successfully');
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
 async function updateStatus(req, res) {
   try {
     const rawStatus = req.body.status ?? req.body.is_active;
@@ -108,5 +117,6 @@ module.exports = {
   show,
   store,
   update,
+  duplicateToBd,
   updateStatus,
 };

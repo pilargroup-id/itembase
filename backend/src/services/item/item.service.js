@@ -31,6 +31,10 @@ function normalizeReplenishmentType(value) {
   if (!hasValue(value)) return null;
   return String(value).trim().toUpperCase();
 }
+function wantsBdDuplicate(value) {
+  if (value === true || value === 1) return true;
+  return ['1', 'TRUE', 'YES'].includes(String(value || '').trim().toUpperCase());
+}
 function normalizeNumber(value, defaultValue = null) { return hasValue(value) ? Number(value) : defaultValue; }
 function isValidItemStatus(value) { return ALLOWED_ITEM_STATUS.includes(normalizeItemStatus(value, '')); }
 function isValidReplenishmentType(value) {
@@ -319,35 +323,156 @@ async function enrichItems(items = []) {
 async function index(query) { const result = await ItemModel.findAll(query); await enrichItems(result.data); return result; }
 async function show(id) { const item = await ItemModel.findById(id); if (!item) throw makeError('Item not found', 404, 'ITEM_NOT_FOUND'); await enrichItems([item]); return item; }
 
-async function store(payload, userId, req = null) {
-  const errors = validatePayload(payload);
-  if (Object.keys(errors).length) throw makeError('Validation failed', 422, 'VALIDATION_ERROR', errors);
-  const components = validateComponents(payload.components || [], payload.item_kind, payload.components !== undefined);
-  return ItemModel.transaction(async (connection) => {
-    await validateReferences(payload, connection);
-    const resolvedUomId = await resolveUomInput(payload, connection, userId, req);
-    const generatedCode = generateNextBarcode(await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2), connection));
-    let finalPayload = { ...payload, uom_id: resolvedUomId || payload.uom_id || null, status: normalizeItemStatus(payload.status, 'ACTIVE'), replenishment_type: normalizeReplenishmentType(payload.replenishment_type) };
-    if (payload.item_kind === 'bundle') {
-      const withItems = await validateBundleComponents(components, connection);
-      const generatedName = buildBundleItemName(withItems);
-      if (generatedName.length > STRING_LIMITS.item_name) throw makeError('Generated bundle item name cannot be longer than 255 characters', 422, 'VALIDATION_ERROR');
-      finalPayload.item_name = generatedName;
-    }
-    const variantInputs=normalizeVariantInputs(payload.variants)||[];
-    const variants=await resolveVariantInputs(variantInputs,connection,userId,req);
-    if(payload.item_kind==='bundle'&&variants.length)throw makeError('Variants are only allowed for regular items',422,'VALIDATION_ERROR');
-    if(payload.item_kind==='regular')await validateVariants(payload.parent_id,variants,connection);
-    const itemData = normalizeItemData(finalPayload, userId, generatedCode);
-    await ItemModel.create(itemData, connection);
-    if (payload.item_kind === 'bundle') await ItemModel.replaceComponents(itemData.id, components, connection);
-    await ItemModel.replaceVariants(itemData.id,variants,connection);
-    if (payload.item_kind === 'regular') await ItemModel.syncRegularItemName(itemData.id, connection, userId);
-    const finalItem = await ItemModel.findById(itemData.id, connection);
-    await enrichItems([finalItem]);
-    await ActivityLogService.log({ user_id: userId, action: 'CREATE', entity_type: 'items', entity_id: finalItem.id, description: `Created ${finalItem.item_kind} item ${finalItem.item_code}`, before_data: null, after_data: finalItem, metadata: { item_code: finalItem.item_code, item_kind: finalItem.item_kind, component_count: finalItem.components.length }, req, connection });
-    return finalItem;
+async function duplicateToBdInConnection(sourceItemId, userId, req, connection) {
+  const source = await ItemModel.findRawById(sourceItemId, connection);
+  if (!source) throw makeError('Item not found', 404, 'ITEM_NOT_FOUND');
+  if (source.item_kind !== 'regular') {
+    throw makeError('Only regular items can be duplicated to BD', 422, 'BD_DUPLICATE_REGULAR_ONLY');
+  }
+  if (String(source.replenishment_type || '').toUpperCase() === 'BD') {
+    throw makeError('BD item cannot be duplicated to BD again', 422, 'BD_DUPLICATE_SOURCE_ALREADY_BD');
+  }
+
+  const targetCode = `${source.item_code}-BD`;
+  if (targetCode.length > 100) {
+    throw makeError('BD duplicate SKU ID cannot be longer than 100 characters', 422, 'BD_DUPLICATE_CODE_TOO_LONG', { item_code: targetCode });
+  }
+  const conflict = await ItemModel.findRawByItemCode(targetCode, connection);
+  if (conflict) {
+    throw makeError(`BD duplicate SKU ${targetCode} already exists`, 409, 'BD_DUPLICATE_ALREADY_EXISTS', {
+      item_code: targetCode,
+      existing_item_id: conflict.id,
+    });
+  }
+
+  const sourceVariants = (await ItemModel.findVariantsByItemIds([source.id], connection))[source.id] || [];
+  const variants = sourceVariants.map((variant) => ({
+    attribute_id: variant.attribute.id,
+    value_id: variant.value.id,
+  }));
+
+  const data = {
+    id: crypto.randomUUID(),
+    item_code: targetCode,
+    barcode: source.barcode,
+    item_name: source.item_name,
+    selling_name: source.selling_name,
+    item_kind: 'regular',
+    parent_id: source.parent_id,
+    uom_id: source.uom_id,
+    replenishment_type: 'BD',
+    qty_per_pack: source.qty_per_pack,
+    height: source.height,
+    width: source.width,
+    depth: source.depth,
+    gross_weight_pack: source.gross_weight_pack,
+    production_time_days: source.production_time_days,
+    status: source.status || 'ACTIVE',
+    created_by: userId,
+    updated_by: userId,
+  };
+
+  await ItemModel.create(data, connection);
+  await ItemModel.replaceVariants(data.id, variants, connection);
+  await ItemModel.syncRegularItemName(data.id, connection, userId);
+  const duplicated = await ItemModel.findById(data.id, connection);
+
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'items',
+    entity_id: duplicated.id,
+    description: `Duplicated item ${source.item_code} to BD item ${duplicated.item_code}`,
+    before_data: null,
+    after_data: duplicated,
+    metadata: {
+      source: 'DUPLICATE_TO_BD',
+      source_item_id: source.id,
+      source_item_code: source.item_code,
+      item_code: duplicated.item_code,
+      barcode_reused: source.barcode,
+    },
+    req,
+    connection,
   });
+
+  return duplicated;
+}
+
+async function createInConnection(payload, userId, req, connection) {
+  const createBdDuplicate = wantsBdDuplicate(payload.create_bd_duplicate);
+  const cleanPayload = { ...payload };
+  delete cleanPayload.create_bd_duplicate;
+
+  const errors = validatePayload(cleanPayload);
+  if (Object.keys(errors).length) throw makeError('Validation failed', 422, 'VALIDATION_ERROR', errors);
+  if (createBdDuplicate && cleanPayload.item_kind !== 'regular') {
+    throw makeError('BD duplicate can only be created for regular items', 422, 'BD_DUPLICATE_REGULAR_ONLY');
+  }
+  if (createBdDuplicate && normalizeReplenishmentType(cleanPayload.replenishment_type) === 'BD') {
+    throw makeError('Source item for BD duplicate cannot already use replenishment type BD', 422, 'BD_DUPLICATE_SOURCE_ALREADY_BD');
+  }
+
+  const components = validateComponents(cleanPayload.components || [], cleanPayload.item_kind, cleanPayload.components !== undefined);
+  await validateReferences(cleanPayload, connection);
+  const resolvedUomId = await resolveUomInput(cleanPayload, connection, userId, req);
+  const generatedCode = generateNextBarcode(await ItemModel.findLastBarcodeByYear(String(new Date().getFullYear()).slice(-2), connection));
+  let finalPayload = {
+    ...cleanPayload,
+    uom_id: resolvedUomId || cleanPayload.uom_id || null,
+    status: normalizeItemStatus(cleanPayload.status, 'ACTIVE'),
+    replenishment_type: normalizeReplenishmentType(cleanPayload.replenishment_type),
+  };
+
+  if (cleanPayload.item_kind === 'bundle') {
+    const withItems = await validateBundleComponents(components, connection);
+    const generatedName = buildBundleItemName(withItems);
+    if (generatedName.length > STRING_LIMITS.item_name) throw makeError('Generated bundle item name cannot be longer than 255 characters', 422, 'VALIDATION_ERROR');
+    finalPayload.item_name = generatedName;
+  }
+
+  const variantInputs = normalizeVariantInputs(cleanPayload.variants) || [];
+  const variants = await resolveVariantInputs(variantInputs, connection, userId, req);
+  if (cleanPayload.item_kind === 'bundle' && variants.length) throw makeError('Variants are only allowed for regular items', 422, 'VALIDATION_ERROR');
+  if (cleanPayload.item_kind === 'regular') await validateVariants(cleanPayload.parent_id, variants, connection);
+
+  const itemData = normalizeItemData(finalPayload, userId, generatedCode);
+  await ItemModel.create(itemData, connection);
+  if (cleanPayload.item_kind === 'bundle') await ItemModel.replaceComponents(itemData.id, components, connection);
+  await ItemModel.replaceVariants(itemData.id, variants, connection);
+  if (cleanPayload.item_kind === 'regular') await ItemModel.syncRegularItemName(itemData.id, connection, userId);
+
+  const finalItem = await ItemModel.findById(itemData.id, connection);
+  await ActivityLogService.log({
+    user_id: userId,
+    action: 'CREATE',
+    entity_type: 'items',
+    entity_id: finalItem.id,
+    description: `Created ${finalItem.item_kind} item ${finalItem.item_code}`,
+    before_data: null,
+    after_data: finalItem,
+    metadata: {
+      item_code: finalItem.item_code,
+      item_kind: finalItem.item_kind,
+      component_count: finalItem.components.length,
+      create_bd_duplicate: createBdDuplicate,
+    },
+    req,
+    connection,
+  });
+
+  if (createBdDuplicate) {
+    finalItem.bd_duplicate = await duplicateToBdInConnection(finalItem.id, userId, req, connection);
+  }
+
+  return finalItem;
+}
+
+async function store(payload, userId, req = null) {
+  const item = await ItemModel.transaction((connection) => createInConnection(payload, userId, req, connection));
+  await enrichItems([item]);
+  if (item.bd_duplicate) await enrichItems([item.bd_duplicate]);
+  return item;
 }
 
 async function update(id, payload, userId, req = null) {
@@ -470,6 +595,13 @@ async function update(id, payload, userId, req = null) {
 }
 
 
+async function duplicateToBd(id, userId, req = null) {
+  const duplicated = await ItemModel.transaction((connection) => duplicateToBdInConnection(id, userId, req, connection));
+  await enrichItems([duplicated]);
+  return duplicated;
+}
+
+
 async function updateStatus(id, status, userId, req = null) {
   const existing = await ItemModel.findRawById(id);
   if (!existing) throw makeError('Item not found', 404, 'ITEM_NOT_FOUND');
@@ -509,4 +641,4 @@ async function createMatrix(payload,userId,req=null){
     await enrichItems(created);await ActivityLogService.log({user_id:userId,action:'CREATE',entity_type:'items',entity_id:null,description:`Created ${created.length} items from variant matrix`,after_data:created,metadata:{item_parent_id:parentId,total_items:created.length},req,connection});return{total_created:created.length,items:created};});
 }
 
-module.exports = { index, show, store, update, updateStatus, previewMatrix, createMatrix };
+module.exports = { index, show, store, createInConnection, duplicateToBd, update, updateStatus, previewMatrix, createMatrix };

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const ItemParentModel = require('../../models/item/item-parent.model');
 const ItemModel = require('../../models/item/item.model');
+const ItemService = require('./item.service');
 const ActivityLogService = require('../activity-log.service');
 
 const ALLOWED_STATUS = ['ACTIVE', 'INACTIVE', 'DISCONTINUE'];
@@ -28,6 +29,11 @@ function hasOwn(payload, field) {
 
 function hasValue(value) {
   return value !== undefined && value !== null && value !== '';
+}
+
+function truthyFlag(value) {
+  if (value === true || value === 1) return true;
+  return ['1', 'TRUE', 'YES'].includes(String(value || '').trim().toUpperCase());
 }
 
 function trimOrNull(value) {
@@ -611,6 +617,12 @@ async function createSubbrand(payload, userId = null, req = null) {
 }
 
 async function create(payload, userId, req = null) {
+  const shouldCreateSku = truthyFlag(payload.create_sku);
+  const requestedSkuPayload = payload.sku && typeof payload.sku === 'object' ? { ...payload.sku } : {};
+  if (requestedSkuPayload.create_bd_duplicate === undefined && payload.create_bd_duplicate !== undefined) {
+    requestedSkuPayload.create_bd_duplicate = payload.create_bd_duplicate;
+  }
+
   const normalizedPayload = {
     subbrand_id: trimOrNull(payload.subbrand_id),
     brand_id: trimOrNull(payload.brand_id),
@@ -701,10 +713,21 @@ async function create(payload, userId, req = null) {
         parent_code: created.parent_code,
         status: created.status,
         subbrand_id: created.subbrand_id,
+        create_sku: shouldCreateSku,
       },
       req,
       connection,
     });
+
+    if (shouldCreateSku) {
+      const skuPayload = {
+        ...requestedSkuPayload,
+        item_kind: 'regular',
+        parent_id: created.id,
+        item_name: requestedSkuPayload.item_name || created.parent_name,
+      };
+      created.created_sku = await ItemService.createInConnection(skuPayload, userId, req, connection);
+    }
 
     return { data: created };
   });

@@ -280,6 +280,11 @@ async function findRawById(id, connection = db) {
   return rows[0] || null;
 }
 
+async function findRawByItemCode(itemCode, connection = db) {
+  const [rows] = await connection.query('SELECT * FROM items WHERE item_code = ? LIMIT 1', [itemCode]);
+  return rows[0] || null;
+}
+
 async function findParentById(id, connection = db) {
   const [rows] = await connection.query('SELECT id, parent_code, parent_name, status FROM item_parents WHERE id = ? LIMIT 1', [id]);
   return rows[0] || null;
@@ -524,7 +529,7 @@ async function transaction(callback) {
 }
 
 module.exports = {
-  findAll, findById, findRawById, findParentById, findUomById, findUomByNameOrCode, createUom,
+  findAll, findById, findRawById, findRawByItemCode, findParentById, findUomById, findUomByNameOrCode, createUom,
   findItemsByIds, findLastBarcodeByYear, create, update, updateStatus, findRegularItemsByParentId, syncRegularItemName,
   replaceComponents, deleteComponents, findVariantsByItemIds, findParentVariantAttributesByParentIds, findParentVariantAttributes, findVariantValuesByIds, findVariantValueByNameOrCode, findVariantValueByCode, nextVariantValueSortOrder, createVariantValue, replaceVariants, findDuplicateVariantCombination, transaction,
 };

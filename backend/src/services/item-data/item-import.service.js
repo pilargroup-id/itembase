@@ -220,7 +220,7 @@ async function validateItemRow(row, kind = 'regular') {
   const prefix = `68${currentYear2()}`;
   const existing = await ItemDataModel.findItemByCode(code);
   const action = existing ? 'UPDATE' : 'CREATE';
-  if (!/^68\d{10}$/.test(code)) errors.push(error('SKU ID must contain exactly 12 digits and start with 68', 'INVALID_CODE_FORMAT'));
+  if (!existing && !/^68\d{10}$/.test(code)) errors.push(error('New SKU ID must contain exactly 12 digits and start with 68', 'INVALID_CODE_FORMAT'));
   if (!existing && !code.startsWith(prefix)) errors.push(error(`New SKU ID must use current year prefix ${prefix}`, 'INVALID_ITEM_YEAR'));
   if (existing && existing.item_kind !== kind) errors.push(error(`Existing item is ${existing.item_kind}; SKU Type cannot be changed`, 'ITEM_KIND_IMMUTABLE'));
 

@@ -35,6 +35,13 @@ router.put(
   ItemController.update
 );
 
+router.post(
+  '/:id/duplicate-bd',
+  authenticate,
+  requireApp('itembase'),
+  ItemController.duplicateToBd
+);
+
 router.patch(
   '/:id/status',
   authenticate,
