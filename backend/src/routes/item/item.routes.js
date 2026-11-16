@@ -2,12 +2,18 @@ const express = require('express');
 const router = express.Router();
 
 const ItemController = require('../../controllers/item/item.controller');
-const { authenticate, requireApp } = require('../../middleware/auth.middleware');
+const {
+  authenticate,
+  authenticateItemRead,
+  requireApp,
+} = require('../../middleware/auth.middleware');
 
+// Read-only endpoints can be accessed either by:
+// 1. X-Internal-Secret: <ITEMBASE_INTERNAL_SECRET>, or
+// 2. Existing Bearer auth + requireApp('itembase').
 router.get(
   '/',
-  authenticate,
-  requireApp('itembase'),
+  authenticateItemRead,
   ItemController.index
 );
 
@@ -16,8 +22,7 @@ router.post('/matrix', authenticate, requireApp('itembase'), ItemController.crea
 
 router.get(
   '/:id',
-  authenticate,
-  requireApp('itembase'),
+  authenticateItemRead,
   ItemController.show
 );
 

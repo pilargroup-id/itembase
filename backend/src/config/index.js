@@ -26,6 +26,9 @@ const config = {
     url: (process.env.PILARGROUP_URL || 'https://pilargroup.id').replace(/\/+$/, ''),
     internalSyncSecret: process.env.INTERNAL_SYNC_SECRET,
   },
+  itembase: {
+    internalSecret: process.env.ITEMBASE_INTERNAL_SECRET,
+  },
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   },
@@ -62,6 +65,11 @@ if (!config.jwt.secret) {
 
 if (!config.pilargroup.internalSyncSecret) {
   console.error('[config] INTERNAL_SYNC_SECRET is not set. Exiting.');
+  process.exit(1);
+}
+
+if (!config.itembase.internalSecret) {
+  console.error('[config] ITEMBASE_INTERNAL_SECRET is not set. Exiting.');
   process.exit(1);
 }
 

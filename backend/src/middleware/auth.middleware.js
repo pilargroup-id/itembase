@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+const config = require('../config');
 const { resolveToken } = require('../services/auth.service');
 
 function extractBearerToken(req) {
@@ -8,6 +10,43 @@ function extractBearerToken(req) {
   }
 
   return header.slice(7).trim() || null;
+}
+
+function extractInternalSecret(req) {
+  const header = req.headers['x-internal-secret'];
+
+  if (typeof header !== 'string') {
+    return null;
+  }
+
+  return header.trim() || null;
+}
+
+function safeCompare(valueA, valueB) {
+  if (
+    typeof valueA !== 'string' ||
+    typeof valueB !== 'string' ||
+    !valueA ||
+    !valueB
+  ) {
+    return false;
+  }
+
+  const bufferA = Buffer.from(valueA);
+  const bufferB = Buffer.from(valueB);
+
+  if (bufferA.length !== bufferB.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(bufferA, bufferB);
+}
+
+function isValidItembaseInternalSecret(req) {
+  const providedSecret = extractInternalSecret(req);
+  const configuredSecret = config.itembase.internalSecret;
+
+  return safeCompare(providedSecret, configuredSecret);
 }
 
 async function authenticate(req, res, next) {
@@ -87,8 +126,37 @@ function requireJobLevel(minLevel) {
   };
 }
 
+async function authenticateItemRead(req, res, next) {
+  const internalSecret = extractInternalSecret(req);
+
+  // When the internal header is supplied, it must be valid. Do not fall back
+  // to Bearer auth for an explicitly invalid internal-service request.
+  if (internalSecret) {
+    if (!isValidItembaseInternalSecret(req)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: invalid internal secret',
+        code: 'INTERNAL_SECRET_INVALID',
+      });
+    }
+
+    req.internalAccess = {
+      authenticated: true,
+      type: 'ITEMBASE_INTERNAL_SECRET',
+    };
+
+    return next();
+  }
+
+  // Existing Itembase frontend/users keep using Bearer + app permission.
+  return authenticate(req, res, () => {
+    return requireApp('itembase')(req, res, next);
+  });
+}
+
 module.exports = {
   authenticate,
+  authenticateItemRead,
   requireApp,
   requireJobLevel,
 };
