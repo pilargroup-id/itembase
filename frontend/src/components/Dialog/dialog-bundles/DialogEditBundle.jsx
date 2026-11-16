@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import api from '../../../services/api.js'
@@ -334,6 +334,18 @@ function normalizeRegularItemOptionsFromComponents(item) {
     .filter((option) => option.value && option.label)
 }
 
+function getIsActiveValue(item) {
+  if (item?.is_active !== undefined && item?.is_active !== null) {
+    return Number(item.is_active) ? '1' : '0'
+  }
+
+  if (item?.status !== undefined && item?.status !== null) {
+    return String(item.status).trim().toUpperCase() === 'INACTIVE' ? '0' : '1'
+  }
+
+  return '1'
+}
+
 function createFormValuesFromItem(item) {
   if (!item) {
     return initialFormValues
@@ -342,7 +354,7 @@ function createFormValuesFromItem(item) {
   return {
     parent_id: String(getParentId(item)),
     selling_name: item.selling_name ?? item.item_name ?? '',
-    is_active: String(item.is_active ?? 1),
+    is_active: getIsActiveValue(item),
   }
 }
 
@@ -366,6 +378,11 @@ function buildPayload(formValues, components, resolvedUomId) {
   )
 
   payload.item_kind = 'bundle'
+  // Always send selling_name so it can be changed (and cleared -> backend falls back to item_name)
+  payload.selling_name = String(formValues.selling_name ?? '').trim()
+  // Backend PUT /items/:id reads `status`, not `is_active`
+  payload.status = Number(formValues.is_active) ? 'ACTIVE' : 'INACTIVE'
+  delete payload.is_active
   payload.uom_id = resolvedUomId || ''
 
   if (!payload.uom_id) {
@@ -458,6 +475,7 @@ function DialogEditBundle({
   const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [regularItemSearchQuery, setRegularItemSearchQuery] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const isFormTouchedRef = useRef(false)
   const { notifySuccess } = useAlertAction()
 
   const componentItemOptions = useMemo(
@@ -499,6 +517,7 @@ function DialogEditBundle({
     setParentSearchQuery('')
     setRegularItemSearchQuery('')
     setErrorMessage('')
+    isFormTouchedRef.current = false
   }, [bundleItem, item])
 
   const handleClose = useCallback(() => {
@@ -511,6 +530,7 @@ function DialogEditBundle({
       return
     }
 
+    isFormTouchedRef.current = false
     setBundleItem(item)
     setFormValues(createFormValuesFromItem(item))
     setComponents(normalizeComponentsFromItem(item))
@@ -534,8 +554,12 @@ function DialogEditBundle({
         }
 
         setBundleItem(detailItem)
-        setFormValues(createFormValuesFromItem(detailItem))
-        setComponents(normalizeComponentsFromItem(detailItem))
+
+        // Don't overwrite what the user already typed while the detail was loading
+        if (!isFormTouchedRef.current) {
+          setFormValues(createFormValuesFromItem(detailItem))
+          setComponents(normalizeComponentsFromItem(detailItem))
+        }
       } catch (error) {
         if (!isMounted || error?.name === 'AbortError') {
           return
@@ -682,17 +706,22 @@ function DialogEditBundle({
   }, [handleClose, isOpen, isSubmitting])
 
   const handleFieldChange = (name, value) => {
+    isFormTouchedRef.current = true
     setErrorMessage('')
     setFormValues((currentValues) => {
-      const selectedParent =
-        name === 'parent_id'
-          ? parentOptions.find((option) => option.value === String(value ?? ''))
-          : null
+      const isParentChanged =
+        name === 'parent_id' && String(value ?? '') !== String(currentValues.parent_id ?? '')
+      const selectedParent = isParentChanged
+        ? parentOptions.find((option) => option.value === String(value ?? ''))
+        : null
 
       return {
         ...currentValues,
         [name]: value,
-        ...(name === 'parent_id' ? { selling_name: selectedParent?.sellingName || '' } : {}),
+        // Only replace selling name when parent really changes and the parent provides one
+        ...(isParentChanged && selectedParent?.sellingName
+          ? { selling_name: selectedParent.sellingName }
+          : {}),
       }
     })
   }
@@ -719,6 +748,7 @@ function DialogEditBundle({
   }
 
   const handleComponentChange = (index, field, value) => {
+    isFormTouchedRef.current = true
     setErrorMessage('')
 
     let normalizedValue = value
@@ -737,12 +767,14 @@ function DialogEditBundle({
 
   const handleAddComponent = () => {
     if (components.length < BUNDLE_MAX_COMPONENTS) {
+      isFormTouchedRef.current = true
       setComponents((current) => [...current, initialComponent()])
     }
   }
 
   const handleRemoveComponent = (index) => {
     if (components.length > BUNDLE_MIN_COMPONENTS) {
+      isFormTouchedRef.current = true
       setComponents((current) => current.filter((_, currentIndex) => currentIndex !== index))
     }
   }
@@ -755,7 +787,14 @@ function DialogEditBundle({
       return
     }
 
-    const payload = buildPayload(formValues, components, resolvedUomOption?.uomId)
+    // Component items coming from bundle detail have no UOM info; fall back to the bundle's current UOM
+    const currentBundle = bundleItem ?? item
+    const fallbackUomId = String(currentBundle?.uom_id ?? currentBundle?.uom?.id ?? '')
+    const payload = buildPayload(
+      formValues,
+      components,
+      resolvedUomOption?.uomId || fallbackUomId,
+    )
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
@@ -809,7 +848,7 @@ function DialogEditBundle({
               ? isLoadingParentOptions && !formValues.parent_id
               : isLoadingMasters
           }
-          disabled={isSubmitting || isLoadingMasters}
+          disabled={isSubmitting || (field.name !== 'parent_id' && isLoadingMasters)}
           remoteSearch={field.name === 'parent_id'}
           onSearchChange={
             field.name === 'parent_id'
