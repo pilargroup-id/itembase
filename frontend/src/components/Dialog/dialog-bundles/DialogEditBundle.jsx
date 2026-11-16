@@ -813,7 +813,16 @@ function DialogEditBundle({
       notifySuccess('Bundle updated successfully.')
       handleClose()
     } catch (error) {
-      setErrorMessage(error?.message || 'Failed to update bundle.')
+      // Backend puts the per-field reasons in `errors`; show them instead of the generic message
+      const fieldErrors = error?.data?.errors
+      const detailMessage =
+        fieldErrors && typeof fieldErrors === 'object'
+          ? Object.values(fieldErrors)
+              .filter((value) => typeof value === 'string')
+              .join(', ')
+          : ''
+
+      setErrorMessage(detailMessage || error?.message || 'Failed to update bundle.')
     } finally {
       setIsSubmitting(false)
     }
