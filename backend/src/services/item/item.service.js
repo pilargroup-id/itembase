@@ -492,6 +492,9 @@ async function update(id, payload, userId, req = null) {
     production_time_days: payload.production_time_days ?? existing.production_time_days,
     status: payload.status !== undefined ? normalizeItemStatus(payload.status, existing.status) : existing.status,
   };
+  // Legacy/imported bundles may still carry a replenishment_type in the DB; bundles never have one,
+  // so drop the inherited value instead of failing validation on an edit that didn't send it.
+  if (merged.item_kind === 'bundle' && payload.replenishment_type === undefined) merged.replenishment_type = null;
   const errors = validatePayload(merged, {
     requireParent: payload.parent_id !== undefined || hasValue(existing.parent_id),
     requireItemName: payload.item_name !== undefined || hasValue(existing.item_name),
