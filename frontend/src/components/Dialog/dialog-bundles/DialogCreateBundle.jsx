@@ -8,7 +8,11 @@ import { useAlertAction } from '../../alert/alert-action/AlertActionContext.jsx'
 
 const BUNDLE_MIN_COMPONENTS = 1
 const BUNDLE_MAX_COMPONENTS = 5
-const SINGLE_COMPONENT_MIN_QTY = 2
+// Backend rule: a single-component bundle must have qty strictly greater than this value.
+const SINGLE_COMPONENT_QTY_GREATER_THAN = 1
+// Backend accepts qty up to 2 decimal places and max 9999999999.99.
+const QTY_MAX_DECIMALS = 2
+const QTY_MAX_VALUE = 9999999999.99
 
 const initialFormValues = {
   parent_id: '',
@@ -140,16 +144,40 @@ function sanitizeIntegerInput(value) {
   return String(value ?? '').replace(/[^\d]/g, '')
 }
 
-function isPositiveInteger(value) {
-  const normalizedValue = String(value ?? '').trim()
+// Allows digits with a single decimal separator ("," is converted to "."),
+// limited to QTY_MAX_DECIMALS digits after the separator.
+function sanitizeDecimalInput(value) {
+  const text = String(value ?? '')
+    .replace(/,/g, '.')
+    .replace(/[^\d.]/g, '')
+  const [integerPart, ...decimalParts] = text.split('.')
 
-  if (!/^\d+$/.test(normalizedValue)) {
+  if (decimalParts.length === 0) {
+    return integerPart
+  }
+
+  return `${integerPart || '0'}.${decimalParts.join('').slice(0, QTY_MAX_DECIMALS)}`
+}
+
+// Normalizes a typed qty (e.g. "1." or "1,5") to the canonical string sent to the backend.
+function normalizeQtyValue(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/,/g, '.')
+    .replace(/\.$/, '')
+}
+
+function isPositiveDecimal(value) {
+  const normalizedValue = normalizeQtyValue(value)
+  const decimalPattern = new RegExp(`^\\d+(\\.\\d{1,${QTY_MAX_DECIMALS}})?$`)
+
+  if (!decimalPattern.test(normalizedValue)) {
     return false
   }
 
   const numberValue = Number(normalizedValue)
 
-  return Number.isSafeInteger(numberValue) && numberValue > 0
+  return Number.isFinite(numberValue) && numberValue > 0 && numberValue <= QTY_MAX_VALUE
 }
 
 function getOptionLabel(options, value) {
@@ -163,7 +191,7 @@ function buildBundleFormulaPreview(components, regularItems) {
   const formulaParts = components
     .map((component) => {
       const itemLabel = getOptionLabel(regularItems, component.component_item_id)
-      const qty = String(component.qty ?? '').trim()
+      const qty = normalizeQtyValue(component.qty)
 
       if (!itemLabel) {
         return ''
@@ -212,10 +240,10 @@ function buildPayload(formValues, components, resolvedUomId, fallbackSellingName
   }
 
   const validComponents = components
-    .filter((component) => component.component_item_id && isPositiveInteger(component.qty))
+    .filter((component) => component.component_item_id && isPositiveDecimal(component.qty))
     .map((component, index) => ({
       component_item_id: component.component_item_id,
-      qty: Number(component.qty),
+      qty: Number(normalizeQtyValue(component.qty)),
       sort_order: index + 1,
     }))
 
@@ -232,7 +260,7 @@ function hasRequiredValues(payload, components) {
   }
 
   const validComponents = components.filter(
-    (component) => component.component_item_id && isPositiveInteger(component.qty),
+    (component) => component.component_item_id && isPositiveDecimal(component.qty),
   )
 
   if (
@@ -244,7 +272,7 @@ function hasRequiredValues(payload, components) {
 
   return (
     validComponents.length > 1 ||
-    Number(validComponents[0].qty) >= SINGLE_COMPONENT_MIN_QTY
+    Number(normalizeQtyValue(validComponents[0].qty)) > SINGLE_COMPONENT_QTY_GREATER_THAN
   )
 }
 
@@ -477,7 +505,7 @@ function DialogCreateBundle({
 
     let normalizedValue = value
     if (field === 'qty') {
-      normalizedValue = sanitizeIntegerInput(String(value ?? ''))
+      normalizedValue = sanitizeDecimalInput(value)
     }
 
     setComponents((currentComponents) =>
@@ -525,7 +553,7 @@ function DialogCreateBundle({
 
     if (!hasRequiredValues(payload, components)) {
       setErrorMessage(
-        `Please complete Parent, UOM, and ${BUNDLE_MIN_COMPONENTS}-${BUNDLE_MAX_COMPONENTS} component items with whole number qty. A single item must have a minimum qty of ${SINGLE_COMPONENT_MIN_QTY}.`,
+        `Please complete Parent, UOM, and ${BUNDLE_MIN_COMPONENTS}-${BUNDLE_MAX_COMPONENTS} component items with qty greater than 0 (max ${QTY_MAX_DECIMALS} decimal places). A single item must have qty greater than ${SINGLE_COMPONENT_QTY_GREATER_THAN}.`,
       )
       return
     }
@@ -662,7 +690,7 @@ function DialogCreateBundle({
                     <div className="parent-create-popup__section-header">
                       <h3 className="parent-create-popup__section-title">Bundle Item List</h3>
                       <p className="parent-create-popup__section-description">
-                        Add {BUNDLE_MIN_COMPONENTS}-{BUNDLE_MAX_COMPONENTS} regular items. If there is only 1 item, its qty must be at least {SINGLE_COMPONENT_MIN_QTY}.
+                        Add {BUNDLE_MIN_COMPONENTS}-{BUNDLE_MAX_COMPONENTS} regular items. Qty may use decimals (max {QTY_MAX_DECIMALS} digits). If there is only 1 item, its qty must be greater than {SINGLE_COMPONENT_QTY_GREATER_THAN}.
                       </p>
                     </div>
 
@@ -725,11 +753,10 @@ function DialogCreateBundle({
                               id={`bundle-component-qty-${index}`}
                               className="register-user-popup__input bundle-create-popup__qty-input"
                               type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
+                              inputMode="decimal"
                               autoComplete="off"
                               value={String(component.qty || '')}
-                              placeholder="0"
+                              placeholder="0.00"
                               onChange={(event) =>
                                 handleComponentChange(index, 'qty', event.target.value)
                               }
@@ -773,7 +800,7 @@ function DialogCreateBundle({
 
                   <div className="bundle-create-popup__footer">
                     <p className="register-user-popup__hint">
-                      A single-item bundle requires a minimum qty of {SINGLE_COMPONENT_MIN_QTY}.
+                      A single-item bundle requires qty greater than {SINGLE_COMPONENT_QTY_GREATER_THAN}.
                     </p>
                   </div>
                 </div>
